@@ -1,0 +1,51 @@
+.root-home {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: calc(100vh - 36px);
+}
+
+.main-row {
+  height: 150vh;
+  height: 150dvh;
+  display: flex;
+  justify-content: space-between;
+}
+
+.line-1,
+.line-2 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+}
+
+.line-1 {
+  flex-basis: 50%;
+}
+
+.line-children {
+  display: flex;
+  gap: 8px;
+}
+
+.line-2 {
+  flex-basis: 50%;
+}
+
+.is-running-label-wrapper {
+  height: 37px;
+}
+
+.is-running-label,
+.is-not-running-label {
+  display: inline-block;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.is-running-label {
+  background-color: #f75f5f;
+  color: white;
+}

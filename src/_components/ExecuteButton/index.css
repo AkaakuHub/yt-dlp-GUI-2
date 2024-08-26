@@ -1,0 +1,14 @@
+.execute-button {
+  height: 100%;
+  border: 1px solid #7a7a7a;
+  margin: 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    border: 1px solid #0078d4;
+    background-color: #e0eef9;
+  }
+}

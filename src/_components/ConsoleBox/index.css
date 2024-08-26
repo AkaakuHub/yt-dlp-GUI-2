@@ -1,0 +1,15 @@
+.console-box {
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #222222;
+  color: #fff;
+  border-radius: 8px;
+  margin: 10px;
+  height: 100%;
+}
+
+.console-box-text {
+  min-width: 900px;
+}

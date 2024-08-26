@@ -1,0 +1,8 @@
+.root-setting {
+  width: 100vw;
+  height: calc(100vh - 36px);
+}
+
+.setting-container {
+  padding: 8px;
+}

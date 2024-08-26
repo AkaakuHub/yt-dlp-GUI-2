@@ -1,0 +1,30 @@
+.window-controls-root {
+  display: flex;
+  justify-content: space-between;
+  height: 36px;
+  background-color: #1f1f1f;
+}
+
+.window-left-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+}
+
+.window-right-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.window-logo {
+  width: 24px;
+  height: 24px;
+  user-select: none;
+  pointer-events: none;
+}
+
+span[class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1d6wzja-MuiButton-startIcon"] {
+  margin: auto;
+}
