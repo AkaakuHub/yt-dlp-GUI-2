@@ -3871,7 +3871,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "yt-dlp-GUI"
+name = "yt-dlp-GUI-2"
 version = "0.1.0"
 dependencies = [
  "serde",
