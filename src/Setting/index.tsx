@@ -100,7 +100,7 @@ export default function Settings() {
             </Box>
             <TextField
               fullWidth
-              label="ブラウザ"
+              label="Cookie取得元のブラウザ"
               variant="outlined"
               value={browser}
               onChange={(e) => {

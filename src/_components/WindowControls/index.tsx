@@ -3,7 +3,7 @@ import { Button } from "@mui/material";
 import MinimizeIcon from "@mui/icons-material/Minimize";
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-import LogoutIcon from '@mui/icons-material/Logout';
+import CloseIcon from '@mui/icons-material/Close';
 
 import { styled } from "@mui/material/styles";
 
@@ -66,7 +66,7 @@ function WindowControls() {
         <CustomWindowButton onClick={maximizeWindow} startIcon={
           isMaximized ? <FullscreenExitIcon /> : <FullscreenIcon />
         } />
-        <CustomWindowButton2 onClick={closeWindow} startIcon={<LogoutIcon />} />
+        <CustomWindowButton2 onClick={closeWindow} startIcon={<CloseIcon />} />
       </div>
     </div>
   );
