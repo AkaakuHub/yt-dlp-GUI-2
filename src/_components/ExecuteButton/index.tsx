@@ -1,3 +1,5 @@
+import PropTypes from "prop-types";
+
 import "./index.css"
 
 interface ExecuteButtonProps {
@@ -18,5 +20,9 @@ const ExecuteButton: React.FC<ExecuteButtonProps> = ({
     </div>
   )
 }
+
+ExecuteButton.propTypes = {
+  executeButtonOnClick: PropTypes.func.isRequired
+};
 
 export default ExecuteButton

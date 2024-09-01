@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 use window_shadows::set_shadow;
 
 mod config;
+use config::AppState;
 
 #[derive(Default)]
 struct ProcessManager {
@@ -18,10 +19,10 @@ struct ProcessManager {
 
 #[derive(Deserialize)]
 struct RunCommandParam {
-    kind: i32,
     url: Option<String>,
+    kind: i32,
     codec_id: Option<String>,
-    options: Option<String>,
+    subtitle_lang: Option<String>,
 }
 
 #[tauri::command]
@@ -30,6 +31,9 @@ async fn run_command(
     window: tauri::Window,
     param: RunCommandParam,
 ) -> Result<u32, String> {
+    let app_state = AppState::new();
+    let settings = app_state.settings.lock().await;
+
     let mut manager = process_manager.lock().await;
 
     if manager.process.is_some() {
@@ -37,7 +41,113 @@ async fn run_command(
     }
 
     let url = param.url.unwrap_or("".to_string());
-    let mut args = vec!["--list-formats", "--skip-download"];
+    let codec_id = param.codec_id.unwrap_or("best".to_string());
+    let subtitle_lang = param.subtitle_lang.unwrap_or("ja".to_string());
+
+    let browser = format!("{}", settings.browser);
+    let save_directory = format!("{}/%(title)s.%(ext)s", settings.save_dir);
+
+    let mut args: Vec<&str> = Vec::new();
+
+    match param.kind {
+        1 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("-f");
+            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]");
+            args.push("--no-mtime");
+        }
+        2 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("-f");
+            args.push("bestaudio[ext=m4a]");
+            args.push("--no-mtime");
+        }
+        3 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("-f");
+            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
+            args.push("--no-mtime");
+        }
+        4 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--write-thumbnail");
+            args.push("--skip-download");
+            args.push("--no-mtime");
+        }
+        5 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--no-mtime");
+        }
+        6 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--write-auto-sub");
+            args.push("--sub-lang");
+            args.push(&subtitle_lang);
+            args.push("--skip-download");
+        }
+        7 => {
+            args.push(&url);
+            args.push("--list-formats");
+            args.push("--skip-download");
+        }
+        8 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("-f");
+            args.push(&codec_id);
+            args.push("--no-mtime");
+        }
+        9 => {
+            args.push(&url);
+            args.push("--list-formats");
+            args.push("--skip-download");
+            args.push("--cookies-from-browser");
+            args.push(&browser);
+        }
+        10 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("-f");
+            args.push(&codec_id);
+            args.push("--no-mtime");
+            args.push("--cookies-from-browser");
+            args.push(&browser);
+        }
+        11 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("-f");
+            args.push("141/bestaudio[ext=m4a]");
+            args.push("--no-mtime");
+            args.push("--cookies-from-browser");
+            args.push(&browser);
+        }
+        12 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--live-from-start");
+        }
+        _ => {
+            return Err("不正な種類です".into());
+        }
+    }
+
     args.push(&url);
 
     let mut child = TokioCommand::new("yt-dlp")

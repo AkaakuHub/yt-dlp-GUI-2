@@ -29,7 +29,7 @@ export default function Home() {
   const [pid, setPid] = useState<number | null>(null);
   const [arbitraryCode, setArbitraryCode] = useState<string>("");
 
-  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
+  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(7);
 
   const [saveDir, setSaveDir] = useState("");
 
@@ -46,16 +46,14 @@ export default function Home() {
 
   interface Param {
     kind: number
-    url?: string
     codec_id?: string
-    options?: string
+    subtitle_lang?: string
   }
 
   const [param, setParam] = useState<Param>({
     kind: selectedIndexNumber,
-    url: "https://www.youtube.com/watch?v=-JvG2nmINg0",
     codec_id: undefined,
-    options: undefined,
+    subtitle_lang: undefined,
   })
 
   useEffect(() => {
@@ -79,10 +77,10 @@ export default function Home() {
 
   async function executeButtonOnClick() {
     try {
+      let processId;
+
       // クリップボード取得
       const url = await readText();
-
-      // validate
       if (selectedIndexNumber !== 13) {
         if (url === "") {
           toast.error("URLが空です。");
@@ -91,14 +89,24 @@ export default function Home() {
           toast.error(`"${url}"は有効なURLではありません。`);
           return;
         }
+        processId = (await invoke("run_command", {
+          param: {
+            ...param,
+            url,
+          }
+        })) as number
+      } else {
+        if (arbitraryCode === "") {
+          toast.error("任意コードが空です。");
+          return;
+        }
+        processId = (await invoke("run_command", { arbitraryCode })) as number
       }
 
-      // コマンド実行してPIDを取得
-      const processId = (await invoke("run_command", { param })) as number
       setPid(processId)
       // setConsoleText(`プロセス開始。PID: ${processId}`);
     } catch (err) {
-      // setConsoleText(`エラー: ${err}`);
+      toast.error(`エラー: ${err}`);
     }
   }
 
@@ -145,8 +153,8 @@ export default function Home() {
           <div className="line-children">
             <p>字幕言語</p>
             <Input
-              value={param.options || ""}
-              onChange={(e) => setParam({ ...param, options: e.target.value })}
+              value={param.subtitle_lang || ""}
+              onChange={(e) => setParam({ ...param, subtitle_lang: e.target.value })}
             />
           </div>
           <DropDownWithArrows

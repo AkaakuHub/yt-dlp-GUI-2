@@ -1,7 +1,8 @@
 use dirs::video_dir;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf, sync::Mutex};
+use std::{fs, path::PathBuf};
 use std::{io::Write, mem};
+use tokio::sync::Mutex;
 
 const SETTINGS_FILENAME: &str = "settings.json";
 
@@ -31,9 +32,9 @@ trait Config {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Settings {
-    save_dir: String,
-    browser: String,
-    index: u32,
+    pub save_dir: String,
+    pub browser: String,
+    pub index: u32,
     // custom_commands_list: Vec<String>,
 }
 
@@ -96,7 +97,7 @@ impl Settings {
 }
 
 pub struct AppState {
-    settings: Mutex<Settings>,
+    pub settings: Mutex<Settings>,
 }
 
 impl AppState {
@@ -116,7 +117,7 @@ pub mod commands {
         state: State<'_, AppState>,
         new_save_dir: String,
     ) -> Result<(), String> {
-        let mut settings = state.settings.lock().unwrap();
+        let mut settings = state.settings.lock().await;
         settings.set_save_dir(new_save_dir);
         Ok(())
     }
@@ -126,21 +127,21 @@ pub mod commands {
         state: State<'_, AppState>,
         new_browser: String,
     ) -> Result<(), String> {
-        let mut settings = state.settings.lock().unwrap();
+        let mut settings = state.settings.lock().await;
         settings.set_browser(new_browser);
         Ok(())
     }
 
     #[tauri::command]
     pub async fn set_index(state: State<'_, AppState>, new_index: u32) -> Result<(), String> {
-        let mut settings = state.settings.lock().unwrap();
+        let mut settings = state.settings.lock().await;
         settings.set_index(new_index);
         Ok(())
     }
 
     #[tauri::command]
     pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
-        let settings = state.settings.lock().unwrap().clone();
+        let settings = state.settings.lock().await.clone();
         Ok(settings)
     }
 }

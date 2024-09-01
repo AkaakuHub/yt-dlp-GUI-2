@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { MenuItem, Select, InputLabel, FormControl } from "@mui/material"
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { IconButton } from "@mui/material"
@@ -39,6 +39,8 @@ interface DropDownWithArrowsProps {
 const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
   { selectedIndexNumber, setSelectedIndexNumber }
 ) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
   let maxValue = 0
   dropdownOptions.map((option, index) => {
     if (!option.separator) {
@@ -70,8 +72,10 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
+      console.log(config.index);
       setSelectedIndexNumber(config.index);
     });
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -94,6 +98,7 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
           id="demo-simple-select"
           value={selectedIndexNumber}
           onChange={(e) => setSelectedIndexNumber(e.target.value as number)}
+          disabled={isLoading}
         >
           {dropdownOptions.map((option, index) =>
             option.separator ? (
