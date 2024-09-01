@@ -1,9 +1,13 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { MenuItem, Select, InputLabel, FormControl } from "@mui/material"
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { IconButton } from "@mui/material"
+import { invoke } from "@tauri-apps/api";
+import { debounce } from "lodash";
 
 import "./index.css"
+
+import { ConfigProps } from "../../types";
 
 const dropdownOptions = [
   { label: "1.通常DL", value: 1 },
@@ -57,6 +61,22 @@ function DropDownWithArrows() {
       }
     })
   }
+
+  useEffect(() => {
+    invoke<ConfigProps>("get_settings").then((config) => {
+      setSelectedValue(config.index);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (selectedValue !== null) {
+      saveDropDownIndex(selectedValue);
+    }
+  }, [selectedValue])
+
+  const saveDropDownIndex = debounce(async (temp: number) => {
+    await invoke("set_index", { newIndex: temp });
+  }, 500);
 
   return (
     <div className="form-control-wrapper">

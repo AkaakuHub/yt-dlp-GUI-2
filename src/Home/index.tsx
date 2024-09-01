@@ -134,8 +134,15 @@ export default function Home() {
         <div className="line-2">
           <ExecuteButton executeButtonOnClick={executeButtonOnClick} />
           <div className="line-children">
-            任意コード
+            <span
+              className="arbitrary-code-label"
+            >
+              任意コード
+            </span>
             <Input
+              sx={{
+                width: "100%",
+              }}
               value={arbitraryCode}
               onChange={(e) => {
                 setArbitraryCode(e.target.value)

@@ -1,7 +1,7 @@
 use dirs::video_dir;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, sync::Mutex};
-use std::{fs::File, io::Write, mem};
+use std::{io::Write, mem};
 
 const SETTINGS_FILENAME: &str = "settings.json";
 
@@ -33,7 +33,7 @@ trait Config {
 pub struct Settings {
     save_dir: String,
     browser: String,
-    drop_down_index: String,
+    index: u32,
     // custom_commands_list: Vec<String>,
 }
 
@@ -42,7 +42,7 @@ impl Default for Settings {
         Self {
             save_dir: get_default_save_dir(),
             browser: "firefox".to_string(),
-            drop_down_index: "3".to_string(),
+            index: 3,
             // custom_commands_list: vec![],
         }
     }
@@ -89,8 +89,8 @@ impl Settings {
         self.write_file();
     }
 
-    pub fn set_drop_down_index(&mut self, new_drop_down_index: String) {
-        self.drop_down_index = new_drop_down_index;
+    pub fn set_index(&mut self, new_index: u32) {
+        self.index = new_index;
         self.write_file();
     }
 }
@@ -132,12 +132,9 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn set_drop_down_index(
-        state: State<'_, AppState>,
-        new_drop_down_index: String,
-    ) -> Result<(), String> {
+    pub async fn set_index(state: State<'_, AppState>, new_index: u32) -> Result<(), String> {
         let mut settings = state.settings.lock().unwrap();
-        settings.set_drop_down_index(new_drop_down_index);
+        settings.set_index(new_index);
         Ok(())
     }
 

@@ -115,7 +115,7 @@ fn main() {
             open_directory,
             config::commands::set_save_dir,
             config::commands::set_browser,
-            config::commands::set_drop_down_index,
+            config::commands::set_index,
             config::commands::get_settings
         ])
         .run(tauri::generate_context!())
