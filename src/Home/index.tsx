@@ -1,20 +1,24 @@
-import { useState, useEffect } from "react"
-import { invoke } from "@tauri-apps/api/tauri"
-import { listen } from "@tauri-apps/api/event"
-import { useNavigate } from "react-router-dom"
-import "./index.css"
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
+import { readText } from '@tauri-apps/api/clipboard';
+import { useNavigate } from "react-router-dom";
+import "./index.css";
 
-import ExecuteButton from "../_components/ExecuteButton"
-import ConsoleBox from "../_components/ConsoleBox"
+import ExecuteButton from "../_components/ExecuteButton";
+import ConsoleBox from "../_components/ConsoleBox";
 
-import SettingsIcon from "@mui/icons-material/Settings"
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+import SettingsIcon from "@mui/icons-material/Settings";
 import {
   IconButton,
   Input,
   Button,
 } from "@mui/material";
 
-import DropDownWithArrows from "../_components/DropDownWithArrows"
+import DropDownWithArrows from "../_components/DropDownWithArrows";
 
 import { ConfigProps } from "../types";
 
@@ -24,6 +28,8 @@ export default function Home() {
   const [consoleText, setConsoleText] = useState<string>("");
   const [pid, setPid] = useState<number | null>(null);
   const [arbitraryCode, setArbitraryCode] = useState<string>("");
+
+  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
 
   const [saveDir, setSaveDir] = useState("");
 
@@ -46,13 +52,11 @@ export default function Home() {
   }
 
   const [param, setParam] = useState<Param>({
-    kind: 7,
+    kind: selectedIndexNumber,
     url: "https://www.youtube.com/watch?v=-JvG2nmINg0",
+    codec_id: undefined,
+    options: undefined,
   })
-
-  // useEffect(() => {
-  //   fetchConfig();
-  // }, []);
 
   useEffect(() => {
     // Tauriイベントからffmpegの出力をリアルタイムで受け取る
@@ -75,6 +79,20 @@ export default function Home() {
 
   async function executeButtonOnClick() {
     try {
+      // クリップボード取得
+      const url = await readText();
+
+      // validate
+      if (selectedIndexNumber !== 13) {
+        if (url === "") {
+          toast.error("URLが空です。");
+          return;
+        } else if (!url?.startsWith("http")) {
+          toast.error(`"${url}"は有効なURLではありません。`);
+          return;
+        }
+      }
+
       // コマンド実行してPIDを取得
       const processId = (await invoke("run_command", { param })) as number
       setPid(processId)
@@ -95,6 +113,21 @@ export default function Home() {
 
   return (
     <div className="root-home">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        draggable
+        pauseOnFocusLoss={false}
+        pauseOnHover
+        theme="light"
+        style={{
+          top: "36px",
+        }}
+      />
       <div className="main-row">
         <div className="line-1">
           <div>
@@ -116,7 +149,9 @@ export default function Home() {
               onChange={(e) => setParam({ ...param, options: e.target.value })}
             />
           </div>
-          <DropDownWithArrows />
+          <DropDownWithArrows
+            {...{ selectedIndexNumber, setSelectedIndexNumber }}
+          />
           <div className="is-running-label-wrapper">
             {pid !== null ? (
               <div className="is-running-label">PID {pid}で実行中です</div>
@@ -127,6 +162,9 @@ export default function Home() {
           <Button
             variant="contained"
             onClick={openDirectory}
+            sx={{
+              width: "8rem",
+            }}
           >
             保存先を開く
           </Button>

@@ -40,7 +40,7 @@ async fn run_command(
     let mut args = vec!["--list-formats", "--skip-download"];
     args.push(&url);
 
-    let mut child = TokioCommand::new("10sec_debug.exe")
+    let mut child = TokioCommand::new("yt-dlp")
         .args(&args)
         .stdout(Stdio::piped())
         .spawn()

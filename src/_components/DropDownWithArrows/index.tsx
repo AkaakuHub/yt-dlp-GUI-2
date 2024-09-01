@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { MenuItem, Select, InputLabel, FormControl } from "@mui/material"
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { IconButton } from "@mui/material"
 import { invoke } from "@tauri-apps/api";
 import { debounce } from "lodash";
+import PropTypes from "prop-types";
 
 import "./index.css"
 
@@ -30,9 +31,14 @@ const dropdownOptions = [
 
 // TODO: カスタム追加
 
-function DropDownWithArrows() {
-  const [selectedValue, setSelectedValue] = useState<number>(3)
+interface DropDownWithArrowsProps {
+  selectedIndexNumber: number
+  setSelectedIndexNumber: React.Dispatch<React.SetStateAction<number>>
+}
 
+const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
+  { selectedIndexNumber, setSelectedIndexNumber }
+) => {
   let maxValue = 0
   dropdownOptions.map((option, index) => {
     if (!option.separator) {
@@ -43,7 +49,7 @@ function DropDownWithArrows() {
   })
 
   const handleNext = () => {
-    setSelectedValue((prev) => {
+    setSelectedIndexNumber((prev) => {
       if (prev === maxValue) {
         return 1
       } else {
@@ -53,7 +59,7 @@ function DropDownWithArrows() {
   }
 
   const handlePrevious = () => {
-    setSelectedValue((prev) => {
+    setSelectedIndexNumber((prev) => {
       if (prev === 1) {
         return maxValue
       } else {
@@ -64,15 +70,15 @@ function DropDownWithArrows() {
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
-      setSelectedValue(config.index);
+      setSelectedIndexNumber(config.index);
     });
   }, []);
 
   useEffect(() => {
-    if (selectedValue !== null) {
-      saveDropDownIndex(selectedValue);
+    if (selectedIndexNumber !== null) {
+      saveDropDownIndex(selectedIndexNumber);
     }
-  }, [selectedValue])
+  }, [selectedIndexNumber])
 
   const saveDropDownIndex = debounce(async (temp: number) => {
     await invoke("set_index", { newIndex: temp });
@@ -86,8 +92,8 @@ function DropDownWithArrows() {
           labelId="demo-simple-select-label"
           label="モード"
           id="demo-simple-select"
-          value={selectedValue}
-          onChange={(e) => setSelectedValue(e.target.value as number)}
+          value={selectedIndexNumber}
+          onChange={(e) => setSelectedIndexNumber(e.target.value as number)}
         >
           {dropdownOptions.map((option, index) =>
             option.separator ? (
@@ -119,5 +125,10 @@ function DropDownWithArrows() {
     </div>
   )
 }
+
+DropDownWithArrows.propTypes = {
+  selectedIndexNumber: PropTypes.number.isRequired,
+  setSelectedIndexNumber: PropTypes.func.isRequired
+};
 
 export default DropDownWithArrows

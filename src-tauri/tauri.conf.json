@@ -16,6 +16,11 @@
         "all": false,
         "open": true
       },
+      "clipboard": {
+        "all": true,
+        "readText": true,
+        "writeText": false
+      },
       "window": {
         "all": false,
         "close": true,
