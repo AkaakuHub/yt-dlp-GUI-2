@@ -34,34 +34,10 @@ export default function Home() {
     options?: string
   }
 
-  interface Config {
-    save_dir: string
-    browser: string
-    drop_down_index: string
-    custom_commands_list: string[]
-  }
-
   const [param, setParam] = useState<Param>({
     kind: 7,
     url: "https://www.youtube.com/watch?v=-JvG2nmINg0",
   })
-
-  const [config, setConfig] = useState<Config>({
-    save_dir: "",
-    browser: "",
-    drop_down_index: "",
-    custom_commands_list: [],
-  })
-
-  const fetchConfig = async () => {
-    const fetched_config = await invoke("load_config")
-    console.log(fetched_config)
-    setConfig(fetched_config as Config)
-  }
-
-  const saveConfig = async () => {
-    await invoke("save_config", { config })
-  }
 
   // useEffect(() => {
   //   fetchConfig();

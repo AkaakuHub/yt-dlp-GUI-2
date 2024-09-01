@@ -1,33 +1,62 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import {
-  AppBar,
   Toolbar,
   IconButton,
   Typography,
   Container,
   Paper,
   TextField,
-  Button,
   Box,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SaveIcon from "@mui/icons-material/Save";
+import FolderOpenIcon from '@mui/icons-material/FolderOpen'; // フォルダーアイコン
+import { invoke } from '@tauri-apps/api';
+import { open } from '@tauri-apps/api/dialog'; // ダイアログを開くためのimport
+import { debounce } from 'lodash';
 
 import CustomAppBar from "../_components/CustomAppBar";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [savePath, setSavePath] = useState('');
-  const [browser, setBrowser] = useState('');
+
+  const [saveDir, setSaveDir] = useState("");
+  const [browser, setBrowser] = useState("");
+
+  interface Config {
+    save_dir: string;
+    browser: string;
+  }
+
+  useEffect(() => {
+    invoke<Config>("get_settings").then((config) => {
+      setSaveDir(config.save_dir);
+      setBrowser(config.browser);
+    });
+  }, []);
+
+  // デバウンスで遅延
+  const saveDirChanged = debounce(async (temp_saveDir: string) => {
+    await invoke("set_save_dir", { newSaveDir: temp_saveDir }); // ここのkeyをrust側と合わせる
+  }, 500);
+
+  const saveBrowserChanged = debounce(async (temp_browser: string) => {
+    await invoke("set_browser", { newBrowser: temp_browser });
+  }, 500);
 
   const goToHomeHandler = () => {
     navigate("/");
   };
 
-  const handleSave = () => {
-    // モック関数: 実際の保存ロジックをここに実装
-    console.log('設定を保存:', { savePath, browser });
+  const openDirectoryDialog = async () => {
+    const selectedDir = await open({
+      directory: true,
+      multiple: false,
+    });
+    if (selectedDir) {
+      setSaveDir(selectedDir as string);
+      saveDirChanged(selectedDir as string);
+    }
   };
 
   return (
@@ -52,28 +81,36 @@ export default function Settings() {
       <Container maxWidth="sm" sx={{ mt: 4 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
           <Box component="form" sx={{ '& > :not(style)': { m: 1 } }}>
-            <TextField
-              fullWidth
-              label="保存先"
-              variant="outlined"
-              value={savePath}
-              onChange={(e) => setSavePath(e.target.value)}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <TextField
+                fullWidth
+                label="保存先"
+                variant="outlined"
+                value={saveDir}
+                onChange={(e) => {
+                  setSaveDir(e.target.value);
+                  saveDirChanged(e.target.value);
+                }}
+              />
+              <IconButton
+                color="primary"
+                aria-label="フォルダを開く"
+                onClick={openDirectoryDialog}
+                sx={{ ml: 1 }}
+              >
+                <FolderOpenIcon />
+              </IconButton>
+            </Box>
             <TextField
               fullWidth
               label="ブラウザ"
               variant="outlined"
               value={browser}
-              onChange={(e) => setBrowser(e.target.value)}
+              onChange={(e) => {
+                setBrowser(e.target.value);
+                saveBrowserChanged(e.target.value);
+              }}
             />
-            <Button
-              variant="contained"
-              startIcon={<SaveIcon />}
-              onClick={handleSave}
-              sx={{ mt: 2 }}
-            >
-              保存
-            </Button>
           </Box>
         </Paper>
       </Container>

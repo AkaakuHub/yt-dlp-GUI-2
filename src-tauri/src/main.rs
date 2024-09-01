@@ -1,11 +1,11 @@
 use serde::Deserialize;
 use std::process::Stdio;
 use std::sync::Arc;
+use tauri::Manager;
 use tauri::State;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
 use tokio::sync::Mutex;
-use tauri::Manager;
 use window_shadows::set_shadow;
 
 mod config;
@@ -97,7 +97,13 @@ fn main() {
         })
         .manage(app_state)
         .manage(process_manager) // ProcessManagerを管理対象に追加
-        .invoke_handler(tauri::generate_handler![run_command])
+        .invoke_handler(tauri::generate_handler![
+            run_command,
+            config::commands::set_save_dir,
+            config::commands::set_browser,
+            config::commands::set_drop_down_index,
+            config::commands::get_settings
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
