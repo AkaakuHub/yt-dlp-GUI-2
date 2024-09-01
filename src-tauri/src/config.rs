@@ -1,4 +1,4 @@
-// config.rs
+use dirs::video_dir;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, sync::Mutex};
 use std::{fs::File, io::Write, mem};
@@ -11,10 +11,17 @@ fn get_config_root() -> PathBuf {
     appdata.join("yt-dlp-GUI")
 }
 
-#[cfg(target_os = "linux, macos")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn get_config_root() -> PathBuf {
-    let home = PathBuf::from(std::env::var("Home").unwrap());
+    let home = PathBuf::from(std::env::var("HOME").unwrap());
     home.join(".yt-dlp-GUI")
+}
+
+fn get_default_save_dir() -> String {
+    video_dir()
+        .unwrap_or_else(|| PathBuf::from("default_videos"))
+        .to_string_lossy()
+        .to_string()
 }
 
 trait Config {
@@ -33,7 +40,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            save_dir: "".to_string(),
+            save_dir: get_default_save_dir(),
             browser: "firefox".to_string(),
             drop_down_index: "3".to_string(),
             // custom_commands_list: vec![],
@@ -75,13 +82,11 @@ impl Settings {
     pub fn set_save_dir(&mut self, new_save_dir: String) {
         self.save_dir = new_save_dir;
         self.write_file();
-        println!("save_dir: {}", self.save_dir);
     }
 
     pub fn set_browser(&mut self, new_browser: String) {
         self.browser = new_browser;
         self.write_file();
-        println!("browser: {}", self.browser);
     }
 
     pub fn set_drop_down_index(&mut self, new_drop_down_index: String) {
