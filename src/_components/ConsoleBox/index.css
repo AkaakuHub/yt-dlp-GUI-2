@@ -12,4 +12,5 @@
 
 .console-box-text {
   min-width: 900px;
+  user-select: text;
 }
