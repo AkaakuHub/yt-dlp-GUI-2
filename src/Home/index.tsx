@@ -11,16 +11,27 @@ import SettingsIcon from "@mui/icons-material/Settings"
 import {
   IconButton,
   Input,
+  Button,
 } from "@mui/material";
 
 import DropDownWithArrows from "../_components/DropDownWithArrows"
 
+import { ConfigProps } from "../types";
+
 export default function Home() {
   const navigate = useNavigate()
 
-  const [consoleText, setConsoleText] = useState<string>("")
-  const [pid, setPid] = useState<number | null>(null)
-  const [arbitraryCode, setArbitraryCode] = useState<string>("")
+  const [consoleText, setConsoleText] = useState<string>("");
+  const [pid, setPid] = useState<number | null>(null);
+  const [arbitraryCode, setArbitraryCode] = useState<string>("");
+
+  const [saveDir, setSaveDir] = useState("");
+
+  useEffect(() => {
+    invoke<ConfigProps>("get_settings").then((config) => {
+      setSaveDir(config.save_dir);
+    });
+  }, []);
 
   // // debug
   // useEffect(() => {
@@ -77,6 +88,11 @@ export default function Home() {
     navigate("/setting")
   }
 
+  const openDirectory = async () => {
+    console.log("openDirectory", saveDir)
+    await invoke("open_directory", { path: saveDir });
+  }
+
   return (
     <div className="root-home">
       <div className="main-row">
@@ -108,7 +124,12 @@ export default function Home() {
               <div className="is-not-running-label"></div>
             )}
           </div>
-          <div>保存先を開く</div>
+          <Button
+            variant="contained"
+            onClick={openDirectory}
+          >
+            保存先を開く
+          </Button>
         </div>
         <div className="line-2">
           <ExecuteButton executeButtonOnClick={executeButtonOnClick} />

@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
 use tauri::Manager;
@@ -84,6 +85,18 @@ async fn run_command(
     Ok(pid)
 }
 
+#[cfg(target_os = "windows")]
+#[tauri::command]
+fn open_directory(path: String) {
+    Command::new("explorer").arg(path).spawn().unwrap();
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[tauri::command]
+fn open_directory(path: String) {
+    Command::new("open").arg(path).spawn().unwrap();
+}
+
 fn main() {
     let app_state = config::AppState::new();
     let process_manager = Arc::new(Mutex::new(ProcessManager::default()));
@@ -99,6 +112,7 @@ fn main() {
         .manage(process_manager) // ProcessManagerを管理対象に追加
         .invoke_handler(tauri::generate_handler![
             run_command,
+            open_directory,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_drop_down_index,

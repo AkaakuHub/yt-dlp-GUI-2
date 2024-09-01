@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Toolbar,
@@ -10,12 +10,14 @@ import {
   Box,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import FolderOpenIcon from '@mui/icons-material/FolderOpen'; // フォルダーアイコン
-import { invoke } from '@tauri-apps/api';
-import { open } from '@tauri-apps/api/dialog'; // ダイアログを開くためのimport
-import { debounce } from 'lodash';
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import { invoke } from "@tauri-apps/api";
+import { open } from "@tauri-apps/api/dialog";
+import { debounce } from "lodash";
 
 import CustomAppBar from "../_components/CustomAppBar";
+
+import { ConfigProps } from "../types";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -23,13 +25,8 @@ export default function Settings() {
   const [saveDir, setSaveDir] = useState("");
   const [browser, setBrowser] = useState("");
 
-  interface Config {
-    save_dir: string;
-    browser: string;
-  }
-
   useEffect(() => {
-    invoke<Config>("get_settings").then((config) => {
+    invoke<ConfigProps>("get_settings").then((config) => {
       setSaveDir(config.save_dir);
       setBrowser(config.browser);
     });
@@ -80,8 +77,8 @@ export default function Settings() {
       </CustomAppBar>
       <Container maxWidth="sm" sx={{ mt: 4 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
-          <Box component="form" sx={{ '& > :not(style)': { m: 1 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box component="form" sx={{ "& > :not(style)": { m: 1 } }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
               <TextField
                 fullWidth
                 label="保存先"
