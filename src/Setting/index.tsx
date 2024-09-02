@@ -30,7 +30,6 @@ export default function Settings() {
         if (message !== "最新です") {
           toast.info(message);
           const currentVersion = message.split("\n")[1].split(":")[1].trim();
-          console.log(`currentVersion: ${currentVersion}`);
           setCurrentVersion(currentVersion);
         }
       } catch (error) {
