@@ -38,8 +38,7 @@ export default function Home() {
   useEffect(() => {
     const checkProgram = async (programName: string) => {
       try {
-        const result = await invoke<string>("is_program_available", { programName });
-        console.log(`${programName} is available: ${result}`);
+        await invoke<string>("is_program_available", { programName });
       } catch (error) {
         console.error(`${programName} is not available: ${error}`);
         await dialog.message(`${programName}がインストールされていないか、パスが通っていません。表示される手順に従ってパスを通してください。`);
@@ -49,6 +48,22 @@ export default function Home() {
 
     checkProgram("yt-dlp");
     checkProgram("ffmpeg");
+  }, []);
+
+  useEffect(() => {
+    const checkVersionAndUpdate = async () => {
+      try {
+        const isLatest = await invoke<string>("check_version_and_update");
+        console.log(`isLatest: ${isLatest}`);
+        if (isLatest === "false") {
+          // await dialog.message("新しいバージョンがあります。アップデートを行ってください。");
+          toast.info("新しいバージョンがあります。左上のボタンからアップデートをおすすめします。");
+        }
+      } catch (error) {
+        console.error(`check_version_and_update: ${error}`);
+      }
+    };
+    checkVersionAndUpdate();
   }, []);
 
   useEffect(() => {
