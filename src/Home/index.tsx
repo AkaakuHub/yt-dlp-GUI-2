@@ -191,7 +191,10 @@ export default function Home() {
           </Button>
         </div>
         <div className="line-2">
-          <ExecuteButton executeButtonOnClick={executeButtonOnClick} />
+          <ExecuteButton
+            executeButtonOnClick={executeButtonOnClick}
+            isRunning={pid !== null}
+          />
           <div className="line-children">
             <span
               className="arbitrary-code-label"

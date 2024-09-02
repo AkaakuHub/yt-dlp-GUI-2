@@ -1,18 +1,22 @@
 import PropTypes from "prop-types";
+import clsx from "clsx";
 
 import "./index.css"
 
 interface ExecuteButtonProps {
-  executeButtonOnClick: () => void
+  executeButtonOnClick: () => void,
+  isRunning: boolean
 }
 
 const ExecuteButton: React.FC<ExecuteButtonProps> = ({
   executeButtonOnClick,
+  isRunning
 }) => {
   return (
     <div
-      className="execute-button"
+      className={clsx("execute-button", isRunning && "execute-button-disabled")}
       onClick={() => {
+        if (isRunning) { return; }
         executeButtonOnClick()
       }}
     >
@@ -22,7 +26,8 @@ const ExecuteButton: React.FC<ExecuteButtonProps> = ({
 }
 
 ExecuteButton.propTypes = {
-  executeButtonOnClick: PropTypes.func.isRequired
+  executeButtonOnClick: PropTypes.func.isRequired,
+  isRunning: PropTypes.bool.isRequired
 };
 
 export default ExecuteButton
