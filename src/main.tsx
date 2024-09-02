@@ -57,6 +57,9 @@ const App = () => {
           slidesPerView={1}
           onSwiper={setSwiper}
           onSlideChange={handleSlideChange}
+          preventClicks={false}
+          preventClicksPropagation={false}
+          simulateTouch={false}
           style={{
             display: "flex",
             height: "calc(100vh - 89px)",
