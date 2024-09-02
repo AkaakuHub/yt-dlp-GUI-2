@@ -1,12 +1,16 @@
+use encoding_rs;
 use serde::Deserialize;
 use std::env::current_dir;
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
+use tauri::window;
 use tauri::Manager;
 use tauri::State;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::AsyncReadExt;
+use tokio::io::BufReader as TokioBufReader;
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use window_shadows::set_shadow;
 
@@ -24,6 +28,7 @@ struct RunCommandParam {
     kind: i32,
     codec_id: Option<String>,
     subtitle_lang: Option<String>,
+    arbitrary_code: Option<String>,
 }
 
 #[tauri::command]
@@ -44,6 +49,7 @@ async fn run_command(
     let url = param.url.unwrap_or("".to_string());
     let codec_id = param.codec_id.unwrap_or("best".to_string());
     let subtitle_lang = param.subtitle_lang.unwrap_or("ja".to_string());
+    let arbitrary_code = param.arbitrary_code.unwrap_or("".to_string());
 
     let browser = format!("{}", settings.browser);
     let save_directory = format!("{}/%(title)s.%(ext)s", settings.save_dir);
@@ -144,6 +150,9 @@ async fn run_command(
             args.push(&save_directory);
             args.push("--live-from-start");
         }
+        13 => {
+            args.push(&arbitrary_code);
+        }
         _ => {
             return Err("不正な種類です".into());
         }
@@ -152,12 +161,13 @@ async fn run_command(
     let mut child = TokioCommand::new("yt-dlp")
         .args(&args)
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
 
     window
         .emit(
-            "ffmpeg-output",
+            "process-output",
             format!(
                 "{}>yt-dlp {}\n",
                 current_dir().unwrap().to_string_lossy(),
@@ -168,16 +178,35 @@ async fn run_command(
 
     let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
     let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("標準エラーの取得に失敗しました")?;
+
+    let (tx, mut rx) = mpsc::channel(100);
 
     manager.process = Some(child);
 
     let process_manager_clone: Arc<Mutex<ProcessManager>> = Arc::clone(&process_manager);
     tauri::async_runtime::spawn(async move {
-        let mut reader = BufReader::new(stdout).lines();
+        let stdout_reader = TokioBufReader::new(stdout);
+        let stderr_reader = TokioBufReader::new(stderr);
 
-        while let Some(line) = reader.next_line().await.unwrap() {
-            window.emit("ffmpeg-output", line).unwrap();
-        }
+        let tx_clone = tx.clone();
+        let window_clone = window.clone();
+        let window_clone2 = window.clone();
+
+        tokio::spawn(async move {
+            process_lines(stdout_reader, tx_clone, window_clone).await;
+        });
+
+        tokio::spawn(async move {
+            process_lines(stderr_reader, tx, window_clone2).await;
+        });
+
+        // while let Some(line) = rx.recv().await {
+        //     window.emit("process-output", line).unwrap();
+        // }
 
         let mut manager = process_manager_clone.lock().await;
         if let Some(ref mut child) = manager.process {
@@ -203,6 +232,50 @@ async fn run_command(
     });
 
     Ok(pid)
+}
+
+async fn process_lines<R>(mut reader: R, tx: mpsc::Sender<String>, window: tauri::Window)
+where
+    R: AsyncReadExt + Unpin,
+{
+    let mut buffer = Vec::new();
+    let mut temp_buffer = [0u8; 1024];
+
+    loop {
+        match reader.read(&mut temp_buffer).await {
+            Ok(0) => break, // EOF
+            Ok(n) => {
+                for &byte in &temp_buffer[..n] {
+                    if byte == b'\r' || byte == b'\n' {
+                        // 改行でemit
+                        let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
+                        if decode_error {
+                            eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
+                        }
+                        let line = decoded.to_string();
+                        window.emit("process-output", line.clone()).unwrap();
+                        buffer.clear();
+                    } else {
+                        buffer.push(byte);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("読み取りエラー: {}", e);
+                break;
+            }
+        }
+    }
+
+    // 最後に残ったバッファの内容があればemit
+    if !buffer.is_empty() {
+        let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
+        if decode_error {
+            eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
+        }
+        let line = decoded.to_string();
+        window.emit("process-output", line.clone()).unwrap();
+    }
 }
 
 #[cfg(target_os = "windows")]

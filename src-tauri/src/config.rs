@@ -64,7 +64,7 @@ impl Config for Settings {
         let config_file = get_config_root().join(SETTINGS_FILENAME);
         let input = fs::read_to_string(config_file).unwrap();
         // もし、jsonに必要なフィールドがない場合、デフォルト値を使う
-        let mut deserialized: Self = serde_json::from_str(&input).unwrap_or_default();
+        let deserialized: Self = serde_json::from_str(&input).unwrap_or_default();
         let _ = mem::replace(self, deserialized);
     }
 }

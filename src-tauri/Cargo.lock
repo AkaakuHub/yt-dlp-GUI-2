@@ -4508,12 +4508,14 @@ name = "yt-dlp-GUI-2"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "encoding_rs",
  "serde",
  "serde_json",
  "showfile",
  "tauri",
  "tauri-build",
  "tokio",
+ "urlencoding",
  "window-shadows",
 ]
 

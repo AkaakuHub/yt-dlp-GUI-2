@@ -61,9 +61,7 @@ export default function Home() {
 
   useEffect(() => {
     // Tauriイベントからffmpegの出力をリアルタイムで受け取る
-    const unlistenOutput = listen<string>("ffmpeg-output", (event) => {
-      console.log("ffmpeg-output", event.payload);
-
+    const unlistenOutput = listen<string>("process-output", (event) => {
       if (event.payload === "") {
         return;
       }
@@ -102,7 +100,7 @@ export default function Home() {
           toast.error("URLが空です。");
           return;
         } else if (!(url.startsWith("http"))) {
-          url = url.slice(0, 100) + "…";
+          if (url.length > 100) { url = url.slice(0, 97) + "…"; }
           toast.error(`"${url}"は有効なURLではありません。`);
           return;
         }
@@ -118,7 +116,12 @@ export default function Home() {
           toast.error("任意コードが空です。");
           return;
         }
-        processId = (await invoke("run_command", { arbitraryCode })) as number
+        processId = (await invoke("run_command", {
+          param: {
+            arbitrary_code: arbitraryCode,
+            kind: currentSelectedIndex,
+          }
+        })) as number
       }
 
       setPid(processId)
