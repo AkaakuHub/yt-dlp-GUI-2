@@ -10,9 +10,10 @@ import ConsoleBox from "../_components/ConsoleBox";
 
 import { toast } from 'react-toastify';
 
+import CustomButton from "../_components/CustomButton";
+
 import {
   Input,
-  Button,
 } from "@mui/material";
 
 import DropDownWithArrows from "../_components/DropDownWithArrows";
@@ -193,7 +194,7 @@ export default function Home() {
               <div className="is-not-running-label"></div>
             )}
           </div>
-          <Button
+          <CustomButton
             variant="contained"
             onClick={openDirectory}
             sx={{
@@ -201,7 +202,7 @@ export default function Home() {
             }}
           >
             保存先を開く
-          </Button>
+          </CustomButton>
         </div>
         <div className="line-2">
           <ExecuteButton
