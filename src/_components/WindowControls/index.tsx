@@ -8,10 +8,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import { styled } from "@mui/material/styles";
 
 import { useState, useEffect } from "react";
+import { useAppContext } from "../../_lib/AppContext";
 
 import "./index.css";
 
 function WindowControls() {
+  const { latestConsoleText } = useAppContext();
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -60,6 +62,9 @@ function WindowControls() {
       <div data-tauri-drag-region className="window-left-controls">
         <img src="assets/128x128.png" alt="logo" className="window-logo"
         />
+      </div>
+      <div data-tauri-drag-region className="window-center-controls">
+        {latestConsoleText}
       </div>
       <div data-tauri-drag-region className="window-right-controls">
         <CustomWindowButton onClick={minimizeWindow} startIcon={<MinimizeIcon />} />

@@ -20,10 +20,12 @@ import {
 
 import DropDownWithArrows from "../_components/DropDownWithArrows";
 
+import { useAppContext } from "../_lib/AppContext";
 import { ConfigProps } from "../types";
 
 export default function Home() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const { setLatestConsoleText } = useAppContext();
 
   const [consoleText, setConsoleText] = useState<string>("");
   const [pid, setPid] = useState<number | null>(null);
@@ -74,6 +76,7 @@ export default function Home() {
         // そうでなければ改行して追加
         return prev + "\n" + event.payload;
       });
+      setLatestConsoleText(event.payload);
     });
 
     // プロセス終了時の通知を受け取る
