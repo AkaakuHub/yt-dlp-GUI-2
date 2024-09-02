@@ -3,8 +3,19 @@ body {
   padding: 0;
   font-family: Arial, sans-serif;
   font-size: 14px;
+  overflow-y: clip;
+  background-color: #1f1f1f;
 }
 
 div {
   user-select: none;
+}
+
+div.Toastify__toast-body>div {
+  white-space: pre-wrap;
+}
+
+.body-wrapper {
+  background-color: #fff;
+  padding-bottom: 4px;
 }

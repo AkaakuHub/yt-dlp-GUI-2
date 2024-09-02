@@ -5,18 +5,40 @@ import {
   Paper,
   TextField,
   Box,
+  Typography,
+  Link,
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { invoke } from "@tauri-apps/api";
 import { open } from "@tauri-apps/api/dialog";
 import { debounce } from "lodash";
 
+import { toast } from "react-toastify";
+
 import { ConfigProps } from "../types";
 
 export default function Settings() {
-
   const [saveDir, setSaveDir] = useState("");
   const [browser, setBrowser] = useState("");
+
+  const [currentVersion, setCurrentVersion] = useState("");
+
+  useEffect(() => {
+    const checkVersionAndUpdate = async () => {
+      try {
+        const message = await invoke<string>("check_version_and_update");
+        if (message !== "最新です") {
+          toast.info(message);
+          const currentVersion = message.split("\n")[1].split(":")[1].trim();
+          console.log(`currentVersion: ${currentVersion}`);
+          setCurrentVersion(currentVersion);
+        }
+      } catch (error) {
+        console.error(`check_version_and_update: ${error}`);
+      }
+    };
+    checkVersionAndUpdate();
+  }, []);
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
@@ -82,6 +104,15 @@ export default function Settings() {
             />
           </Box>
         </Paper>
+
+        <Box sx={{ mt: 4, textAlign: "center" }}>
+          <Typography variant="body2" color="textSecondary">
+            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2/releases" target="_blank" rel="noopener">
+              GitHub
+            </Link>
+            ・ バージョン {currentVersion || ""}
+          </Typography>
+        </Box>
       </Container>
     </Box>
   );

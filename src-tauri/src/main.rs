@@ -303,8 +303,6 @@ async fn open_url_and_exit(window: Window, url: String) {
     }
 }
 
-use serde_json::Value;
-use std::fs;
 #[tauri::command]
 async fn check_version_and_update() -> Result<String, String> {
     let current_version = env!("CARGO_PKG_VERSION");
@@ -322,58 +320,17 @@ async fn check_version_and_update() -> Result<String, String> {
         let latest_version = redirected_url.split('/').last().unwrap();
 
         if current_version != latest_version {
-            return Ok("false".to_string());
+            return Ok(format!(
+                "新しいバージョンがあります。\n現在:{}\n最新:{}\n設定の「Github」から新しいバージョンをダウンロードしてください。",
+                current_version, latest_version
+            ));
         } else {
-            return Ok("true".to_string());
+            return Ok("最新です".to_string());
         }
     }
 
     Err("エラーが発生しました".to_string())
 }
-
-// #[tauri::command]
-// fn download_and_update(download_url: &str) {
-//     // zipファイルをダウンロード
-//     let response = get(download_url).unwrap();
-//     let zip_path = "latest-release.zip";
-//     fs::write(zip_path, response.bytes().unwrap()).unwrap();
-
-//     // 解凍・ファイル置き換え・PowerShellスクリプトを作成して実行
-//     let ps_script_content = format!(
-//         r#"
-// $zipPath = "latest-release.zip"
-// $extractPath = "extracted"
-// $oldExePath = "yt-dlp-GUI.exe"
-// $oldConfigPath = "yt-dlp-GUI.Config"
-
-// # ダウンロードしたzipを解凍
-// Expand-Archive -Path $zipPath -DestinationPath $extractPath
-
-// # 古いexeファイルの削除
-// Remove-Item -Path $oldExePath -Force
-// Move-Item -Path "$extractPath/yt-dlp-GUI.exe" -Destination $oldExePath -Force
-
-// # クリーンアップ
-// Remove-Item -Path $zipPath
-// Remove-Item -Recurse -Force $extractPath
-
-// # 新しいexeファイルを起動
-// Start-Process -FilePath $oldExePath
-// "#
-//     );
-//     let ps_script_path = "update_script.ps1";
-//     fs::write(ps_script_path, ps_script_content).unwrap();
-
-//     Command::new("powershell.exe")
-//         .arg("-ExecutionPolicy")
-//         .arg("Bypass")
-//         .arg("-File")
-//         .arg(ps_script_path)
-//         .spawn()
-//         .expect("failed to execute PowerShell script");
-
-//     std::process::exit(0x0);
-// }
 
 #[cfg(target_os = "windows")]
 #[tauri::command]

@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { dialog } from "@tauri-apps/api";
-import { readText } from '@tauri-apps/api/clipboard';
+import { readText } from "@tauri-apps/api/clipboard";
 import "./index.css";
 
 import ExecuteButton from "../_components/ExecuteButton";
 import ConsoleBox from "../_components/ConsoleBox";
 
-import { toast } from 'react-toastify';
+import { toast } from "react-toastify";
 
 import CustomButton from "../_components/CustomButton";
 
@@ -44,22 +44,6 @@ export default function Home() {
 
     checkProgram("yt-dlp");
     checkProgram("ffmpeg");
-  }, []);
-
-  useEffect(() => {
-    const checkVersionAndUpdate = async () => {
-      try {
-        const isLatest = await invoke<string>("check_version_and_update");
-        console.log(`isLatest: ${isLatest}`);
-        if (isLatest === "false") {
-          // await dialog.message("新しいバージョンがあります。アップデートを行ってください。");
-          toast.info("新しいバージョンがあります。左上のボタンからアップデートをおすすめします。");
-        }
-      } catch (error) {
-        console.error(`check_version_and_update: ${error}`);
-      }
-    };
-    checkVersionAndUpdate();
   }, []);
 
   useEffect(() => {

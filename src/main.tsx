@@ -51,23 +51,26 @@ const App = () => {
         setActiveIndex={setActiveIndex}
         activeIndex={activeIndex}
       />
-      <Swiper
-        spaceBetween={0}
-        slidesPerView={1}
-        onSwiper={setSwiper}
-        onSlideChange={handleSlideChange}
-        style={{
-          display: "flex",
-          height: "calc(100vh - 84px)",
-        }}
-      >
-        <SwiperSlide>
-          <Home />
-        </SwiperSlide>
-        <SwiperSlide>
-          <Setting />
-        </SwiperSlide>
-      </Swiper>
+      <div className="body-wrapper">
+        <Swiper
+          spaceBetween={0}
+          slidesPerView={1}
+          onSwiper={setSwiper}
+          onSlideChange={handleSlideChange}
+          style={{
+            display: "flex",
+            height: "calc(100vh - 89px)",
+            margin: "0 4px 4px 4px",
+          }}
+        >
+          <SwiperSlide>
+            <Home />
+          </SwiperSlide>
+          <SwiperSlide>
+            <Setting />
+          </SwiperSlide>
+        </Swiper>
+      </div>
     </>
   );
 }
