@@ -79,7 +79,6 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
 
   useEffect(() => {
     if (selectedIndexNumber !== null) {
-      console.log("new: selectedIndexNumber", selectedIndexNumber);
       setSelectedIndexNumber(selectedIndexNumber);
       saveDropDownIndex(selectedIndexNumber);
     }

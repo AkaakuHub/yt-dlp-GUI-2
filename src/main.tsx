@@ -5,7 +5,7 @@ import Home from "./Home";
 import Setting from "./Setting";
 
 import WindowControls from "./_components/WindowControls";
-import { AppProvider } from "./_lib/AppContext";
+import { AppProvider } from "./_components/AppContext";
 
 import "./main.css";
 

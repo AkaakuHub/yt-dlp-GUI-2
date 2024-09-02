@@ -20,7 +20,7 @@ import {
 
 import DropDownWithArrows from "../_components/DropDownWithArrows";
 
-import { useAppContext } from "../_lib/AppContext";
+import { useAppContext } from "../_components/AppContext";
 import { ConfigProps } from "../types";
 
 export default function Home() {
@@ -49,6 +49,10 @@ export default function Home() {
   // // debug
   // useEffect(() => {
   //   setPid(0);
+  // }, [])
+
+  // useEffect(() => {
+  //   setLatestConsoleText("[download]   73.4% of  925.79KiB at    7.32MiB/s ETA 00:02 (frag 12/12)");
   // }, [])
 
   interface Param {

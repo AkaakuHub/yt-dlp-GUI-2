@@ -8,12 +8,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import { styled } from "@mui/material/styles";
 
 import { useState, useEffect } from "react";
-import { useAppContext } from "../../_lib/AppContext";
+import { useAppContext } from "../AppContext";
 
 import "./index.css";
 
 function WindowControls() {
-  const { latestConsoleText } = useAppContext();
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -57,15 +56,56 @@ function WindowControls() {
     },
   }));
 
+  const DownloadProgress = () => {
+    const { latestConsoleText } = useAppContext();
+    let isDownloading = false;
+    let progressPercentage: number = 0;
+    let progressText: string = "";
+
+    if (latestConsoleText.startsWith("[download]")) {
+      try {
+        console.log("1", latestConsoleText.split("  "));
+        console.log("2", latestConsoleText.split(" "));
+
+        const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
+        progressPercentage = parseFloat(percentage);
+
+        const remainingTime = latestConsoleText.match(/ETA (.*) \(/);
+        if (remainingTime) {
+          progressText = `残り ${remainingTime[1]} (${progressPercentage}%)`;
+        }
+        isDownloading = true;
+      } catch (error) {
+        console.error(error);
+        isDownloading = false;
+      }
+    } else {
+      isDownloading = false;
+    }
+
+    return (
+      <>
+        {isDownloading ? (
+          <div data-tauri-drag-region className="download-progress-wrapper">
+            <div data-tauri-drag-region className="download-progress-bar" style={{ width: `${progressPercentage}%` }} />
+            <div data-tauri-drag-region className="download-progress-info">
+              {progressText}
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
+
+
   return (
     <div data-tauri-drag-region className="window-controls-root">
       <div data-tauri-drag-region className="window-left-controls">
         <img src="assets/128x128.png" alt="logo" className="window-logo"
         />
       </div>
-      <div data-tauri-drag-region className="window-center-controls">
-        {latestConsoleText}
-      </div>
+      <DownloadProgress />
       <div data-tauri-drag-region className="window-right-controls">
         <CustomWindowButton onClick={minimizeWindow} startIcon={<MinimizeIcon />} />
         <CustomWindowButton onClick={maximizeWindow} startIcon={
