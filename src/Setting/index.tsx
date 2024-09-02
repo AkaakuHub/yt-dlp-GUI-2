@@ -1,26 +1,19 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  Toolbar,
   IconButton,
-  Typography,
   Container,
   Paper,
   TextField,
   Box,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { invoke } from "@tauri-apps/api";
 import { open } from "@tauri-apps/api/dialog";
 import { debounce } from "lodash";
 
-import CustomAppBar from "../_components/CustomAppBar";
-
 import { ConfigProps } from "../types";
 
 export default function Settings() {
-  const navigate = useNavigate();
 
   const [saveDir, setSaveDir] = useState("");
   const [browser, setBrowser] = useState("");
@@ -41,10 +34,6 @@ export default function Settings() {
     await invoke("set_browser", { newBrowser: temp_browser });
   }, 500);
 
-  const goToHomeHandler = () => {
-    navigate("/");
-  };
-
   const openDirectoryDialog = async () => {
     const selectedDir = await open({
       directory: true,
@@ -58,23 +47,6 @@ export default function Settings() {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <CustomAppBar position="static">
-        <Toolbar>
-          <IconButton
-            size="small"
-            edge="start"
-            color="inherit"
-            aria-label="back"
-            onClick={goToHomeHandler}
-            sx={{ mr: 2 }}
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            設定
-          </Typography>
-        </Toolbar>
-      </CustomAppBar>
       <Container maxWidth="sm" sx={{ mt: 4 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
           <Box component="form" sx={{ "& > :not(style)": { m: 1 } }}>

@@ -1,8 +1,8 @@
 .root-home {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: calc(100vh - 36px);
+  width: 100%;
+  height: calc(100vh - 84px);
 }
 
 .main-row {

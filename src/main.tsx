@@ -1,32 +1,81 @@
-import React from "react";
+import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
-import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import Home from "./Home";
 import Setting from "./Setting";
 
 import WindowControls from "./_components/WindowControls";
 import { AppProvider } from "./_components/AppContext";
 
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+import { SwiperSlide } from "swiper/react";
+import { Swiper } from "swiper/react";
+import SwiperCore from "swiper";
+import "swiper/css";
+import "swiper/css/pagination";
+
+import { TabComponent } from "./_components/TabComponent";
+
 import "./main.css";
 
 const App = () => {
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [swiper, setSwiper] = useState<SwiperCore | null>(null);
+
+  const handleSlideChange = (swiper: SwiperCore): void => {
+    setActiveIndex(swiper.activeIndex);
+  };
+
   return (
     <>
       <WindowControls />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/setting" element={<Setting />} />
-      </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        draggable
+        pauseOnFocusLoss={false}
+        pauseOnHover
+        theme="light"
+        style={{
+          top: "84px",
+        }}
+      />
+      <TabComponent
+        tabNames={["ホーム", "設定"]}
+        swiper={swiper}
+        setActiveIndex={setActiveIndex}
+        activeIndex={activeIndex}
+      />
+      <Swiper
+        spaceBetween={0}
+        slidesPerView={1}
+        onSwiper={setSwiper}
+        onSlideChange={handleSlideChange}
+        style={{
+          display: "flex",
+          height: "calc(100vh - 84px)",
+        }}
+      >
+        <SwiperSlide>
+          <Home />
+        </SwiperSlide>
+        <SwiperSlide>
+          <Setting />
+        </SwiperSlide>
+      </Swiper>
     </>
   );
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Router>
-      <AppProvider>
-        <App />
-      </AppProvider>
-    </Router>
+    <AppProvider>
+      <App />
+    </AppProvider>
   </React.StrictMode>
 );

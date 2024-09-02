@@ -3,18 +3,14 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { dialog } from "@tauri-apps/api";
 import { readText } from '@tauri-apps/api/clipboard';
-import { useNavigate } from "react-router-dom";
 import "./index.css";
 
 import ExecuteButton from "../_components/ExecuteButton";
 import ConsoleBox from "../_components/ConsoleBox";
 
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 
-import SettingsIcon from "@mui/icons-material/Settings";
 import {
-  IconButton,
   Input,
   Button,
 } from "@mui/material";
@@ -25,7 +21,6 @@ import { useAppContext } from "../_components/AppContext";
 import { ConfigProps } from "../types";
 
 export default function Home() {
-  const navigate = useNavigate();
   const { setLatestConsoleText } = useAppContext();
 
   const [consoleText, setConsoleText] = useState<string>("");
@@ -166,38 +161,14 @@ export default function Home() {
     }
   }
 
-  const goToSettingHandler = () => {
-    navigate("/setting");
-  }
-
   const openDirectory = async () => {
     await invoke("open_directory", { path: saveDir });
   }
 
   return (
     <div className="root-home">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        draggable
-        pauseOnFocusLoss={false}
-        pauseOnHover
-        theme="light"
-        style={{
-          top: "36px",
-        }}
-      />
       <div className="main-row">
         <div className="line-1">
-          <div>
-            <IconButton size="small" onClick={goToSettingHandler}>
-              <SettingsIcon />
-            </IconButton>
-          </div>
           <div className="line-children">
             <p>コーデックID</p>
             <Input
