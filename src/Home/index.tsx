@@ -51,9 +51,9 @@ export default function Home() {
   //   setPid(0);
   // }, [])
 
-  useEffect(() => {
-    setLatestConsoleText("[download]   19.0% of  925.79KiB at    7.32MiB/s ETA 00:02 (frag 12/12)");
-  }, [])
+  // useEffect(() => {
+  //   setLatestConsoleText("[download]   19.0% of  925.79KiB at    7.32MiB/s ETA 00:02 (frag 12/12)");
+  // }, [])
 
   interface Param {
     codec_id?: string;
