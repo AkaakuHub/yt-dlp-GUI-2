@@ -59,9 +59,21 @@ export default function Home() {
   useEffect(() => {
     // Tauriイベントからffmpegの出力をリアルタイムで受け取る
     const unlistenOutput = listen<string>("ffmpeg-output", (event) => {
-      // TODO: 最初の改行を削除する
-      setConsoleText((prev) => prev + "\n" + event.payload)
-    })
+      console.log("ffmpeg-output", event.payload);
+
+      if (event.payload === "") {
+        return;
+      }
+
+      setConsoleText((prev) => {
+        // prev が空なら最初の改行を削除した新しいテキストをセット
+        if (prev === "") {
+          return event.payload.trimStart();
+        }
+        // そうでなければ改行して追加
+        return prev + "\n" + event.payload;
+      });
+    });
 
     // プロセス終了時の通知を受け取る
     const unlistenExit = listen<string>("process-exit", (event) => {
@@ -80,12 +92,13 @@ export default function Home() {
       let processId;
 
       // クリップボード取得
-      const url = await readText();
+      let url = await readText();
       if (selectedIndexNumber !== 13) {
-        if (url === "") {
+        if (!url || url === "") {
           toast.error("URLが空です。");
           return;
-        } else if (!url?.startsWith("http")) {
+        } else if (!(url.startsWith("http"))) {
+          url = url.slice(0, 100) + "…";
           toast.error(`"${url}"は有効なURLではありません。`);
           return;
         }

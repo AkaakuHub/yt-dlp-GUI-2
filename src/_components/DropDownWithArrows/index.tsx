@@ -72,7 +72,6 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
-      console.log(config.index);
       setSelectedIndexNumber(config.index);
     });
     setIsLoading(false);

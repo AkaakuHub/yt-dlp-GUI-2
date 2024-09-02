@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::env::current_dir;
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -148,13 +149,22 @@ async fn run_command(
         }
     }
 
-    args.push(&url);
-
     let mut child = TokioCommand::new("yt-dlp")
         .args(&args)
         .stdout(Stdio::piped())
         .spawn()
         .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
+
+    window
+        .emit(
+            "ffmpeg-output",
+            format!(
+                "{}>yt-dlp {}\n",
+                current_dir().unwrap().to_string_lossy(),
+                args.join(" ")
+            ),
+        )
+        .unwrap();
 
     let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
     let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
