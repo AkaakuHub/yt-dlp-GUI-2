@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { readText } from '@tauri-apps/api/clipboard';
@@ -29,7 +29,12 @@ export default function Home() {
   const [pid, setPid] = useState<number | null>(null);
   const [arbitraryCode, setArbitraryCode] = useState<string>("");
 
-  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(7);
+  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
+  const selectedIndexRef = useRef(selectedIndexNumber);
+
+  useEffect(() => {
+    selectedIndexRef.current = selectedIndexNumber;
+  }, [selectedIndexNumber]);
 
   const [saveDir, setSaveDir] = useState("");
 
@@ -45,13 +50,11 @@ export default function Home() {
   // }, [])
 
   interface Param {
-    kind: number
     codec_id?: string
     subtitle_lang?: string
   }
 
   const [param, setParam] = useState<Param>({
-    kind: selectedIndexNumber,
     codec_id: undefined,
     subtitle_lang: undefined,
   })
@@ -90,10 +93,11 @@ export default function Home() {
   async function executeButtonOnClick() {
     try {
       let processId;
+      const currentSelectedIndex = selectedIndexRef.current;
 
       // クリップボード取得
       let url = await readText();
-      if (selectedIndexNumber !== 13) {
+      if (currentSelectedIndex !== 13) {
         if (!url || url === "") {
           toast.error("URLが空です。");
           return;
@@ -106,6 +110,7 @@ export default function Home() {
           param: {
             ...param,
             url,
+            kind: currentSelectedIndex,
           }
         })) as number
       } else {
