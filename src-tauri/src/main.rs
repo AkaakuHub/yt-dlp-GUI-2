@@ -4,8 +4,10 @@ use std::env::current_dir;
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
+use tauri::api::shell::open;
 use tauri::Manager;
 use tauri::State;
+use tauri::Window;
 use tokio::io::AsyncReadExt;
 use tokio::io::BufReader as TokioBufReader;
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
@@ -269,6 +271,38 @@ where
     }
 }
 
+#[tauri::command]
+async fn is_program_available(program_name: String) -> Result<String, String> {
+    let command_text = match program_name.as_str() {
+        "yt-dlp" => "yt-dlp --version",
+        "ffmpeg" => "ffmpeg -version",
+        _ => return Err(format!("Program {} is not supported", program_name)),
+    };
+
+    let output = Command::new("cmd").arg("/c").arg(command_text).output();
+
+    match output {
+        Ok(output) => {
+            if output.status.success() {
+                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+            } else {
+                Err(format!(
+                    "{} is not installed or not found in the system path.",
+                    program_name
+                ))
+            }
+        }
+        Err(err) => Err(format!("Failed to run command: {}", err)),
+    }
+}
+
+#[tauri::command]
+async fn open_url_and_exit(window: Window, url: String) {
+    if open(&window.shell_scope(), url, None).is_ok() {
+        std::process::exit(0x0);
+    }
+}
+
 #[cfg(target_os = "windows")]
 #[tauri::command]
 fn open_directory(path: String) {
@@ -297,6 +331,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             run_command,
             open_directory,
+            is_program_available,
+            open_url_and_exit,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_index,
