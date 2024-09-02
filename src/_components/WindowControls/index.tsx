@@ -64,15 +64,20 @@ function WindowControls() {
 
     if (latestConsoleText.startsWith("[download]")) {
       try {
-        console.log("1", latestConsoleText.split("  "));
-        console.log("2", latestConsoleText.split(" "));
-
         const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
         progressPercentage = parseFloat(percentage);
+        let percentageString = progressPercentage.toFixed(1);
+        if (percentageString.length === 3) {
+          percentageString = " " + percentageString;
+        } else if (percentageString === "100.0") {
+          percentageString = " 100";
+        }
+
+        // Nanのときは前回値保存するのは仕様とする
 
         const remainingTime = latestConsoleText.match(/ETA (.*) \(/);
         if (remainingTime) {
-          progressText = `残り ${remainingTime[1]} (${progressPercentage}%)`;
+          progressText = `残り ${remainingTime[1]} (${percentageString}%)`;
         }
         isDownloading = true;
       } catch (error) {
