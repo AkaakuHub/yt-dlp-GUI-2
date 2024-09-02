@@ -4,13 +4,11 @@ use std::env::current_dir;
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
-use tauri::window;
 use tauri::Manager;
 use tauri::State;
 use tokio::io::AsyncReadExt;
 use tokio::io::BufReader as TokioBufReader;
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use window_shadows::set_shadow;
 
@@ -183,8 +181,6 @@ async fn run_command(
         .take()
         .ok_or("標準エラーの取得に失敗しました")?;
 
-    let (tx, mut rx) = mpsc::channel(100);
-
     manager.process = Some(child);
 
     let process_manager_clone: Arc<Mutex<ProcessManager>> = Arc::clone(&process_manager);
@@ -192,21 +188,16 @@ async fn run_command(
         let stdout_reader = TokioBufReader::new(stdout);
         let stderr_reader = TokioBufReader::new(stderr);
 
-        let tx_clone = tx.clone();
         let window_clone = window.clone();
         let window_clone2 = window.clone();
 
         tokio::spawn(async move {
-            process_lines(stdout_reader, tx_clone, window_clone).await;
+            process_lines(stdout_reader, window_clone).await;
         });
 
         tokio::spawn(async move {
-            process_lines(stderr_reader, tx, window_clone2).await;
+            process_lines(stderr_reader, window_clone2).await;
         });
-
-        // while let Some(line) = rx.recv().await {
-        //     window.emit("process-output", line).unwrap();
-        // }
 
         let mut manager = process_manager_clone.lock().await;
         if let Some(ref mut child) = manager.process {
@@ -234,7 +225,7 @@ async fn run_command(
     Ok(pid)
 }
 
-async fn process_lines<R>(mut reader: R, tx: mpsc::Sender<String>, window: tauri::Window)
+async fn process_lines<R>(mut reader: R, window: tauri::Window)
 where
     R: AsyncReadExt + Unpin,
 {

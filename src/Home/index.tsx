@@ -56,8 +56,8 @@ export default function Home() {
   // }, [])
 
   interface Param {
-    codec_id?: string
-    subtitle_lang?: string
+    codec_id?: string;
+    subtitle_lang?: string;
   }
 
   const [param, setParam] = useState<Param>({
@@ -83,15 +83,13 @@ export default function Home() {
       setLatestConsoleText(event.payload);
     });
 
-    // プロセス終了時の通知を受け取る
-    const unlistenExit = listen<string>("process-exit", (event) => {
-      // setConsoleText((prev) => prev + "\n" + event.payload);
-      setPid(null) // プロセスIDをクリア
+    const unlistenExit = listen<string>("process-exit", () => {
+      setPid(null);
     })
 
     return () => {
-      unlistenOutput.then((fn) => fn())
-      unlistenExit.then((fn) => fn())
+      unlistenOutput.then((fn) => fn());
+      unlistenExit.then((fn) => fn());
     }
   }, [])
 
@@ -130,20 +128,17 @@ export default function Home() {
           }
         })) as number
       }
-
       setPid(processId)
-      // setConsoleText(`プロセス開始。PID: ${processId}`);
     } catch (err) {
       toast.error(`エラー: ${err}`);
     }
   }
 
   const goToSettingHandler = () => {
-    navigate("/setting")
+    navigate("/setting");
   }
 
   const openDirectory = async () => {
-    console.log("openDirectory", saveDir)
     await invoke("open_directory", { path: saveDir });
   }
 
