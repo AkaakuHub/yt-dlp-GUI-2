@@ -63,7 +63,7 @@ function WindowControls() {
     const [isDownloading, setIsDownloading] = useState(false);
     const [progressPercentage, setProgressPercentage] = useState(0);
     const [videoTitle, setVideoTitle] = useState("");
-    const [scrollKey, setScrollKey] = useState(0);  // アニメーションをリセットするためのキー
+    const [scrollKey, setScrollKey] = useState(0);
 
     const [progressText, setProgressText] = useState("");
 
@@ -72,7 +72,6 @@ function WindowControls() {
 
       if (latestConsoleText.startsWith("[download]")) {
         setIsDownloading(true);
-        // パーセンテージ取得
         try {
           const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
           const parsedPercentage = parseFloat(percentage);
@@ -86,43 +85,43 @@ function WindowControls() {
             formattedPercentageString = percentageString;
           }
           setProgressPercentage(parsedPercentage);
+          setProgressText(`残り ??:?? (${formattedPercentageString}%)`);
         } catch (error) { /** */ }
 
-        // 残り時間取得 (YT)
+        console.log(latestConsoleText.split("ETA ")[1])
+
         try {
-          const remainingTime = latestConsoleText.split("  ")[4].split("ETA ")[1].split(" ")[0];
+          const remainingTime = latestConsoleText.split("ETA ")[1].split(" ")[0];
           if (remainingTime) {
-            // progressText = `残り ${remainingTime} (${progressText})`;
             setProgressText(`残り ${remainingTime} (${formattedPercentageString}%)`);
           }
-        } catch (error) { /** */ }
-
-        // 残り時間取得 (BI)
-        try {
-          const remainingTime2 = latestConsoleText.split("  ")[3].split("ETA ")[1];
-          if (remainingTime2) {
-            // progressText = `残り ${remainingTime2} (${progressText})`;
-            setProgressText(`残り ${remainingTime2} (${formattedPercentageString}%)`);
-          }
-        } catch (error) { /** */ }
-
-        // タイトル取得
+        } catch (error) {
+          try {
+            const remainingTime2 = latestConsoleText.split("ETA ")[1];
+            if (remainingTime2) {
+              setProgressText(`残り ${remainingTime2} (${formattedPercentageString}%)`);
+            }
+          } catch (error) { /** */ }
+        }
         try {
           const videoTitleExtracted = latestConsoleText.split("Destination: ")[1]?.split("\\").pop();
           if (videoTitleExtracted && videoTitle !== videoTitleExtracted) {
-            setVideoTitle(videoTitleExtracted);  // タイトルが変わった場合のみ更新
-            setScrollKey((prevKey) => prevKey + 1);  // アニメーションをリセットするためにキーを変更
+            setVideoTitle(videoTitleExtracted);
+            setScrollKey((prevKey) => prevKey + 1);
           }
         } catch (error) { /** */ }
 
       } else if (latestConsoleText.startsWith("[Merger]")) {
         setIsDownloading(true);
         setProgressPercentage(100);
+      } else if (latestConsoleText.startsWith("[FixupM3u8]")) {
+        setIsDownloading(true);
+        setProgressPercentage(100);
       } else {
         setIsDownloading(false);
         setVideoTitle("");
       }
-    }, [latestConsoleText]);  // latestConsoleText が変わるたびに実行
+    }, [latestConsoleText]);
 
     return (
       <>
@@ -135,7 +134,7 @@ function WindowControls() {
                 <span
                   data-tauri-drag-region
                   className="scrolling-text"
-                  key={scrollKey} // アニメーションをリセットするためにキーを使用
+                  key={scrollKey}
                   style={{
                     animation: `scroll-left ${videoTitle.length}s linear infinite`,
                   }}
