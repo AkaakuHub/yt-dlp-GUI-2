@@ -1,5 +1,5 @@
 [package]
-name = "yt-dlp-GUI-2"
+name = "yt-dlp-GUI"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]

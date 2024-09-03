@@ -67,8 +67,40 @@ span[class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1d6w
   font-family: monospace;
   font-size: 18px;
   top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  width: 100%;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
   color: #fff;
   z-index: 5;
+}
+
+.progress-text {
+  flex-shrink: 0;
+  margin-left: 40px;
+}
+
+.scrolling-text-wrapper {
+  overflow: hidden;
+  white-space: nowrap;
+  flex-grow: 1;
+  position: relative;
+}
+
+.scrolling-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(100%);
+    /* 右端からスタート */
+  }
+
+  100% {
+    transform: translateX(-100%);
+    /* 左端まで移動 */
+  }
 }

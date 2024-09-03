@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "yt-dlp-GUI-2",
+    "productName": "yt-dlp-GUI",
     "version": "0.1.0"
   },
   "tauri": {
@@ -40,7 +40,7 @@
     },
     "windows": [
       {
-        "title": "yt-dlp-GUI-2",
+        "title": "yt-dlp-GUI",
         "label": "main",
         "width": 800,
         "height": 600,
@@ -55,7 +55,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "yt-dlp-GUI-2",
+      "identifier": "yt-dlp-GUI",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

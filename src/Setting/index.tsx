@@ -106,7 +106,7 @@ export default function Settings() {
 
         <Box sx={{ mt: 4, textAlign: "center" }}>
           <Typography variant="body2" color="textSecondary">
-            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2/releases" target="_blank" rel="noopener">
+            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI/releases" target="_blank" rel="noopener">
               GitHub
             </Link>
             ・ バージョン {currentVersion || ""}

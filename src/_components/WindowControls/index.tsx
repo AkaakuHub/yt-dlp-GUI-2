@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { appWindow } from "@tauri-apps/api/window";
 import { Button } from "@mui/material";
 import MinimizeIcon from "@mui/icons-material/Minimize";
@@ -58,35 +59,70 @@ function WindowControls() {
 
   const DownloadProgress = () => {
     const { latestConsoleText } = useAppContext();
-    let isDownloading = false;
-    let progressPercentage: number = 0;
-    let progressText: string = "";
 
-    if (latestConsoleText.startsWith("[download]")) {
-      try {
-        const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
-        progressPercentage = parseFloat(percentage);
-        let percentageString = progressPercentage.toFixed(1);
-        if (percentageString.length === 3) {
-          percentageString = " " + percentageString;
-        } else if (percentageString === "100.0") {
-          percentageString = " 100";
-        }
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [progressPercentage, setProgressPercentage] = useState(0);
+    const [videoTitle, setVideoTitle] = useState("");
+    const [scrollKey, setScrollKey] = useState(0);  // アニメーションをリセットするためのキー
 
-        // Nanのときは前回値保存するのは仕様とする
+    const [progressText, setProgressText] = useState("");
 
-        const remainingTime = latestConsoleText.match(/ETA (.*) \(/);
-        if (remainingTime) {
-          progressText = `残り ${remainingTime[1]} (${percentageString}%)`;
-        }
-        isDownloading = true;
-      } catch (error) {
-        console.error(error);
-        isDownloading = false;
+    useEffect(() => {
+      let formattedPercentageString = "";
+
+      if (latestConsoleText.startsWith("[download]")) {
+        setIsDownloading(true);
+        // パーセンテージ取得
+        try {
+          const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
+          const parsedPercentage = parseFloat(percentage);
+          const percentageString = parsedPercentage.toFixed(1);
+
+          if (percentageString.length === 3) {
+            formattedPercentageString = " " + percentageString;
+          } else if (percentageString === "100.0") {
+            formattedPercentageString = " 100";
+          } else {
+            formattedPercentageString = percentageString;
+          }
+          setProgressPercentage(parsedPercentage);
+        } catch (error) { /** */ }
+
+        // 残り時間取得 (YT)
+        try {
+          const remainingTime = latestConsoleText.split("  ")[4].split("ETA ")[1].split(" ")[0];
+          if (remainingTime) {
+            // progressText = `残り ${remainingTime} (${progressText})`;
+            setProgressText(`残り ${remainingTime} (${formattedPercentageString}%)`);
+          }
+        } catch (error) { /** */ }
+
+        // 残り時間取得 (BI)
+        try {
+          const remainingTime2 = latestConsoleText.split("  ")[3].split("ETA ")[1];
+          if (remainingTime2) {
+            // progressText = `残り ${remainingTime2} (${progressText})`;
+            setProgressText(`残り ${remainingTime2} (${formattedPercentageString}%)`);
+          }
+        } catch (error) { /** */ }
+
+        // タイトル取得
+        try {
+          const videoTitleExtracted = latestConsoleText.split("Destination: ")[1]?.split("\\").pop();
+          if (videoTitleExtracted && videoTitle !== videoTitleExtracted) {
+            setVideoTitle(videoTitleExtracted);  // タイトルが変わった場合のみ更新
+            setScrollKey((prevKey) => prevKey + 1);  // アニメーションをリセットするためにキーを変更
+          }
+        } catch (error) { /** */ }
+
+      } else if (latestConsoleText.startsWith("[Merger]")) {
+        setIsDownloading(true);
+        setProgressPercentage(100);
+      } else {
+        setIsDownloading(false);
+        setVideoTitle("");
       }
-    } else {
-      isDownloading = false;
-    }
+    }, [latestConsoleText]);  // latestConsoleText が変わるたびに実行
 
     return (
       <>
@@ -94,14 +130,25 @@ function WindowControls() {
           <div data-tauri-drag-region className="download-progress-wrapper">
             <div data-tauri-drag-region className="download-progress-bar" style={{ width: `${progressPercentage}%` }} />
             <div data-tauri-drag-region className="download-progress-info">
-              {progressText}
+              <span data-tauri-drag-region className="progress-text">{progressText}</span>
+              <div data-tauri-drag-region className="scrolling-text-wrapper">
+                <span
+                  data-tauri-drag-region
+                  className="scrolling-text"
+                  key={scrollKey} // アニメーションをリセットするためにキーを使用
+                  style={{
+                    animation: `scroll-left ${videoTitle.length}s linear infinite`,
+                  }}
+                >
+                  {videoTitle}
+                </span>
+              </div>
             </div>
           </div>
         ) : null}
       </>
     );
   };
-
 
 
   return (
