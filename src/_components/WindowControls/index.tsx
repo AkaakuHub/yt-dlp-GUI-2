@@ -8,7 +8,7 @@ import CloseIcon from '@mui/icons-material/Close';
 
 import { styled } from "@mui/material/styles";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../AppContext";
 
 import "./index.css";
@@ -115,6 +115,7 @@ function WindowControls() {
         try {
           const videoTitleExtracted = latestConsoleText.split("Destination: ")[1]?.split("\\").pop();
           if (videoTitleExtracted && videoTitle !== videoTitleExtracted) {
+            setProgressText(`ダウンロード中...`);
             setVideoTitle(videoTitleExtracted);
             setScrollKey((prevKey) => prevKey + 1);
           }
@@ -131,6 +132,27 @@ function WindowControls() {
       }
     }, [latestConsoleText]);
 
+    const [shouldScroll, setShouldScroll] = useState(false);
+    const [scrollDuration, setScrollDuration] = useState(0);
+    const scrollingTextRef = useRef(null);
+
+    useEffect(() => {
+      if (scrollingTextRef.current) {
+        const textElement: HTMLElement = scrollingTextRef.current;
+
+        const wrapper = textElement?.parentElement;
+        const textWidth = textElement?.offsetWidth;
+        const wrapperWidth = wrapper?.offsetWidth;
+
+        if (wrapperWidth && textWidth > wrapperWidth) {
+          setShouldScroll(true);
+          setScrollDuration(textWidth / 50)
+        } else {
+          setShouldScroll(false);
+        }
+      }
+    }, [videoTitle]);
+
     return (
       <>
         {isDownloading ? (
@@ -143,8 +165,9 @@ function WindowControls() {
                   data-tauri-drag-region
                   className="scrolling-text"
                   key={scrollKey}
+                  ref={scrollingTextRef}
                   style={{
-                    animation: `scroll-left ${videoTitle.length}s linear infinite`,
+                    animation: shouldScroll ? `scroll-left ${scrollDuration}s linear infinite` : 'none',
                   }}
                 >
                   {videoTitle}
@@ -152,6 +175,7 @@ function WindowControls() {
               </div>
             </div>
           </div>
+
         ) : null}
       </>
     );

@@ -74,6 +74,7 @@ span[class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1d6w
   align-items: center;
   color: #fff;
   z-index: 5;
+  gap: 10px;
 }
 
 .progress-text {
@@ -96,11 +97,9 @@ span[class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1d6w
 @keyframes scroll-left {
   0% {
     transform: translateX(100%);
-    /* 右端からスタート */
   }
 
   100% {
     transform: translateX(-100%);
-    /* 左端まで移動 */
   }
 }
