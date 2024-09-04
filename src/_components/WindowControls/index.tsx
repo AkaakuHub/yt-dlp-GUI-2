@@ -67,13 +67,19 @@ function WindowControls() {
 
     const [progressText, setProgressText] = useState("");
 
+    const removeEmptyFromArray = (array: string[]) => {
+      return array.filter((item) => item !== "");
+    }
+
     useEffect(() => {
       let formattedPercentageString = "";
 
       if (latestConsoleText.startsWith("[download]")) {
         setIsDownloading(true);
+        const splittedArray = removeEmptyFromArray(latestConsoleText.split(" "));
         try {
-          const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
+          // const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
+          const percentage = splittedArray[1].replace("%", "");
           const parsedPercentage = parseFloat(percentage);
           const percentageString = parsedPercentage.toFixed(1);
 
@@ -88,20 +94,23 @@ function WindowControls() {
           setProgressText(`残り ??:?? (${formattedPercentageString}%)`);
         } catch (error) { /** */ }
 
-        console.log(latestConsoleText.split("ETA ")[1])
-
-        try {
-          const remainingTime = latestConsoleText.split("ETA ")[1].split(" ")[0];
-          if (remainingTime) {
-            setProgressText(`残り ${remainingTime} (${formattedPercentageString}%)`);
-          }
-        } catch (error) {
+        if (latestConsoleText.includes("ETA")) {
           try {
-            const remainingTime2 = latestConsoleText.split("ETA ")[1];
-            if (remainingTime2) {
-              setProgressText(`残り ${remainingTime2} (${formattedPercentageString}%)`);
+            const remainingTime = latestConsoleText.split("ETA ")[1].split(" ")[0];
+            if (remainingTime) {
+              setProgressText(`残り ${remainingTime} (${formattedPercentageString}%)`);
             }
-          } catch (error) { /** */ }
+          } catch (error) {
+            try {
+              const remainingTime2 = latestConsoleText.split("ETA ")[1];
+              if (remainingTime2) {
+                setProgressText(`残り ${remainingTime2} (${formattedPercentageString}%)`);
+              }
+            } catch (error) { /** */ }
+          }
+        } else if (!latestConsoleText.includes("Destination:")) {
+          const finalTime = splittedArray[5];
+          setProgressText(`完了。所要時間 ${finalTime}`);
         }
         try {
           const videoTitleExtracted = latestConsoleText.split("Destination: ")[1]?.split("\\").pop();
@@ -110,7 +119,6 @@ function WindowControls() {
             setScrollKey((prevKey) => prevKey + 1);
           }
         } catch (error) { /** */ }
-
       } else if (latestConsoleText.startsWith("[Merger]")) {
         setIsDownloading(true);
         setProgressPercentage(100);
