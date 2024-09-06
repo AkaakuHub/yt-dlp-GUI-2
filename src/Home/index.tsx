@@ -81,7 +81,7 @@ export default function Home() {
   const [param, setParam] = useState<Param>({
     codec_id: undefined,
     subtitle_lang: undefined,
-    is_cookie: true,
+    is_cookie: false,
   })
 
   useEffect(() => {
