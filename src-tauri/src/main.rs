@@ -30,6 +30,7 @@ struct RunCommandParam {
     kind: i32,
     codec_id: Option<String>,
     subtitle_lang: Option<String>,
+    is_cookie: bool,
     arbitrary_code: Option<String>,
 }
 
@@ -52,6 +53,7 @@ async fn run_command(
     let codec_id = param.codec_id.unwrap_or("best".to_string());
     let subtitle_lang = param.subtitle_lang.unwrap_or("ja".to_string());
     let arbitrary_code = param.arbitrary_code.unwrap_or("".to_string());
+    let is_cookie = param.is_cookie;
 
     let browser = format!("{}", settings.browser);
     let save_directory = format!("{}/%(title)s.%(ext)s", settings.save_dir);
@@ -121,43 +123,26 @@ async fn run_command(
         }
         9 => {
             args.push(&url);
-            args.push("--list-formats");
-            args.push("--skip-download");
-            args.push("--cookies-from-browser");
-            args.push(&browser);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--live-from-start");
         }
         10 => {
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
-            args.push("-f");
-            args.push(&codec_id);
-            args.push("--no-mtime");
-            args.push("--cookies-from-browser");
-            args.push(&browser);
         }
         11 => {
-            args.push(&url);
-            args.push("-o");
-            args.push(&save_directory);
-            args.push("-f");
-            args.push("141/bestaudio[ext=m4a]");
-            args.push("--no-mtime");
-            args.push("--cookies-from-browser");
-            args.push(&browser);
-        }
-        12 => {
-            args.push(&url);
-            args.push("-o");
-            args.push(&save_directory);
-            args.push("--live-from-start");
-        }
-        13 => {
             args.push(&arbitrary_code);
         }
         _ => {
             return Err("不正な種類です".into());
         }
+    }
+
+    if is_cookie {
+        args.push("--cookies-from-browser");
+        args.push(&browser);
     }
 
     let mut child = TokioCommand::new("yt-dlp")

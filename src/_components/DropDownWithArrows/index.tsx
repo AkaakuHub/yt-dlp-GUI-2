@@ -21,12 +21,9 @@ const dropdownOptions = [
   { label: "7.リストを表示", value: 7 },
   { label: "8.コーデックIDを指定DL", value: 8 },
   { label: "----------", value: 999, separator: true },
-  { label: "9.(Pre)リストを表示", value: 9 },
-  { label: "10.(Pre)コーデックIDを指定DL", value: 10 },
-  { label: "----------", value: 999, separator: true },
-  { label: "11.コーデックID141", value: 11 },
-  { label: "12.配信録画", value: 12 },
-  { label: "13.任意コード >yt-dlp", value: 13 },
+  { label: "9.配信録画(最初から)", value: 9 },
+  { label: "10.配信録画(現在から)", value: 10 },
+  { label: "11.任意コード >yt-dlp", value: 11 },
 ]
 
 // TODO: カスタム追加

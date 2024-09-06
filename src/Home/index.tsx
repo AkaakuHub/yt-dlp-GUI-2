@@ -14,6 +14,7 @@ import CustomButton from "../_components/CustomButton";
 
 import {
   Input,
+  Switch,
 } from "@mui/material";
 
 import DropDownWithArrows from "../_components/DropDownWithArrows";
@@ -74,11 +75,13 @@ export default function Home() {
   interface Param {
     codec_id?: string;
     subtitle_lang?: string;
+    is_cookie: boolean;
   }
 
   const [param, setParam] = useState<Param>({
     codec_id: undefined,
     subtitle_lang: undefined,
+    is_cookie: true,
   })
 
   useEffect(() => {
@@ -182,15 +185,22 @@ export default function Home() {
               <div className="is-not-running-label"></div>
             )}
           </div>
-          <CustomButton
-            variant="contained"
-            onClick={openDirectory}
-            sx={{
-              width: "8rem",
-            }}
-          >
-            保存先を開く
-          </CustomButton>
+          <div>
+            <CustomButton
+              variant="contained"
+              onClick={openDirectory}
+              sx={{
+                width: "8rem",
+              }}
+            >
+              保存先を開く
+            </CustomButton>
+            <Switch
+              checked={param.is_cookie}
+              onChange={(e) => setParam({ ...param, is_cookie: e.target.checked })}
+            />
+            クッキーを使う
+          </div>
         </div>
         <div className="line-2">
           <ExecuteButton
