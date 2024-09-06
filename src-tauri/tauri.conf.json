@@ -36,6 +36,9 @@
         "all": true,
         "open": true,
         "save": true
+      },
+      "notification": {
+        "all": true
       }
     },
     "windows": [

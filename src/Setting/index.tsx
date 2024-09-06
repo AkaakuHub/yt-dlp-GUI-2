@@ -7,6 +7,7 @@ import {
   Box,
   Typography,
   Link,
+  Switch,
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import { invoke } from "@tauri-apps/api";
@@ -20,6 +21,7 @@ import { ConfigProps } from "../types";
 export default function Settings() {
   const [saveDir, setSaveDir] = useState("");
   const [browser, setBrowser] = useState("");
+  const [isSendNotification, setIsSendNotification] = useState(true);
 
   const [currentVersion, setCurrentVersion] = useState("");
 
@@ -43,6 +45,7 @@ export default function Settings() {
     invoke<ConfigProps>("get_settings").then((config) => {
       setSaveDir(config.save_dir);
       setBrowser(config.browser);
+      setIsSendNotification(config.is_send_notification);
     });
   }, []);
 
@@ -53,6 +56,10 @@ export default function Settings() {
 
   const saveBrowserChanged = debounce(async (temp_browser: string) => {
     await invoke("set_browser", { newBrowser: temp_browser });
+  }, 500);
+
+  const saveNotificationChanged = debounce(async (temp_notification: boolean) => {
+    await invoke("set_is_send_notification", { newIsSendNotification: temp_notification });
   }, 500);
 
   const openDirectoryDialog = async () => {
@@ -101,6 +108,14 @@ export default function Settings() {
                 saveBrowserChanged(e.target.value);
               }}
             />
+            <Switch
+              checked={isSendNotification}
+              onChange={(e) => {
+                setIsSendNotification(e.target.checked);
+                saveNotificationChanged(e.target.checked);
+              }}
+            />
+            ダウンロード完了時に通知を受け取る
           </Box>
         </Paper>
 

@@ -352,6 +352,7 @@ fn main() {
             check_version_and_update,
             config::commands::set_save_dir,
             config::commands::set_browser,
+            config::commands::set_is_send_notification,
             config::commands::set_index,
             config::commands::get_settings
         ])

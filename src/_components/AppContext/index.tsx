@@ -11,7 +11,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [latestConsoleText, setLatestConsoleText] = useState<string>("");
 
   return (
-    <AppContext.Provider value={{ latestConsoleText, setLatestConsoleText }}>
+    <AppContext.Provider value={{
+      latestConsoleText,
+      setLatestConsoleText,
+    }}>
       {children}
     </AppContext.Provider>
   );

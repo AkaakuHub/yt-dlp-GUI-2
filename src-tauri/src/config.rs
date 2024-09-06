@@ -34,6 +34,7 @@ trait Config {
 pub struct Settings {
     pub save_dir: String,
     pub browser: String,
+    pub is_send_notification: bool,
     pub index: u32,
     // custom_commands_list: Vec<String>,
 }
@@ -43,6 +44,7 @@ impl Default for Settings {
         Self {
             save_dir: get_default_save_dir(),
             browser: "firefox".to_string(),
+            is_send_notification: true,
             index: 3,
             // custom_commands_list: vec![],
         }
@@ -88,6 +90,11 @@ impl Settings {
 
     pub fn set_browser(&mut self, new_browser: String) {
         self.browser = new_browser;
+        self.write_file();
+    }
+
+    pub fn set_is_send_notification(&mut self, new_is_send_notification: bool) {
+        self.is_send_notification = new_is_send_notification;
         self.write_file();
     }
 
@@ -137,6 +144,16 @@ pub mod commands {
     pub async fn set_index(state: State<'_, AppState>, new_index: u32) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_index(new_index);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_is_send_notification(
+        state: State<'_, AppState>,
+        new_is_send_notification: bool,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_is_send_notification(new_is_send_notification);
         Ok(())
     }
 

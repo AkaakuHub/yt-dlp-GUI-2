@@ -11,6 +11,8 @@ import { styled } from "@mui/material/styles";
 import { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../AppContext";
 
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
+
 import "./index.css";
 
 function WindowControls() {
@@ -47,6 +49,30 @@ function WindowControls() {
       backgroundColor: "#3d3d3d",
     },
   }));
+
+  useEffect(() => {
+    const checkNotificationPermission = async () => {
+      let permissionGranted = await isPermissionGranted();
+      if (!permissionGranted) {
+        const permission = await requestPermission();
+        permissionGranted = permission === 'granted';
+      }
+    };
+    checkNotificationPermission();
+  }, []);
+
+  const sendNotificationHandler = async (title: string, body: string) => {
+    try {
+      let permissionGranted = await isPermissionGranted();
+      if (!permissionGranted) {
+        const permission = await requestPermission();
+        permissionGranted = permission === 'granted';
+      }
+      sendNotification({ title, body });
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   const CustomWindowButton2 = styled(Button)(() => ({
     color: "#9d9d9d",
@@ -128,6 +154,9 @@ function WindowControls() {
         setProgressPercentage(100);
       } else {
         setIsDownloading(false);
+        if (videoTitle !== "") {
+          sendNotificationHandler("ダウンロード完了", `${videoTitle} のダウンロードが完了しました。`);
+        }
         setVideoTitle("");
       }
     }, [latestConsoleText]);
@@ -175,12 +204,10 @@ function WindowControls() {
               </div>
             </div>
           </div>
-
         ) : null}
       </>
     );
   };
-
 
   return (
     <div data-tauri-drag-region className="window-controls-root">

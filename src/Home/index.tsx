@@ -70,6 +70,8 @@ export default function Home() {
     // setLatestConsoleText("[download] Destination: C:\\Users\\akaaku\\Videos\\yt-dlp-data\\【先行公開】hogehogehogehogehogehogehogehogehogehogehogehoge1111111111111111111");
     // setLatestConsoleText("[download]   8.1% of   83.35MiB at  Unknown B/s ETA Unknown");
     // setLatestConsoleText("[download] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
+    // setLatestConsoleText("[fixUpM3u8] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
+    setLatestConsoleText("");
   }, [])
 
   interface Param {
