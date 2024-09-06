@@ -20,16 +20,16 @@ import {
 import DropDownWithArrows from "../_components/DropDownWithArrows";
 
 import { useAppContext } from "../_components/AppContext";
-import { ConfigProps } from "../types";
 
 export default function Home() {
   const { setLatestConsoleText } = useAppContext();
+  const { saveDir } = useAppContext();
 
   const [consoleText, setConsoleText] = useState<string>("");
   const [pid, setPid] = useState<number | null>(null);
   const [arbitraryCode, setArbitraryCode] = useState<string>("");
 
-  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
+  const { selectedIndexNumber, setSelectedIndexNumber } = useAppContext();
   const selectedIndexRef = useRef(selectedIndexNumber);
 
   useEffect(() => {
@@ -50,14 +50,6 @@ export default function Home() {
   useEffect(() => {
     selectedIndexRef.current = selectedIndexNumber;
   }, [selectedIndexNumber]);
-
-  const [saveDir, setSaveDir] = useState("");
-
-  useEffect(() => {
-    invoke<ConfigProps>("get_settings").then((config) => {
-      setSaveDir(config.save_dir);
-    });
-  }, []);
 
   // // debug
   // useEffect(() => {

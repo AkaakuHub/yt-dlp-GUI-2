@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
+import { useAppContext } from "../AppContext"
 import { MenuItem, Select, InputLabel, FormControl } from "@mui/material"
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { IconButton } from "@mui/material"
@@ -7,8 +8,6 @@ import { debounce } from "lodash";
 import PropTypes from "prop-types";
 
 import "./index.css"
-
-import { ConfigProps } from "../../types";
 
 const dropdownOptions = [
   { label: "1.通常DL", value: 1 },
@@ -36,7 +35,8 @@ interface DropDownWithArrowsProps {
 const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
   { selectedIndexNumber, setSelectedIndexNumber }
 ) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const { isSettingLoaded } = useAppContext();
 
   let maxValue = 0
   dropdownOptions.map((option, index) => {
@@ -68,13 +68,6 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
   }
 
   useEffect(() => {
-    invoke<ConfigProps>("get_settings").then((config) => {
-      setSelectedIndexNumber(config.index);
-    });
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
     if (selectedIndexNumber !== null) {
       setSelectedIndexNumber(selectedIndexNumber);
       saveDropDownIndex(selectedIndexNumber);
@@ -95,7 +88,7 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
           id="demo-simple-select"
           value={selectedIndexNumber}
           onChange={(e) => setSelectedIndexNumber(e.target.value as number)}
-          disabled={isLoading}
+          disabled={!isSettingLoaded}
         >
           {dropdownOptions.map((option, index) =>
             option.separator ? (

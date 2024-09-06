@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAppContext } from "../_components/AppContext";
 import {
   IconButton,
   Container,
@@ -16,12 +17,10 @@ import { debounce } from "lodash";
 
 import { toast } from "react-toastify";
 
-import { ConfigProps } from "../types";
-
 export default function Settings() {
-  const [saveDir, setSaveDir] = useState("");
-  const [browser, setBrowser] = useState("");
-  const [isSendNotification, setIsSendNotification] = useState(true);
+  const { saveDir, setSaveDir } = useAppContext();
+  const { browser, setBrowser } = useAppContext();
+  const { isSendNotification, setIsSendNotification } = useAppContext();
 
   const [currentVersion, setCurrentVersion] = useState("");
 
@@ -39,14 +38,6 @@ export default function Settings() {
       }
     };
     checkVersionAndUpdate();
-  }, []);
-
-  useEffect(() => {
-    invoke<ConfigProps>("get_settings").then((config) => {
-      setSaveDir(config.save_dir);
-      setBrowser(config.browser);
-      setIsSendNotification(config.is_send_notification);
-    });
   }, []);
 
   // デバウンスで遅延
