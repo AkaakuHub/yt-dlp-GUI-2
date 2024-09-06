@@ -24,9 +24,9 @@ import { useAppContext } from "../_components/AppContext";
 export default function Home() {
   const { setLatestConsoleText } = useAppContext();
   const { saveDir } = useAppContext();
+  const [pid, setPid] = useState<number | null>(null);
 
   const [consoleText, setConsoleText] = useState<string>("");
-  const [pid, setPid] = useState<number | null>(null);
   const [arbitraryCode, setArbitraryCode] = useState<string>("");
 
   const { selectedIndexNumber, setSelectedIndexNumber } = useAppContext();
@@ -58,7 +58,7 @@ export default function Home() {
 
   useEffect(() => {
     // setLatestConsoleText("[download]  58.5% of ~ 759.19MiB at   38.95MiB/s ETA 00:16 (frag 49/173)");
-    // setLatestConsoleText("[download]   29.1% of  925.79KiB at    7.32MiB/s ETA 00:02 (frag 12/12)");
+    setLatestConsoleText("[download]   29.1% of  925.79KiB at    7.32MiB/s ETA 00:02 (frag 12/12)");
     // setLatestConsoleText("[download] Destination: C:\\Users\\akaaku\\Videos\\yt-dlp-data\\【先行公開】hogehogehogehogehogehogehogehogehogehogehogehoge1111111111111111111");
     // setLatestConsoleText("[download]   8.1% of   83.35MiB at  Unknown B/s ETA Unknown");
     // setLatestConsoleText("[download] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
@@ -84,11 +84,14 @@ export default function Home() {
       if (event.payload === "") {
         return;
       }
-
+      const maxLength = 10000;
       setConsoleText((prev) => {
         // prev が空なら最初の改行を削除した新しいテキストをセット
         if (prev === "") {
           return event.payload.trimStart();
+        }
+        if (prev.length > maxLength) {
+          return prev.slice(prev.length - maxLength) + "\n" + event.payload;
         }
         // そうでなければ改行して追加
         return prev + "\n" + event.payload;

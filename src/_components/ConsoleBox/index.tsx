@@ -6,7 +6,7 @@ interface ConsoleBoxProps {
 }
 
 const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
-  const consoleBoxRef = useRef<HTMLDivElement>(null)
+  const consoleBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (consoleBoxRef.current) {

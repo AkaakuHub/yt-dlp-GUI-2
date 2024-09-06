@@ -49,10 +49,10 @@ async fn run_command(
         return Err("プロセスは既に実行中です".into());
     }
 
-    let url = param.url.unwrap_or("".to_string());
-    let codec_id = param.codec_id.unwrap_or("best".to_string());
-    let subtitle_lang = param.subtitle_lang.unwrap_or("ja".to_string());
-    let arbitrary_code = param.arbitrary_code.unwrap_or("".to_string());
+    let url = param.url.unwrap_or("not_set".to_string());
+    let codec_id = param.codec_id.unwrap_or("not_set".to_string());
+    let subtitle_lang = param.subtitle_lang.unwrap_or("not_set".to_string());
+    let arbitrary_code = param.arbitrary_code.unwrap_or("not_set".to_string());
     let is_cookie = param.is_cookie;
 
     let browser = format!("{}", settings.browser);
@@ -100,6 +100,9 @@ async fn run_command(
             args.push("--no-mtime");
         }
         6 => {
+            if subtitle_lang == "not_set" {
+                return Err("字幕言語が指定されていません".into());
+            }
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
@@ -114,6 +117,9 @@ async fn run_command(
             args.push("--skip-download");
         }
         8 => {
+            if codec_id == "not_set" {
+                return Err("コーデックIDが指定されていません".into());
+            }
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
@@ -133,6 +139,9 @@ async fn run_command(
             args.push(&save_directory);
         }
         11 => {
+            if arbitrary_code == "not_set" {
+                return Err("任意のコードが指定されていません".into());
+            }
             args.push(&arbitrary_code);
         }
         _ => {
@@ -192,13 +201,9 @@ async fn run_command(
         if let Some(ref mut child) = manager.process {
             let result = child.wait().await;
             match result {
-                Ok(status) => {
-                    window
-                        .emit(
-                            "process-exit",
-                            format!("プロセス終了: PID={}, ステータス={}", pid, status),
-                        )
-                        .unwrap();
+                Ok(_) => {
+                    window.emit("process-output", "\n").unwrap();
+                    window.emit("process-exit", "プロセス終了").unwrap();
                 }
                 Err(e) => {
                     window

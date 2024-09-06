@@ -16,6 +16,8 @@ import { isPermissionGranted, requestPermission, sendNotification } from '@tauri
 import "./index.css";
 
 function WindowControls() {
+  const { isSendNotification } = useAppContext();
+
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ function WindowControls() {
   }, []);
 
   const sendNotificationHandler = async (title: string, body: string) => {
+    if (!isSendNotification) { return; }
     try {
       let permissionGranted = await isPermissionGranted();
       if (!permissionGranted) {
@@ -136,8 +139,9 @@ function WindowControls() {
           }
         } else if (!latestConsoleText.includes("Destination:")) {
           const finalTime = splittedArray[5];
-          setProgressText(`完了。所要時間 ${finalTime}`);
+          setProgressText(`DL完了。所要時間 ${finalTime}`);
         }
+
         try {
           const videoTitleExtracted = latestConsoleText.split("Destination: ")[1]?.split("\\").pop();
           if (videoTitleExtracted && videoTitle !== videoTitleExtracted) {
@@ -148,18 +152,24 @@ function WindowControls() {
         } catch (error) { /** */ }
       } else if (latestConsoleText.startsWith("[Merger]")) {
         setIsDownloading(true);
+        setProgressText("マージ中...");
         setProgressPercentage(100);
       } else if (latestConsoleText.startsWith("[FixupM3u8]")) {
         setIsDownloading(true);
+        setProgressText("m3u8処理中...");
         setProgressPercentage(100);
-      } else {
+      } else if (latestConsoleText === "\n") {
         setIsDownloading(false);
         if (videoTitle !== "") {
           sendNotificationHandler("ダウンロード完了", `${videoTitle} のダウンロードが完了しました。`);
         }
-        setVideoTitle("");
+        setProgressPercentage(0);
       }
     }, [latestConsoleText]);
+
+    useEffect(() => {
+      console.log(isDownloading);
+    }, [isDownloading]);
 
     const [shouldScroll, setShouldScroll] = useState(false);
     const [scrollDuration, setScrollDuration] = useState(0);
