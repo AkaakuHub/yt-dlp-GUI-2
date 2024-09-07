@@ -16,6 +16,10 @@ use tokio::process::{Child as TokioChild, Command as TokioCommand};
 use tokio::sync::Mutex;
 use window_shadows::set_shadow;
 
+use tokio::net::TcpListener;
+use tokio::sync::mpsc::{channel, Sender};
+use tokio::task;
+
 mod config;
 use config::AppState;
 
@@ -336,6 +340,86 @@ fn open_directory(path: String) {
     Command::new("open").arg(path).spawn().unwrap();
 }
 
+// サーバー管理構造体
+struct ServerManager {
+    server_task: Option<task::JoinHandle<()>>,
+    stop_signal: Option<Sender<()>>,
+}
+
+impl ServerManager {
+    fn new() -> Self {
+        Self {
+            server_task: None,
+            stop_signal: None,
+        }
+    }
+
+    // サーバーの起動
+    async fn start_server(&mut self) {
+        let (tx, mut rx) = channel(1);
+        self.stop_signal = Some(tx);
+
+        // サーバーを非同期で開始
+        self.server_task = Some(task::spawn(async move {
+            let listener = TcpListener::bind("127.0.0.1:4000").await.unwrap();
+            println!("Server started on port 4000");
+
+            loop {
+                tokio::select! {
+                    // 停止信号を受け取った場合
+                    _ = rx.recv() => {
+                        println!("Server stopped");
+                        break;
+                    }
+
+                    // クライアント接続を待機
+                    Ok((socket, _)) = listener.accept() => {
+                        let mut reader = TokioBufReader::new(socket);
+                        let mut buffer = vec![0; 512];
+
+                        // 非同期でデータを読み取る
+                        match reader.read(&mut buffer).await {
+                            Ok(n) if n > 0 => {
+                                println!("Received: {}", String::from_utf8_lossy(&buffer[..n]));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }));
+    }
+
+    // サーバーの停止
+    async fn stop_server(&mut self) {
+        if let Some(stop_signal) = self.stop_signal.take() {
+            stop_signal.send(()).await.unwrap();
+        }
+        if let Some(handle) = self.server_task.take() {
+            handle.await.unwrap();
+        }
+    }
+}
+
+// サーバーを有効/無効にするコマンド
+#[tauri::command]
+async fn toggle_server(
+    enable: bool,
+    server_manager: State<'_, Arc<Mutex<ServerManager>>>,
+) -> Result<(), String> {
+    let mut server_manager = server_manager.lock().await;
+
+    if enable {
+        // サーバーの起動に成功した場合に Ok(()) を返す
+        server_manager.start_server().await;
+        Ok(())
+    } else {
+        // サーバーの停止に成功した場合に Ok(()) を返す
+        server_manager.stop_server().await;
+        Ok(())
+    }
+}
+
 fn main() {
     let app_state = config::AppState::new();
     let process_manager = Arc::new(Mutex::new(ProcessManager::default()));
@@ -355,8 +439,10 @@ fn main() {
             is_program_available,
             open_url_and_exit,
             check_version_and_update,
+            toggle_server,
             config::commands::set_save_dir,
             config::commands::set_browser,
+            config::commands::set_server_port,
             config::commands::set_is_send_notification,
             config::commands::set_index,
             config::commands::get_settings

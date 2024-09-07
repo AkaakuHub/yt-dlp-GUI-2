@@ -34,6 +34,7 @@ trait Config {
 pub struct Settings {
     pub save_dir: String,
     pub browser: String,
+    pub server_port: u16,
     pub is_send_notification: bool,
     pub index: u32,
     // custom_commands_list: Vec<String>,
@@ -44,6 +45,7 @@ impl Default for Settings {
         Self {
             save_dir: get_default_save_dir(),
             browser: "firefox".to_string(),
+            server_port: 50000,
             is_send_notification: true,
             index: 3,
             // custom_commands_list: vec![],
@@ -90,6 +92,11 @@ impl Settings {
 
     pub fn set_browser(&mut self, new_browser: String) {
         self.browser = new_browser;
+        self.write_file();
+    }
+
+    pub fn set_server_port(&mut self, new_server_port: u16) {
+        self.server_port = new_server_port;
         self.write_file();
     }
 
@@ -144,6 +151,16 @@ pub mod commands {
     pub async fn set_index(state: State<'_, AppState>, new_index: u32) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_index(new_index);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_server_port(
+        state: State<'_, AppState>,
+        new_server_port: u16,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_server_port(new_server_port);
         Ok(())
     }
 

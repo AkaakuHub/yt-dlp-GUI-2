@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { useAppContext } from "../_components/AppContext";
 import {
@@ -20,6 +21,7 @@ import { toast } from "react-toastify";
 export default function Settings() {
   const { saveDir, setSaveDir } = useAppContext();
   const { browser, setBrowser } = useAppContext();
+  const { serverPort, setServerPort } = useAppContext();
   const { isSendNotification, setIsSendNotification } = useAppContext();
 
   const [currentVersion, setCurrentVersion] = useState("");
@@ -47,6 +49,10 @@ export default function Settings() {
 
   const saveBrowserChanged = debounce(async (temp_browser: string) => {
     await invoke("set_browser", { newBrowser: temp_browser });
+  }, 500);
+
+  const saveServerPortChanged = debounce(async (temp_serverPort: number) => {
+    await invoke("set_server_port", { newServerPort: temp_serverPort });
   }, 500);
 
   const saveNotificationChanged = debounce(async (temp_notification: boolean) => {
@@ -99,14 +105,43 @@ export default function Settings() {
                 saveBrowserChanged(e.target.value);
               }}
             />
-            <Switch
-              checked={isSendNotification}
+            <TextField
+              fullWidth
+              label="使用するポート番号"
+              variant="outlined"
+              value={serverPort}
               onChange={(e) => {
-                setIsSendNotification(e.target.checked);
-                saveNotificationChanged(e.target.checked);
+                try {
+                  parseInt(e.target.value);
+                } catch (error) {
+                  return;
+                }
+                if (isNaN(parseInt(e.target.value))) return;
+
+                setServerPort(parseInt(e.target.value));
+                saveServerPortChanged(parseInt(e.target.value));
               }}
             />
-            ダウンロード完了時に通知を受け取る
+            <div>
+              <Switch
+                checked={isSendNotification}
+                onChange={(e) => {
+                  setIsSendNotification(e.target.checked);
+                  saveNotificationChanged(e.target.checked);
+                }}
+              />
+              ダウンロード完了時に通知を受け取る
+            </div>
+            <div>
+              <Switch
+                checked={true}
+              // onChange={(e) => {
+              //   setIsSendNotification(e.target.checked);
+              //   saveNotificationChanged(e.target.checked);
+              // }}
+              />
+              ポート{serverPort}でサーバーを起動
+            </div>
           </Box>
         </Paper>
 
