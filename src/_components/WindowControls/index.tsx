@@ -160,6 +160,7 @@ function WindowControls() {
         setProgressPercentage(100);
       } else if (latestConsoleText === "\n") {
         setIsDownloading(false);
+        setProgressPercentage(0);
         if (videoTitle !== "") {
           sendNotificationHandler("ダウンロード完了", `${videoTitle} のダウンロードが完了しました。`);
         }
