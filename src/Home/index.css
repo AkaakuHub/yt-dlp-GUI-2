@@ -2,14 +2,13 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: calc(100vh - 84px);
+  height: calc(100vh - 90px);
 }
 
 .main-row {
-  height: 150vh;
-  height: 150dvh;
   display: flex;
   justify-content: space-between;
+  height: 288px;
 }
 
 .line-1,

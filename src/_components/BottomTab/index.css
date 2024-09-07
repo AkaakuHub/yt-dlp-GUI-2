@@ -1,0 +1,39 @@
+.bottom-tab-container {
+  position: relative;
+  height: calc(100vh - 90px - 290px);
+}
+
+.bottom-tab-buttons {
+  display: flex;
+  position: absolute;
+  z-index: 1;
+}
+
+.tabButton {
+  padding: 8px 16px;
+  margin-right: 8px;
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.tabButton:hover {
+  background-color: #ffffff;
+}
+
+.tabButton.active {
+  background-color: #0078d4;
+  color: #fff;
+  border-color: #0078d4;
+}
+
+.content-container {
+  flex: 1;
+  height: calc(100vh - 90px - 290px);
+  padding-top: 38px;
+  box-sizing: border-box;
+}
