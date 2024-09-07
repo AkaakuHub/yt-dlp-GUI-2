@@ -16,8 +16,6 @@ import { isPermissionGranted, requestPermission, sendNotification } from '@tauri
 import "./index.css";
 
 function WindowControls() {
-  const { isSendNotification } = useAppContext();
-
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -64,7 +62,6 @@ function WindowControls() {
   }, []);
 
   const sendNotificationHandler = async (title: string, body: string) => {
-    if (!isSendNotification) { return; }
     try {
       let permissionGranted = await isPermissionGranted();
       if (!permissionGranted) {
@@ -88,6 +85,7 @@ function WindowControls() {
 
   const DownloadProgress = () => {
     const { latestConsoleText } = useAppContext();
+    const { isSendNotification } = useAppContext();
 
     const [isDownloading, setIsDownloading] = useState(false);
     const [progressPercentage, setProgressPercentage] = useState(0);
@@ -141,7 +139,6 @@ function WindowControls() {
           const finalTime = splittedArray[5];
           setProgressText(`DL完了。所要時間 ${finalTime}`);
         }
-
         try {
           const videoTitleExtracted = latestConsoleText.split("Destination: ")[1]?.split("\\").pop();
           if (videoTitleExtracted && videoTitle !== videoTitleExtracted) {
@@ -158,13 +155,13 @@ function WindowControls() {
         setIsDownloading(true);
         setProgressText("m3u8処理中...");
         setProgressPercentage(100);
-      } else if (latestConsoleText === "\n") {
+      } else {
         setIsDownloading(false);
         setProgressPercentage(0);
-        if (videoTitle !== "") {
+        if (videoTitle !== "" && isSendNotification) {
           sendNotificationHandler("ダウンロード完了", `${videoTitle} のダウンロードが完了しました。`);
         }
-        setProgressPercentage(0);
+        setVideoTitle("");
       }
     }, [latestConsoleText]);
 
