@@ -39,6 +39,15 @@
       },
       "notification": {
         "all": true
+      },
+      "fs": {
+        "readDir": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "path": {
+        "all": true
       }
     },
     "windows": [

@@ -1,0 +1,10 @@
+.explorer-wrapper {
+  height: calc(100vh - 90px - 290px);
+  border-radius: 8px;
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.2);
+}
+
+.explorer-list {
+  height: calc(100vh - 90px - 290px - 78px);
+  overflow-y: auto;
+}

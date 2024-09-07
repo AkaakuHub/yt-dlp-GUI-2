@@ -1,8 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use encoding_rs;
-use serde::Deserialize;
+use open as openPath;
+use serde::{Deserialize, Serialize};
 use std::env::current_dir;
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -13,13 +16,12 @@ use tauri::Window;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader as TokioBufReader;
-use tokio::process::{Child as TokioChild, Command as TokioCommand};
-use tokio::sync::Mutex;
-use window_shadows::set_shadow;
-
 use tokio::net::{TcpListener, TcpStream};
+use tokio::process::{Child as TokioChild, Command as TokioCommand};
 use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::Mutex;
 use tokio::task;
+use window_shadows::set_shadow;
 
 mod config;
 use config::AppState;
@@ -463,6 +465,50 @@ async fn toggle_server(
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct FileInfo {
+    name: String,
+    is_dir: bool,
+    last_modified: u64,
+    file_size: u64,
+}
+
+#[tauri::command]
+fn get_sorted_directory_contents(path: &str) -> Result<Vec<FileInfo>, String> {
+    let path = Path::new(path);
+    let mut entries = Vec::new();
+
+    if let Ok(dir_entries) = fs::read_dir(path) {
+        for entry in dir_entries {
+            if let Ok(entry) = entry {
+                let file_name = entry.file_name().to_string_lossy().into_owned();
+                let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+                let last_modified = entry
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs())
+                    .unwrap_or(0);
+                let file_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+
+                entries.push(FileInfo {
+                    name: file_name,
+                    is_dir,
+                    last_modified,
+                    file_size,
+                });
+            }
+        }
+    }
+
+    entries.sort_by(|a, b| b.last_modified.cmp(&a.last_modified));
+    Ok(entries)
+}
+
+#[tauri::command]
+fn open_file(path: String) -> Result<(), String> {
+    openPath::that(path).map_err(|e| e.to_string())
+}
+
 fn main() {
     let app_state = config::AppState::new();
     let process_manager = Arc::new(Mutex::new(ProcessManager::default()));
@@ -485,6 +531,8 @@ fn main() {
             open_url_and_exit,
             check_version_and_update,
             toggle_server,
+            get_sorted_directory_contents,
+            open_file,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_server_port,
@@ -493,6 +541,7 @@ fn main() {
             config::commands::set_is_server_enabled,
             config::commands::get_settings
         ])
+        .plugin(tauri_plugin_drag::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

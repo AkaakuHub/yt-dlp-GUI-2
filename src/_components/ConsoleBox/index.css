@@ -1,13 +1,12 @@
 .console-box {
   font-family: monospace;
-  white-space: pre-wrap;
-  overflow-y: auto;
+  white-space: pre;
+  overflow: auto;
   padding: 10px;
   background-color: #222222;
   color: #fff;
   border-radius: 8px;
-  margin: 10px;
-  height: 100%;
+  height: calc(100% - 20px);
 }
 
 .console-box-text {

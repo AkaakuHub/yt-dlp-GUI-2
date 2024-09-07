@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react'
-import './index.css'
+import React, { useEffect, useRef } from "react"
+import "./index.css"
 
 interface ConsoleBoxProps {
   consoleText: string

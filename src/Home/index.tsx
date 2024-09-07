@@ -5,7 +5,7 @@ import { dialog } from "@tauri-apps/api";
 import "./index.css";
 
 import ExecuteButton from "../_components/ExecuteButton";
-import ConsoleBox from "../_components/ConsoleBox";
+import BottomTab from "../_components/BottomTab";
 
 import { toast } from "react-toastify";
 
@@ -246,7 +246,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <ConsoleBox consoleText={consoleText} />
+      <BottomTab consoleText={consoleText} />
     </div>
   )
 }
