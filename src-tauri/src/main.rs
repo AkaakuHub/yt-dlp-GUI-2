@@ -11,10 +11,15 @@ use tauri::Manager;
 use tauri::State;
 use tauri::Window;
 use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader as TokioBufReader;
 use tokio::process::{Child as TokioChild, Command as TokioCommand};
 use tokio::sync::Mutex;
 use window_shadows::set_shadow;
+
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc::{channel, Sender};
+use tokio::task;
 
 mod config;
 use config::AppState;
@@ -336,9 +341,131 @@ fn open_directory(path: String) {
     Command::new("open").arg(path).spawn().unwrap();
 }
 
+struct ServerManager {
+    server_task: Option<task::JoinHandle<()>>,
+    stop_signal: Option<Sender<()>>,
+}
+
+impl ServerManager {
+    fn new() -> Self {
+        Self {
+            server_task: None,
+            stop_signal: None,
+        }
+    }
+
+    async fn start_server(&mut self, port: u16, window: Window) {
+        let (tx, mut rx) = channel(1);
+        self.stop_signal = Some(tx);
+
+        self.server_task = Some(task::spawn(async move {
+            let address = format!("127.0.0.1:{}", port);
+            let listener = TcpListener::bind(address).await.unwrap();
+            println!("Server started at {}", port);
+
+            loop {
+                tokio::select! {
+                    // 停止信号を受け取った場合
+                    _ = rx.recv() => {
+                        println!("Server stopped");
+                        break;
+                    }
+
+                    // クライアント接続を待機
+                    Ok((socket, _)) = listener.accept() => {
+                        tokio::spawn(handle_client(socket, window.clone()));
+                    }
+                }
+            }
+        }));
+    }
+
+    async fn stop_server(&mut self) {
+        if let Some(stop_signal) = self.stop_signal.take() {
+            stop_signal.send(()).await.unwrap();
+        }
+        if let Some(handle) = self.server_task.take() {
+            handle.await.unwrap();
+        }
+    }
+}
+
+async fn handle_client(mut socket: TcpStream, window: Window) {
+    let (reader, mut writer) = socket.split();
+    let mut buf_reader = TokioBufReader::new(reader);
+    let mut buffer = vec![0; 1024];
+
+    // 非同期でデータを読み取る
+    match buf_reader.read(&mut buffer).await {
+        Ok(n) if n > 0 => {
+            let request = String::from_utf8_lossy(&buffer[..n]);
+
+            if request.starts_with("OPTIONS") {
+                let response = "HTTP/1.1 204 No Content\r\n\
+                                Access-Control-Allow-Origin: *\r\n\
+                                Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n\
+                                Access-Control-Allow-Headers: Content-Type\r\n\
+                                \r\n";
+
+                if let Err(e) = writer.write_all(response.as_bytes()).await {
+                    eprintln!("Failed to write response: {}", e);
+                }
+            } else if request.starts_with("POST") {
+                let body_start = request.find("\r\n\r\n").unwrap_or(0) + 4;
+                let body = &request[body_start..];
+
+                window.emit("server-output", body).unwrap();
+
+                // レスポンスを作成
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\n\
+                    Content-Length: {}\r\n\
+                    Access-Control-Allow-Origin: *\r\n\
+                    Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n\
+                    Access-Control-Allow-Headers: Content-Type\r\n\
+                    \r\n\
+                    {}",
+                    body.len(),
+                    body
+                );
+
+                if let Err(e) = writer.write_all(response.as_bytes()).await {
+                    eprintln!("Failed to write response: {}", e);
+                }
+            } else {
+                // その他のリクエストの処理
+                let response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                if let Err(e) = writer.write_all(response.as_bytes()).await {
+                    eprintln!("Failed to write response: {}", e);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+#[tauri::command]
+async fn toggle_server(
+    enable: bool,
+    port: u16,
+    window: tauri::Window,
+    server_manager: State<'_, Arc<Mutex<ServerManager>>>,
+) -> Result<(), String> {
+    let mut server_manager = server_manager.lock().await;
+
+    if enable {
+        server_manager.start_server(port, window).await;
+        Ok(())
+    } else {
+        server_manager.stop_server().await;
+        Ok(())
+    }
+}
+
 fn main() {
     let app_state = config::AppState::new();
     let process_manager = Arc::new(Mutex::new(ProcessManager::default()));
+    let server_manager = Arc::new(Mutex::new(ServerManager::new()));
 
     tauri::Builder::default()
         .setup(|app| {
@@ -348,17 +475,21 @@ fn main() {
             Ok(())
         })
         .manage(app_state)
-        .manage(process_manager) // ProcessManagerを管理対象に追加
+        .manage(process_manager)
+        .manage(server_manager)
         .invoke_handler(tauri::generate_handler![
             run_command,
             open_directory,
             is_program_available,
             open_url_and_exit,
             check_version_and_update,
+            toggle_server,
             config::commands::set_save_dir,
             config::commands::set_browser,
+            config::commands::set_server_port,
             config::commands::set_is_send_notification,
             config::commands::set_index,
+            config::commands::set_is_server_enabled,
             config::commands::get_settings
         ])
         .run(tauri::generate_context!())

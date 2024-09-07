@@ -1,10 +1,11 @@
 import PropTypes from "prop-types";
 import clsx from "clsx";
+import { readText } from "@tauri-apps/api/clipboard";
 
 import "./index.css"
 
 interface ExecuteButtonProps {
-  executeButtonOnClick: () => void,
+  executeButtonOnClick: (url: string) => void
   isRunning: boolean
 }
 
@@ -12,12 +13,19 @@ const ExecuteButton: React.FC<ExecuteButtonProps> = ({
   executeButtonOnClick,
   isRunning
 }) => {
+
+  const onClickHandler = async () => {
+    const url = await readText();
+    if (!url) { return; }
+    executeButtonOnClick(url)
+  }
+
   return (
     <div
       className={clsx("execute-button", isRunning && "execute-button-disabled")}
       onClick={() => {
         if (isRunning) { return; }
-        executeButtonOnClick()
+        onClickHandler();
       }}
     >
       ここをクリックして実行

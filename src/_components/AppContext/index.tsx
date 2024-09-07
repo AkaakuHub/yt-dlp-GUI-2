@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api";
 
 import { ConfigProps } from "../../types";
 
-
 interface AppContextProps {
   latestConsoleText: string;
   setLatestConsoleText: React.Dispatch<React.SetStateAction<string>>;
@@ -13,10 +12,14 @@ interface AppContextProps {
   setSaveDir: React.Dispatch<React.SetStateAction<string>>;
   browser: string;
   setBrowser: React.Dispatch<React.SetStateAction<string>>;
+  serverPort: number;
+  setServerPort: React.Dispatch<React.SetStateAction<number>>;
   isSendNotification: boolean;
   setIsSendNotification: React.Dispatch<React.SetStateAction<boolean>>;
   selectedIndexNumber: number;
   setSelectedIndexNumber: React.Dispatch<React.SetStateAction<number>>;
+  isServerEnabled: boolean;
+  setIsServerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -28,15 +31,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [saveDir, setSaveDir] = useState("");
   const [browser, setBrowser] = useState("");
+  const [serverPort, setServerPort] = useState<number>(0);
   const [isSendNotification, setIsSendNotification] = useState(true);
   const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
+  const [isServerEnabled, setIsServerEnabled] = useState(true);
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
       setSaveDir(config.save_dir);
       setBrowser(config.browser);
+      setServerPort(config.server_port);
       setIsSendNotification(config.is_send_notification);
       setSelectedIndexNumber(config.index);
+      setIsServerEnabled(config.is_server_enabled);
     });
     setIsSettingLoaded(true);
   }, []);
@@ -51,10 +58,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setSaveDir,
       browser,
       setBrowser,
+      serverPort,
+      setServerPort,
       isSendNotification,
       setIsSendNotification,
       selectedIndexNumber,
-      setSelectedIndexNumber
+      setSelectedIndexNumber,
+      isServerEnabled,
+      setIsServerEnabled,
     }}>
       {children}
     </AppContext.Provider>

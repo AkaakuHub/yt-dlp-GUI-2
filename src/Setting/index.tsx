@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { useAppContext } from "../_components/AppContext";
 import {
@@ -20,7 +21,9 @@ import { toast } from "react-toastify";
 export default function Settings() {
   const { saveDir, setSaveDir } = useAppContext();
   const { browser, setBrowser } = useAppContext();
+  const { serverPort, setServerPort } = useAppContext();
   const { isSendNotification, setIsSendNotification } = useAppContext();
+  const { isServerEnabled, setIsServerEnabled } = useAppContext();
 
   const [currentVersion, setCurrentVersion] = useState("");
 
@@ -49,8 +52,17 @@ export default function Settings() {
     await invoke("set_browser", { newBrowser: temp_browser });
   }, 500);
 
+  const saveServerPortChanged = debounce(async (temp_serverPort: number) => {
+    await invoke("set_server_port", { newServerPort: temp_serverPort });
+  }, 500);
+
   const saveNotificationChanged = debounce(async (temp_notification: boolean) => {
     await invoke("set_is_send_notification", { newIsSendNotification: temp_notification });
+  }, 500);
+
+  const saveServerEnabledChanged = debounce(async (temp_serverEnabled: boolean) => {
+    // 設定値を更新する前に、実際にサーバーを起動する
+    await invoke("set_is_server_enabled", { newIsServerEnabled: temp_serverEnabled });
   }, 500);
 
   const openDirectoryDialog = async () => {
@@ -63,6 +75,12 @@ export default function Settings() {
       saveDirChanged(selectedDir as string);
     }
   };
+
+  useEffect(() => {
+    if (serverPort === 0 || isNaN(serverPort)) { return; }
+
+    invoke("toggle_server", { enable: isServerEnabled, port: serverPort });
+  }, [isServerEnabled, serverPort]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -99,14 +117,45 @@ export default function Settings() {
                 saveBrowserChanged(e.target.value);
               }}
             />
-            <Switch
-              checked={isSendNotification}
+            <TextField
+              fullWidth
+              label="使用するポート番号"
+              variant="outlined"
+              value={serverPort}
+              disabled={isServerEnabled}
               onChange={(e) => {
-                setIsSendNotification(e.target.checked);
-                saveNotificationChanged(e.target.checked);
+                try {
+                  parseInt(e.target.value);
+                } catch (error) {
+                  return;
+                }
+                if (isNaN(parseInt(e.target.value))) return;
+                if (parseInt(e.target.value) > 65535) return;
+
+                setServerPort(parseInt(e.target.value));
+                saveServerPortChanged(parseInt(e.target.value));
               }}
             />
-            ダウンロード完了時に通知を受け取る
+            <div>
+              <Switch
+                checked={isSendNotification}
+                onChange={(e) => {
+                  setIsSendNotification(e.target.checked);
+                  saveNotificationChanged(e.target.checked);
+                }}
+              />
+              ダウンロード完了時に通知を受け取る
+            </div>
+            <div>
+              <Switch
+                checked={isServerEnabled}
+                onChange={(e) => {
+                  setIsServerEnabled(e.target.checked);
+                  saveServerEnabledChanged(e.target.checked);
+                }}
+              />
+              ポート{serverPort}でサーバーを起動する
+            </div>
           </Box>
         </Paper>
 
