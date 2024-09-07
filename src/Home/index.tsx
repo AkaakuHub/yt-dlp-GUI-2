@@ -63,6 +63,7 @@ export default function Home() {
     // setLatestConsoleText("[download]   8.1% of   83.35MiB at  Unknown B/s ETA Unknown");
     // setLatestConsoleText("[download] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
     // setLatestConsoleText("[fixUpM3u8] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
+    // setLatestConsoleText("[FixupM3u8] Fixing MPEG-TS in MP4 container of hoge.mp4");
     // setLatestConsoleText("");
   }, [])
 

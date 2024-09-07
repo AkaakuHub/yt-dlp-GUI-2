@@ -148,12 +148,15 @@ function WindowControls() {
         } catch (error) { /** */ }
       } else if (latestConsoleText.startsWith("[Merger]")) {
         setIsDownloading(true);
+        setProgressText("マージ中...");
         setProgressPercentage(100);
       } else if (latestConsoleText.startsWith("[FixupM3u8]")) {
         setIsDownloading(true);
+        setProgressText("m3u8処理中...");
         setProgressPercentage(100);
       } else {
         setIsDownloading(false);
+        setProgressPercentage(0);
         if (videoTitle !== "") {
           sendNotificationHandler("ダウンロード完了", `${videoTitle} のダウンロードが完了しました。`);
         }
