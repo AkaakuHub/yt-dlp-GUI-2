@@ -168,10 +168,6 @@ function WindowControls() {
       }
     }, [latestConsoleText]);
 
-    useEffect(() => {
-      console.log(isDownloading);
-    }, [isDownloading]);
-
     const [shouldScroll, setShouldScroll] = useState(false);
     const [scrollDuration, setScrollDuration] = useState(0);
     const scrollingTextRef = useRef(null);

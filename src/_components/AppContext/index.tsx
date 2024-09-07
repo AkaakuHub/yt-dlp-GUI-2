@@ -18,6 +18,8 @@ interface AppContextProps {
   setIsSendNotification: React.Dispatch<React.SetStateAction<boolean>>;
   selectedIndexNumber: number;
   setSelectedIndexNumber: React.Dispatch<React.SetStateAction<number>>;
+  isServerEnabled: boolean;
+  setIsServerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -29,9 +31,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [saveDir, setSaveDir] = useState("");
   const [browser, setBrowser] = useState("");
-  const [serverPort, setServerPort] = useState(50000);
+  const [serverPort, setServerPort] = useState<number>(0);
   const [isSendNotification, setIsSendNotification] = useState(true);
   const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
+  const [isServerEnabled, setIsServerEnabled] = useState(true);
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
@@ -40,6 +43,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setServerPort(config.server_port);
       setIsSendNotification(config.is_send_notification);
       setSelectedIndexNumber(config.index);
+      setIsServerEnabled(config.is_server_enabled);
     });
     setIsSettingLoaded(true);
   }, []);
@@ -59,7 +63,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isSendNotification,
       setIsSendNotification,
       selectedIndexNumber,
-      setSelectedIndexNumber
+      setSelectedIndexNumber,
+      isServerEnabled,
+      setIsServerEnabled,
     }}>
       {children}
     </AppContext.Provider>

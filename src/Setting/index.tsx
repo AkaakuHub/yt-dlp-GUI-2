@@ -23,6 +23,7 @@ export default function Settings() {
   const { browser, setBrowser } = useAppContext();
   const { serverPort, setServerPort } = useAppContext();
   const { isSendNotification, setIsSendNotification } = useAppContext();
+  const { isServerEnabled, setIsServerEnabled } = useAppContext();
 
   const [currentVersion, setCurrentVersion] = useState("");
 
@@ -59,6 +60,11 @@ export default function Settings() {
     await invoke("set_is_send_notification", { newIsSendNotification: temp_notification });
   }, 500);
 
+  const saveServerEnabledChanged = debounce(async (temp_serverEnabled: boolean) => {
+    // 設定値を更新する前に、実際にサーバーを起動する
+    await invoke("set_is_server_enabled", { newIsServerEnabled: temp_serverEnabled });
+  }, 500);
+
   const openDirectoryDialog = async () => {
     const selectedDir = await open({
       directory: true,
@@ -69,6 +75,12 @@ export default function Settings() {
       saveDirChanged(selectedDir as string);
     }
   };
+
+  useEffect(() => {
+    if (serverPort === 0 || isNaN(serverPort)) { return; }
+
+    invoke("toggle_server", { enable: isServerEnabled, port: serverPort });
+  }, [isServerEnabled, serverPort]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -110,6 +122,7 @@ export default function Settings() {
               label="使用するポート番号"
               variant="outlined"
               value={serverPort}
+              disabled={isServerEnabled}
               onChange={(e) => {
                 try {
                   parseInt(e.target.value);
@@ -117,6 +130,7 @@ export default function Settings() {
                   return;
                 }
                 if (isNaN(parseInt(e.target.value))) return;
+                if (parseInt(e.target.value) > 65535) return;
 
                 setServerPort(parseInt(e.target.value));
                 saveServerPortChanged(parseInt(e.target.value));
@@ -134,13 +148,13 @@ export default function Settings() {
             </div>
             <div>
               <Switch
-                checked={true}
-              // onChange={(e) => {
-              //   setIsSendNotification(e.target.checked);
-              //   saveNotificationChanged(e.target.checked);
-              // }}
+                checked={isServerEnabled}
+                onChange={(e) => {
+                  setIsServerEnabled(e.target.checked);
+                  saveServerEnabledChanged(e.target.checked);
+                }}
               />
-              ポート{serverPort}でサーバーを起動
+              ポート{serverPort}でサーバーを起動する
             </div>
           </Box>
         </Paper>

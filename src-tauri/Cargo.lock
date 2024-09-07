@@ -5493,6 +5493,7 @@ version = "0.1.0"
 dependencies = [
  "dirs",
  "encoding_rs",
+ "hyper",
  "reqwest",
  "serde",
  "serde_json",
