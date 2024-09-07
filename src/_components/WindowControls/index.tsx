@@ -125,7 +125,11 @@ function WindowControls() {
           try {
             const remainingTime = latestConsoleText.split("ETA ")[1].split(" ")[0];
             if (remainingTime) {
-              setProgressText(`残り ${remainingTime} (${formattedPercentageString}%)`);
+              if (remainingTime !== "Unknown") {
+                setProgressText(`残り ${remainingTime} (${formattedPercentageString}%)`);
+              } else {
+                setProgressText(`残り ??:?? (${formattedPercentageString}%)`);
+              }
             }
           } catch (error) {
             try {

@@ -393,7 +393,7 @@ impl ServerManager {
 async fn handle_client(mut socket: TcpStream, window: Window) {
     let (reader, mut writer) = socket.split();
     let mut buf_reader = TokioBufReader::new(reader);
-    let mut buffer = vec![0; 1024];
+    let mut buffer = vec![0; 10240];
 
     // 非同期でデータを読み取る
     match buf_reader.read(&mut buffer).await {
@@ -414,6 +414,7 @@ async fn handle_client(mut socket: TcpStream, window: Window) {
                 let body_start = request.find("\r\n\r\n").unwrap_or(0) + 4;
                 let body = &request[body_start..];
 
+                // println!("Received: {}", body);
                 window.emit("server-output", body).unwrap();
 
                 // レスポンスを作成
