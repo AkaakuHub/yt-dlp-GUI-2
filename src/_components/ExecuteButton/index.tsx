@@ -15,8 +15,10 @@ const ExecuteButton: React.FC<ExecuteButtonProps> = ({
 }) => {
 
   const onClickHandler = async () => {
-    const url = await readText();
-    if (!url) { return; }
+    let url = await readText();
+    if (!url) {
+      url = "";
+    }
     executeButtonOnClick(url)
   }
 
