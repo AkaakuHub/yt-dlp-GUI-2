@@ -354,7 +354,7 @@ impl ServerManager {
         }
     }
 
-    async fn start_server(&mut self, port: u16) {
+    async fn start_server(&mut self, port: u16, window: Window) {
         let (tx, mut rx) = channel(1);
         self.stop_signal = Some(tx);
 
@@ -373,7 +373,7 @@ impl ServerManager {
 
                     // クライアント接続を待機
                     Ok((socket, _)) = listener.accept() => {
-                        tokio::spawn(handle_client(socket));
+                        tokio::spawn(handle_client(socket, window.clone()));
                     }
                 }
             }
@@ -390,7 +390,7 @@ impl ServerManager {
     }
 }
 
-async fn handle_client(mut socket: TcpStream) {
+async fn handle_client(mut socket: TcpStream, window: Window) {
     let (reader, mut writer) = socket.split();
     let mut buf_reader = TokioBufReader::new(reader);
     let mut buffer = vec![0; 1024];
@@ -414,7 +414,7 @@ async fn handle_client(mut socket: TcpStream) {
                 let body_start = request.find("\r\n\r\n").unwrap_or(0) + 4;
                 let body = &request[body_start..];
 
-                println!("Received POST data: {}", body);
+                window.emit("server-output", body).unwrap();
 
                 // レスポンスを作成
                 let response = format!(
@@ -448,12 +448,13 @@ async fn handle_client(mut socket: TcpStream) {
 async fn toggle_server(
     enable: bool,
     port: u16,
+    window: tauri::Window,
     server_manager: State<'_, Arc<Mutex<ServerManager>>>,
 ) -> Result<(), String> {
     let mut server_manager = server_manager.lock().await;
 
     if enable {
-        server_manager.start_server(port).await;
+        server_manager.start_server(port, window).await;
         Ok(())
     } else {
         server_manager.stop_server().await;

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { dialog } from "@tauri-apps/api";
-import { readText } from "@tauri-apps/api/clipboard";
 import "./index.css";
 
 import ExecuteButton from "../_components/ExecuteButton";
@@ -104,19 +103,30 @@ export default function Home() {
       setPid(null);
     })
 
+    const unlistenServerOutput = listen<string>("server-output", (event) => {
+      const data = event.payload;
+      try {
+        const dataJson = JSON.parse(data);
+        const url = dataJson.url;
+        executeButtonOnClick(url);
+      } catch (err) {
+        toast.error(`エラー: ${err}`);
+      }
+    });
+
     return () => {
       unlistenOutput.then((fn) => fn());
       unlistenExit.then((fn) => fn());
+      unlistenServerOutput.then((fn) => fn());
     }
   }, [])
 
-  async function executeButtonOnClick() {
+  async function executeButtonOnClick(url_input: string) {
     try {
       let processId;
       const currentSelectedIndex = selectedIndexRef.current;
 
-      // クリップボード取得
-      let url = await readText();
+      let url = url_input;
       if (currentSelectedIndex !== 13) {
         if (!url || url === "") {
           toast.error("URLが空です。");
