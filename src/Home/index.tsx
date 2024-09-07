@@ -121,6 +121,18 @@ export default function Home() {
     }
   }, [])
 
+  const deleteQuery = (url: string) => {
+    let pattern;
+    if (url.includes("playlist")) {
+      pattern = "([&?](si|index|ab_channel|pp)[^&]*)";
+    } else {
+      pattern = "([&?](si|list|index|ab_channel|pp|spm_id_from)[^&]*)";
+    }
+    url = url.replace(new RegExp(pattern, "g"), "");
+    url = url.replace(new RegExp("[&?]$", "g"), "");
+    return url;
+  }
+
   async function executeButtonOnClick(url_input: string) {
     try {
       let processId;
@@ -132,10 +144,11 @@ export default function Home() {
           toast.error("URLが空です。");
           return;
         } else if (!(url.startsWith("http"))) {
-          if (url.length > 100) { url = url.slice(0, 97) + "…"; }
           toast.error(`"${url}"は有効なURLではありません。`);
           return;
         }
+        url = deleteQuery(url);
+        if (url.length > 100) { url = url.slice(0, 97) + "…"; }
         processId = (await invoke("run_command", {
           param: {
             ...param,
