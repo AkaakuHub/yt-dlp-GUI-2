@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { appWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { Button } from "@mui/material";
 import MinimizeIcon from "@mui/icons-material/Minimize";
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
@@ -23,7 +24,14 @@ function WindowControls() {
       const maximized = await appWindow.isMaximized();
       setIsMaximized(maximized);
     };
+
     checkMaximizedState();
+
+    const unlistenMaximize = listen("tauri://resize", checkMaximizedState);
+
+    return () => {
+      unlistenMaximize.then((unlisten) => unlisten());
+    };
   }, []);
 
   const minimizeWindow = () => appWindow.minimize();
