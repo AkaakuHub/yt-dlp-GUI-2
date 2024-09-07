@@ -11,6 +11,7 @@ import {
   ArrowUpward as UpIcon, ArrowBack as BackIcon, ArrowForward as ForwardIcon
 } from "@mui/icons-material";
 import { useAppContext } from "../AppContext";
+import { eventEmitter } from "../EventEmitter";
 
 import "./index.css";
 
@@ -24,12 +25,12 @@ interface FileInfo {
 const PathInput = styled(InputBase)(({ theme }) => ({
   marginLeft: theme.spacing(1),
   flex: 1,
-  fontSize: '0.75rem',
+  fontSize: "0.75rem",
 }));
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
   padding: theme.spacing(0.25, 0.5),
-  '&:hover': {
+  "&:hover": {
     backgroundColor: theme.palette.action.hover,
   },
 }));
@@ -68,7 +69,7 @@ const Item: React.FC<{
         }
       }}
       style={{
-        cursor: file.is_dir ? 'pointer' : 'grab',
+        cursor: file.is_dir ? "pointer" : "grab",
       }}
     >
       <ListItemIcon style={{ minWidth: 24 }}>
@@ -76,18 +77,18 @@ const Item: React.FC<{
       </ListItemIcon>
       <ListItemText
         primary={file.name}
-        primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-        style={{ flex: '1 1 auto', marginRight: 8 }}
+        primaryTypographyProps={{ variant: "body2", noWrap: true }}
+        style={{ flex: "1 1 auto", marginRight: 8 }}
       />
       <ListItemText
-        primary={file.is_dir ? '' : calculateFileSize(file.file_size)}
-        primaryTypographyProps={{ variant: 'caption', noWrap: true }}
-        style={{ flex: '0 0 auto', textAlign: 'right', marginRight: 8 }}
+        primary={file.is_dir ? "" : calculateFileSize(file.file_size)}
+        primaryTypographyProps={{ variant: "caption", noWrap: true }}
+        style={{ flex: "0 0 auto", textAlign: "right", marginRight: 8 }}
       />
       <ListItemText
         primary={new Date(file.last_modified * 1000).toLocaleString()}
-        primaryTypographyProps={{ variant: 'caption', noWrap: true }}
-        style={{ flex: '0 0 auto', textAlign: 'right' }}
+        primaryTypographyProps={{ variant: "caption", noWrap: true }}
+        style={{ flex: "0 0 auto", textAlign: "right" }}
       />
     </StyledListItem>
   );
@@ -115,6 +116,14 @@ const CustomExplorer: React.FC = () => {
       console.error("Error fetching directory contents:", error);
     }
   };
+
+  useEffect(() => {
+    eventEmitter.on("refreshFiles", fetchFiles);
+
+    return () => {
+      eventEmitter.off("refreshFiles", fetchFiles);
+    };
+  }, []);
 
   useEffect(() => {
     fetchFiles();
@@ -167,7 +176,7 @@ const CustomExplorer: React.FC = () => {
             value={currentPath}
             onChange={(e) => setCurrentPath(e.target.value)}
             onKeyPress={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === "Enter") {
                 navigateTo(currentPath);
               }
             }}

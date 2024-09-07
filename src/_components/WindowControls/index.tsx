@@ -11,6 +11,7 @@ import { styled } from "@mui/material/styles";
 
 import { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../AppContext";
+import { eventEmitter } from "../EventEmitter";
 
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
 
@@ -172,6 +173,7 @@ function WindowControls() {
         setProgressPercentage(0);
         if (videoTitle !== "" && isSendNotification) {
           sendNotificationHandler("ダウンロード完了", `${videoTitle} のダウンロードが完了しました。`);
+          eventEmitter.emit("refreshFiles");
         }
         setVideoTitle("");
       }
