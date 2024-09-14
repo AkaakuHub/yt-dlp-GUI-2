@@ -261,6 +261,11 @@ export default function Home() {
               onChange={(e) => {
                 setArbitraryCode(e.target.value)
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  executeButtonOnClick("");
+                }
+              }}
             />
           </div>
         </div>

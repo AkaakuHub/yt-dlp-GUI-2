@@ -1,28 +1,3 @@
-/* .console-box {
-  font-family: monospace;
-  white-space: pre;
-  overflow: auto;
-  padding: 10px;
-  background-color: #222222;
-  color: #fff;
-  border-radius: 8px;
-  height: calc(100% - 20px);
-} */
-/* 
-.console-box {
-  font-family: monospace;
-  white-space: pre;
-  height: calc(100vh - 90px - 290px);
-  overflow: auto;
-  width: 100%;
-  background-color: #222222;
-  color: #fff;
-
-  div {
-    user-select: text;
-  }
-} */
-
 .console-box-wrapper {
   height: calc(100vh - 90px - 346px);
   padding: 10px 0px 10px 10px;
@@ -35,6 +10,7 @@
   white-space: pre;
   overflow: auto;
   color: #fff;
+  background-color: #222222;
   box-sizing: border-box;
 
   div {
@@ -44,4 +20,30 @@
 
 .console-list>div {
   width: 900px !important;
+}
+
+::-webkit-scrollbar,
+::-webkit-scrollbar:horizontal {
+  width: 14px;
+  /* スクロールバーの太さ */
+}
+
+/* 背景 */
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-track:horizontal {
+  background-color: #222222;
+  border-radius: 12px;
+}
+
+/* ドラッグ中の背景 */
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:hover:horizontal {
+  background-color: #61636c;
+}
+
+/* 取っ手 */
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:horizontal {
+  background-color: #8c8992;
+  border-radius: 12px;
 }
