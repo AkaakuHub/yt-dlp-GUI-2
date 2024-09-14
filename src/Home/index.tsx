@@ -90,13 +90,14 @@ export default function Home() {
         if (prev === "") {
           return event.payload.trimStart();
         }
+        // console.log("payl", event.payload);
+        setLatestConsoleText(event.payload);
         // if (prev.length > maxLength) {
         //   return prev.slice(prev.length - maxLength) + "\n" + event.payload;
         // }
         // そうでなければ改行して追加
         return prev + "\n" + event.payload;
       });
-      setLatestConsoleText(event.payload);
     });
 
     const unlistenExit = listen<string>("process-exit", () => {

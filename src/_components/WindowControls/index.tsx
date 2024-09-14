@@ -109,6 +109,7 @@ function WindowControls() {
 
     useEffect(() => {
       let formattedPercentageString = "";
+      // console.log("last", latestConsoleText);
 
       if (latestConsoleText.startsWith("[download]")) {
         setIsDownloading(true);
@@ -164,9 +165,9 @@ function WindowControls() {
         setIsDownloading(true);
         setProgressText("マージ中...");
         setProgressPercentage(100);
-      } else if (latestConsoleText.startsWith("[FixupM3u8]")) {
+      } else if (latestConsoleText.startsWith("[Fixup")) {
         setIsDownloading(true);
-        setProgressText("m3u8処理中...");
+        setProgressText("コンテナ処理中...");
         setProgressPercentage(100);
       } else {
         setIsDownloading(false);

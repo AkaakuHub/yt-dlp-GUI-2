@@ -97,7 +97,7 @@ const Item: React.FC<{
 const CustomExplorer: React.FC = () => {
   const { saveDir } = useAppContext();
   const [files, setFiles] = useState<FileInfo[]>([]);
-  const [currentPath, setCurrentPath] = useState<string>("");
+  const [currentPath, setCurrentPath] = useState<string>(saveDir);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
@@ -108,7 +108,6 @@ const CustomExplorer: React.FC = () => {
   }, [saveDir]);
 
   const fetchFiles = async () => {
-    console.log("Fetching directory contents...");
     if (!currentPath) return;
     try {
       const contents: FileInfo[] = await invoke("get_sorted_directory_contents", { path: currentPath });
@@ -119,12 +118,19 @@ const CustomExplorer: React.FC = () => {
   };
 
   useEffect(() => {
-    eventEmitter.on("refreshFiles", fetchFiles);
+    const handleRefreshFiles = () => {
+      setTimeout(() => {
+        fetchFiles();
+      }, 100);
+    };
+
+    eventEmitter.on("refreshFiles", handleRefreshFiles);
 
     return () => {
-      eventEmitter.off("refreshFiles", fetchFiles);
+      eventEmitter.off("refreshFiles", handleRefreshFiles);
     };
   }, []);
+
 
   useEffect(() => {
     fetchFiles();

@@ -22,7 +22,8 @@
 }
 
 .tabButton:hover {
-  background-color: #ffffff;
+  background-color: #e0eef9;
+  border-color: #0078d4;
 }
 
 .tabButton.active {
