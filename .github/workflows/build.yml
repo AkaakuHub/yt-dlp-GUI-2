@@ -50,16 +50,20 @@ jobs:
       - name: install frontend dependencies
         run: npm install # change this to npm, pnpm or bun depending on which one you use.
 
-      # - name: Get commit message and store in env
-      #   id: get_commit_message
-      #   run: echo "commit_message=$(git log --format=%B -n 1 ${{ github.sha }})" >> $GITHUB_ENV
+      - name: Get commit message and store in env
+        id: get_commit_message
+        run: echo "commit_message=$(git log --format=%B -n 1 ${{ github.sha }})" >> $GITHUB_ENV
+
+      - name: Set env
+        shell: bash
+        run: |
+            echo "commit_message=${{ env.commit_message }}" >> $GITHUB_ENV
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.BUILD_SECRET_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.BUILD_PASSWORD }}
-          COMMIT_MESSAGE: $(git log --format=%B -n 1 ${{ github.sha }})
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'yt-dlp-GUI v__VERSION__'
