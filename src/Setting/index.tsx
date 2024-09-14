@@ -19,10 +19,8 @@ import { debounce } from "lodash";
 import {
   checkUpdate,
   installUpdate,
-  // onUpdaterEvent,
 } from '@tauri-apps/api/updater'
 import { relaunch } from '@tauri-apps/api/process'
-// import { dialog } from "@tauri-apps/api";
 
 import "./index.css";
 
@@ -216,16 +214,18 @@ export default function Settings() {
 
         <Box sx={{ mt: 4, textAlign: "center" }}>
           <Typography variant="body2" color="textSecondary">
-            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI/releases" target="_blank" rel="noopener">
+            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2" target="_blank" rel="noopener">
               GitHub
             </Link>
             ・ バージョン {currentVersion || ""}
-            {isUpdateAvailable && (
+            {isUpdateAvailable ? (
               <span>・ <Link href={""} onClick={(e) => {
                 e.preventDefault();
                 executeUpdate();
               }}>ここをクリックしてアップデート</Link>
               </span>
+            ) : (
+              <span>・ 最新です</span>
             )}
           </Typography>
         </Box>

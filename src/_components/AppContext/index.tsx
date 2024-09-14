@@ -33,7 +33,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [browser, setBrowser] = useState("");
   const [serverPort, setServerPort] = useState<number>(0);
   const [isSendNotification, setIsSendNotification] = useState(true);
-  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(3);
+  const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(1);
   const [isServerEnabled, setIsServerEnabled] = useState(true);
 
   useEffect(() => {

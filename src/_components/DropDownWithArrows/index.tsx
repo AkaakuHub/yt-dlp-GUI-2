@@ -10,22 +10,33 @@ import PropTypes from "prop-types";
 import "./index.css"
 
 const dropdownOptions = [
-  { label: "1.通常DL", value: 1 },
-  { label: "2.音声DL", value: 2 },
-  { label: "3.最高品質DL", value: 3 },
-  { label: "4.サムネイルDL", value: 4 },
-  { label: "5.フォーマット自動DL", value: 5 },
-  { label: "6.字幕DL", value: 6 },
-  { label: "----------", value: 999, separator: true },
-  { label: "7.リストを表示", value: 7 },
-  { label: "8.コーデックIDを指定DL", value: 8 },
-  { label: "----------", value: 999, separator: true },
-  { label: "9.配信録画(最初から)", value: 9 },
-  { label: "10.配信録画(現在から)", value: 10 },
-  { label: "11.任意コード >yt-dlp", value: 11 },
-]
+  { label: "通常ダウンロード" },
+  { label: "音声のみダウンロード" },
+  { label: "1080p" },
+  { label: "720p" },
+  { label: "480p" },
+  { label: "360p" },
+  null,
+  { label: "リストを表示" },
+  { label: "コーデックIDを指定ダウンロード" },
+  null,
+  { label: "配信録画(最初から)" },
+  { label: "配信録画(現在から)" },
+  { label: "サムネイル" },
+  { label: "字幕" },
+  { label: "任意コード >yt-dlp" },
+].reduce((acc: ({ value: number; label: string } | null)[], option) => {
+  const currentValue = acc.filter(opt => opt !== null).length + 1;
+  if (option) {
+    acc.push({ ...option, value: currentValue });
+  } else {
+    acc.push(null);
+  }
+  return acc;
+}, []);
 
-// TODO: カスタム追加
+console.log(dropdownOptions);
+
 
 interface DropDownWithArrowsProps {
   selectedIndexNumber: number
@@ -36,11 +47,13 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
   { selectedIndexNumber, setSelectedIndexNumber }
 ) => {
 
+  console.log(dropdownOptions)
+
   const { isSettingLoaded } = useAppContext();
 
   let maxValue = 0
   dropdownOptions.map((option, index) => {
-    if (!option.separator) {
+    if (option) {
       if (option.value > maxValue) {
         maxValue = index
       }
@@ -49,30 +62,30 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
 
   const handleNext = () => {
     setSelectedIndexNumber((prev) => {
-      if (prev === maxValue) {
-        return 1
-      } else {
-        return prev + 1
+      let next = prev + 1;
+      while (dropdownOptions[next - 1] === null) {
+        next = (next === dropdownOptions.length) ? 1 : next + 1;
       }
-    })
-  }
+      return next > dropdownOptions.length ? 1 : next;
+    });
+  };
 
   const handlePrevious = () => {
     setSelectedIndexNumber((prev) => {
-      if (prev === 1) {
-        return maxValue
-      } else {
-        return prev - 1
+      let next = prev - 1;
+      while (dropdownOptions[next - 1] === null) {
+        next = (next === 1) ? dropdownOptions.length : next - 1;
       }
-    })
-  }
+      return next < 1 ? dropdownOptions.length : next;
+    });
+  };
 
   useEffect(() => {
     if (selectedIndexNumber !== null) {
       setSelectedIndexNumber(selectedIndexNumber);
       saveDropDownIndex(selectedIndexNumber);
     }
-  }, [selectedIndexNumber])
+  }, [selectedIndexNumber]);
 
   const saveDropDownIndex = debounce(async (temp: number) => {
     await invoke("set_index", { newIndex: temp });
@@ -91,13 +104,13 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
           disabled={!isSettingLoaded}
         >
           {dropdownOptions.map((option, index) =>
-            option.separator ? (
-              <MenuItem key={index} disabled>
+            option ? (
+              <MenuItem key={index} value={option.value}>
                 {option.label}
               </MenuItem>
             ) : (
-              <MenuItem key={index} value={option.value}>
-                {option.label}
+              <MenuItem key={index} disabled>
+                {"――――――――"}
               </MenuItem>
             )
           )}
@@ -118,7 +131,7 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
         </IconButton>
       </div>
     </div>
-  )
+  );
 }
 
 DropDownWithArrows.propTypes = {
