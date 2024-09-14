@@ -4,6 +4,7 @@ use encoding_rs;
 use open as openPath;
 use serde::{Deserialize, Serialize};
 use std::fs;
+#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
