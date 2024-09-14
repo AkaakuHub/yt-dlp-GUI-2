@@ -48,7 +48,7 @@ function WindowControls() {
     setIsMaximized(updateMaximized);
   };
 
-  const closeWindow = () => appWindow.hide();
+  const closeWindow = () => appWindow.close();
 
   const CustomWindowButton = styled(Button)(() => ({
     color: "#9d9d9d",
@@ -85,6 +85,9 @@ function WindowControls() {
 
   const CustomWindowButton2 = styled(Button)(() => ({
     color: "#9d9d9d",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
 
     "&:hover": {
       color: "#fff",
