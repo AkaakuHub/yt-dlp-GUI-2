@@ -140,7 +140,7 @@ export default function Home() {
       const currentSelectedIndex = selectedIndexRef.current;
 
       let url = url_input;
-      if (currentSelectedIndex !== 13) {
+      if (currentSelectedIndex !== 11) {
         if (!url || url === "") {
           toast.error("URLが空です。");
           return;
@@ -166,6 +166,7 @@ export default function Home() {
         }
         processId = (await invoke("run_command", {
           param: {
+            is_cookie: param.is_cookie,
             arbitrary_code: arbitraryCode,
             kind: currentSelectedIndex,
           }
