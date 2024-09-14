@@ -50,15 +50,6 @@ function WindowControls() {
 
   const closeWindow = () => appWindow.close();
 
-  const CustomWindowButton = styled(Button)(() => ({
-    color: "#9d9d9d",
-
-    "&:hover": {
-      color: "#fff",
-      backgroundColor: "#3d3d3d",
-    },
-  }));
-
   useEffect(() => {
     const checkNotificationPermission = async () => {
       let permissionGranted = await isPermissionGranted();
@@ -83,7 +74,8 @@ function WindowControls() {
     }
   }
 
-  const CustomWindowButton2 = styled(Button)(() => ({
+  const BaseCustomWindowButton = styled(Button)(() => ({
+    width: "20px",
     color: "#9d9d9d",
     display: "flex",
     alignItems: "center",
@@ -91,6 +83,14 @@ function WindowControls() {
 
     "&:hover": {
       color: "#fff",
+      backgroundColor: "#3d3d3d",
+    },
+  }));
+
+  const CustomWindowButton = styled(BaseCustomWindowButton)(() => ({}));
+
+  const CustomWindowButton2 = styled(BaseCustomWindowButton)(() => ({
+    "&:hover": {
       backgroundColor: "#e81123",
     },
   }));
@@ -239,11 +239,15 @@ function WindowControls() {
       </div>
       <DownloadProgress />
       <div data-tauri-drag-region className="window-right-controls">
-        <CustomWindowButton onClick={minimizeWindow} startIcon={<MinimizeIcon />} />
-        <CustomWindowButton onClick={maximizeWindow} startIcon={
-          isMaximized ? <FullscreenExitIcon /> : <FullscreenIcon />
-        } />
-        <CustomWindowButton2 onClick={closeWindow} startIcon={<CloseIcon />} />
+        <CustomWindowButton onClick={minimizeWindow}>
+          <MinimizeIcon fontSize={"small"} />
+        </CustomWindowButton>
+        <CustomWindowButton onClick={maximizeWindow} >
+          {isMaximized ? <FullscreenExitIcon fontSize={"small"} /> : <FullscreenIcon fontSize={"small"} />}
+        </CustomWindowButton>
+        <CustomWindowButton2 onClick={closeWindow} >
+          <CloseIcon fontSize={"small"} />
+        </CustomWindowButton2>
       </div>
     </div>
   );
