@@ -101,7 +101,7 @@
         "installMode": "passive"
       },
       "endpoints": [
-        "https://raw.githubusercontent.com/AkaakuHub/yt-dlp-GUI-2/main/latest.json"
+        "https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/latest.json"
       ]
     }
   }

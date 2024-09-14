@@ -4,7 +4,6 @@ use encoding_rs;
 use open as openPath;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
@@ -23,12 +22,15 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Mutex;
 use tokio::task;
-use window_shadows::set_shadow;
 
 mod config;
 use config::AppState;
 
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(any(windows, target_os = "macos"))]
+use window_shadows::set_shadow;
 
 pub struct CommandManager {
     command_task: Option<task::JoinHandle<()>>,
@@ -56,11 +58,20 @@ impl CommandManager {
         let (tx, _) = broadcast::channel(1);
         self.stop_signal = Some(tx.clone());
 
+        #[cfg(target_os = "windows")]
         let mut child = TokioCommand::new("yt-dlp")
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .creation_flags(CREATE_NO_WINDOW)
+            .creation_flags(0x08000000)
+            .spawn()
+            .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
+
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        let mut child = TokioCommand::new("yt-dlp")
+            .args(&args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
 
@@ -379,10 +390,14 @@ async fn is_program_available(program_name: String) -> Result<String, String> {
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
+    #[cfg(target_os = "windows")]
     let output = Command::new(program_name.clone())
         .arg(command_arg)
-        .creation_flags(CREATE_NO_WINDOW)
+        .creation_flags(0x08000000)
         .output();
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    let output = Command::new(program_name.clone()).arg(command_arg).output();
 
     match output {
         Ok(output) => {
