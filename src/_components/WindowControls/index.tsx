@@ -3,9 +3,9 @@ import { appWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { Button } from "@mui/material";
 import MinimizeIcon from "@mui/icons-material/Minimize";
-import FullscreenIcon from '@mui/icons-material/Fullscreen';
-import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-import CloseIcon from '@mui/icons-material/Close';
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import CloseIcon from "@mui/icons-material/Close";
 
 import { styled } from "@mui/material/styles";
 
@@ -13,7 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
-import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/api/notification";
 
 import "./index.css";
 
@@ -64,7 +64,7 @@ function WindowControls() {
       let permissionGranted = await isPermissionGranted();
       if (!permissionGranted) {
         const permission = await requestPermission();
-        permissionGranted = permission === 'granted';
+        permissionGranted = permission === "granted";
       }
     };
     checkNotificationPermission();
@@ -75,7 +75,7 @@ function WindowControls() {
       let permissionGranted = await isPermissionGranted();
       if (!permissionGranted) {
         const permission = await requestPermission();
-        permissionGranted = permission === 'granted';
+        permissionGranted = permission === "granted";
       }
       sendNotification({ title, body });
     } catch (error) {
@@ -214,7 +214,7 @@ function WindowControls() {
                   key={scrollKey}
                   ref={scrollingTextRef}
                   style={{
-                    animation: shouldScroll ? `scroll-left ${scrollDuration}s linear infinite` : 'none',
+                    animation: shouldScroll ? `scroll-left ${scrollDuration}s linear infinite` : "none",
                   }}
                 >
                   {videoTitle}

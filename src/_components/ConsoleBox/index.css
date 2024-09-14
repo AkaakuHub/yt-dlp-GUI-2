@@ -25,7 +25,7 @@
 
 .console-box-wrapper {
   height: calc(100vh - 90px - 346px);
-  padding: 10px;
+  padding: 10px 0px 10px 10px;
   background-color: #222222;
   border-radius: 8px;
 }

@@ -108,6 +108,7 @@ const CustomExplorer: React.FC = () => {
   }, [saveDir]);
 
   const fetchFiles = async () => {
+    console.log("Fetching directory contents...");
     if (!currentPath) return;
     try {
       const contents: FileInfo[] = await invoke("get_sorted_directory_contents", { path: currentPath });

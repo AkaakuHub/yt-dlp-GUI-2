@@ -35,10 +35,8 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
     setTimeout(() => {
       if (!scrollUpdateWasRequested && scrollOffset + listHeight < contentHeight) {
         setAutoScrollEnabled(false);
-        console.log("disable");
       } else {
         setAutoScrollEnabled(true);
-        console.log("enable");
       }
     }, 100);
   };
