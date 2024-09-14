@@ -139,11 +139,17 @@ async fn run_command(
             args.push("-o");
             args.push(&save_directory);
             args.push("--live-from-start");
+            args.push("-f");
+            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
+            args.push("--no-mtime");
         }
         10 => {
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
+            args.push("-f");
+            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
+            args.push("--no-mtime");
         }
         11 => {
             if arbitrary_code == "not_set" {
@@ -272,13 +278,13 @@ where
 
 #[tauri::command]
 async fn is_program_available(program_name: String) -> Result<String, String> {
-    let command_text = match program_name.as_str() {
-        "yt-dlp" => "yt-dlp --version",
-        "ffmpeg" => "ffmpeg -version",
+    let command_arg = match program_name.as_str() {
+        "yt-dlp" => "--version",
+        "ffmpeg" => "-version",
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
-    let output = Command::new("cmd").arg("/c").arg(command_text).output();
+    let output = Command::new(program_name.clone()).arg(command_arg).output();
 
     match output {
         Ok(output) => {
@@ -361,19 +367,27 @@ impl ServerManager {
         self.stop_signal = Some(tx);
 
         self.server_task = Some(task::spawn(async move {
-            let address = format!("127.0.0.1:{}", port);
-            let listener = TcpListener::bind(address).await.unwrap();
+            let port = port;
+            let listener = loop {
+                match TcpListener::bind(format!("127.0.0.1:{}", port)).await {
+                    Ok(listener) => break listener,
+                    Err(_) => {
+                        println!("Error: Port {} is in use.", port);
+                        window.emit("start-server-output", "失敗").unwrap();
+                        return;
+                    }
+                }
+            };
             println!("Server started at {}", port);
+            window.emit("start-server-output", "成功").unwrap();
 
             loop {
                 tokio::select! {
-                    // 停止信号を受け取った場合
                     _ = rx.recv() => {
                         println!("Server stopped");
                         break;
                     }
 
-                    // クライアント接続を待機
                     Ok((socket, _)) = listener.accept() => {
                         tokio::spawn(handle_client(socket, window.clone()));
                     }
@@ -384,10 +398,30 @@ impl ServerManager {
 
     async fn stop_server(&mut self) {
         if let Some(stop_signal) = self.stop_signal.take() {
-            stop_signal.send(()).await.unwrap();
+            if let Err(err) = stop_signal.send(()).await {
+                println!("Failed to send stop signal: {}", err);
+                return;
+            }
+        } else {
+            println!("Server is not running.");
+            return;
         }
+
         if let Some(handle) = self.server_task.take() {
-            handle.await.unwrap();
+            if let Err(err) = handle.await {
+                println!("Failed to stop server task: {}", err);
+            }
+        }
+    }
+}
+
+impl Drop for ServerManager {
+    fn drop(&mut self) {
+        let stop_signal = self.stop_signal.take();
+        if let Some(stop_signal) = stop_signal {
+            tokio::spawn(async move {
+                stop_signal.send(()).await.unwrap();
+            });
         }
     }
 }
