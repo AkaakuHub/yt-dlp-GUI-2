@@ -53,6 +53,20 @@ const Item: React.FC<{
     }
   };
 
+  const formatDateTime = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    };
+    return new Intl.DateTimeFormat('ja-JP', options).format(date);
+  };
+
   return (
     <StyledListItem
       onClick={() => {
@@ -86,7 +100,7 @@ const Item: React.FC<{
         style={{ flex: "0 0 auto", textAlign: "right", marginRight: 8 }}
       />
       <ListItemText
-        primary={new Date(file.last_modified * 1000).toLocaleString()}
+        primary={formatDateTime(file.last_modified)}
         primaryTypographyProps={{ variant: "caption", noWrap: true }}
         style={{ flex: "0 0 auto", textAlign: "right" }}
       />
@@ -137,9 +151,14 @@ const CustomExplorer: React.FC = () => {
   }, [currentPath]);
 
   const navigateTo = (newPath: string) => {
-    setCurrentPath(newPath);
-    setHistory(prev => [...prev.slice(0, historyIndex + 1), newPath]);
-    setHistoryIndex(prev => prev + 1);
+    if (currentPath !== newPath) {
+      setHistory(prev => {
+        const updatedHistory = [...prev.slice(0, historyIndex + 1), newPath];
+        return updatedHistory;
+      });
+      setHistoryIndex(prev => prev + 1);
+      setCurrentPath(newPath);
+    }
   };
 
   const handleClick = async (name: string) => {
