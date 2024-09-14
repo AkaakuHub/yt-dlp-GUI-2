@@ -16,6 +16,8 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/api/dialog";
 import { debounce } from "lodash";
+import { check } from '@tauri-apps/plugin-updater';
+import { dialog } from "@tauri-apps/api";
 
 import { toast } from "react-toastify";
 
@@ -29,19 +31,31 @@ export default function Settings() {
   const [currentVersion, setCurrentVersion] = useState("");
 
   useEffect(() => {
-    const checkVersionAndUpdate = async () => {
-      try {
-        const message = await invoke<string>("check_version_and_update");
-        if (message !== "最新です") {
-          toast.info(message);
-          const currentVersion = message.split("\n")[1].split(":")[1].trim();
-          setCurrentVersion(currentVersion);
+    async function checkForAppUpdates() {
+      const update = await check();
+      if (update === null) {
+        await dialog.message('Failed to check for updates.\nPlease try again later.');
+        return;
+      } else if (update?.available) {
+        const yes = await dialog.ask(`Update to ${update.version} is available!\n\nRelease notes: ${update.body}`);
+        if (yes) {
+          await update.downloadAndInstall();
+          // Restart the app after the update is installed by calling the Tauri command that handles restart for your app
+          // It is good practice to shut down any background processes gracefully before restarting
+          // As an alternative, you could ask the user to restart the app manually
+          await invoke("graceful_restart");
         }
-      } catch (error) {
-        console.error(`check_version_and_update: ${error}`);
       }
+    }
+    checkForAppUpdates();
+  }, []);
+
+  useEffect(() => {
+    const getCurrentVersion = async () => {
+      const version = await invoke<string>("get_current_version");
+      setCurrentVersion(version);
     };
-    checkVersionAndUpdate();
+    getCurrentVersion();
   }, []);
 
   // デバウンスで遅延

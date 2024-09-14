@@ -92,6 +92,17 @@
           "language": "ja-JP"
         }
       }
+    },
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2MzM3RDgwNEM3NDFFQTIKUldTaUhuUk1nSDB6ZGxOaWFEcFdMSWNHTGY1bHk1d0kvVzVYZGorc3V5SG1XUkhXUnQ1MjByNVQK",
+      "windows": {
+        "installMode": "passive"
+      },
+      "endpoints": [
+        "https://raw.githubusercontent.com/AkaakuHub/yt-dlp-GUI-2/main/latest.json"
+      ]
     }
   }
 }

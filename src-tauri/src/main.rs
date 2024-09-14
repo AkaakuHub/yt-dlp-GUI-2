@@ -400,35 +400,6 @@ async fn open_url_and_exit(window: Window, url: String) {
     }
 }
 
-#[tauri::command]
-async fn check_version_and_update() -> Result<String, String> {
-    let current_version = env!("CARGO_PKG_VERSION");
-    let github_release_url = "https://github.com/AkaakuHub/yt-dlp-GUI/releases/latest";
-    let client = reqwest::Client::new();
-    let response = client
-        .get(github_release_url)
-        .header("User-Agent", "request")
-        .send()
-        .await;
-
-    if let Ok(response) = response {
-        let redirected_url = response.url().to_string();
-        // 最後の / 以降を取得
-        let latest_version = redirected_url.split('/').last().unwrap();
-
-        if current_version != latest_version {
-            return Ok(format!(
-                "新しいバージョンがあります。\n現在:{}\n最新:{}\n設定の「Github」から新しいバージョンをダウンロードしてください。",
-                current_version, latest_version
-            ));
-        } else {
-            return Ok("最新です".to_string());
-        }
-    }
-
-    Err("エラーが発生しました".to_string())
-}
-
 #[cfg(target_os = "windows")]
 #[tauri::command]
 fn open_directory(path: String) {
@@ -632,6 +603,19 @@ fn open_file(path: String) -> Result<(), String> {
     openPath::that(path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn graceful_restart(window: tauri::Window) {
+    window
+        .emit("process-output", "プロセスを再起動します\n")
+        .unwrap();
+    std::process::exit(0x0);
+}
+
+#[tauri::command]
+async fn get_current_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 fn main() {
     let app_state = config::AppState::new();
     let command_manager = Arc::new(Mutex::new(CommandManager::new()));
@@ -653,10 +637,11 @@ fn main() {
             open_directory,
             is_program_available,
             open_url_and_exit,
-            check_version_and_update,
             toggle_server,
             get_sorted_directory_contents,
             open_file,
+            graceful_restart,
+            get_current_version,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_server_port,

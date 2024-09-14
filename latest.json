@@ -1,0 +1,11 @@
+{
+  "version": "v0.1.0",
+  "notes": "Test version",
+  "pub_date": "2024-09-14T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTaUhuUk1nSDB6ZHNYdjgrc09RT3ZLMEZLTUdXNXJwK3MrVzI2bUFybDI4d2ZaSEwzY0dVNFVxRUM3NGMzWWpHZGdPMHovTXg2M0FwZ0k2blZsdUMvNDJ0a1EvWHo4V1FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzI2MzEwNDc2CWZpbGU6eXQtZGxwLUdVSV8wLjEuMF94NjRfamEtSlAubXNpLnppcApRaE5wczBEMHlqQm54dHVOdGNZSHZuOGZJajdYMkg1T1loSEEyNWE0MmdtcHR0YmNtQU04a0laYWZMVFdSb3pybDhWWjVtU1BMNGtLKy80MGpONXdBZz09Cg==",
+      "url": "https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/download/v0.1.0/yt-dlp-GUI_0.1.0_x64_ja-JP.msi.zip"
+    }
+  }
+}
