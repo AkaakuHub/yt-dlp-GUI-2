@@ -12,7 +12,8 @@ import {
   Switch,
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import { invoke } from "@tauri-apps/api";
+import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/api/dialog";
 import { debounce } from "lodash";
 
@@ -61,7 +62,6 @@ export default function Settings() {
   }, 500);
 
   const saveServerEnabledChanged = debounce(async (temp_serverEnabled: boolean) => {
-    // 設定値を更新する前に、実際にサーバーを起動する
     await invoke("set_is_server_enabled", { newIsServerEnabled: temp_serverEnabled });
   }, 500);
 
@@ -81,6 +81,26 @@ export default function Settings() {
 
     invoke("toggle_server", { enable: isServerEnabled, port: serverPort });
   }, [isServerEnabled, serverPort]);
+
+
+  useEffect(() => {
+    const unlistenStartServerOutput = listen<string>("start-server-output", (event) => {
+      const data = event.payload;
+      // console.log(data);
+      if (data === "失敗") {
+        toast.error("サーバーの起動に失敗しました。ポート番号が他のプログラムで使用されています。");
+
+        saveServerEnabledChanged(false);
+        setIsServerEnabled(false);
+      } else {
+        saveServerEnabledChanged(true);
+      }
+    });
+
+    return () => {
+      unlistenStartServerOutput.then((fn) => fn());
+    }
+  }, [])
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -151,7 +171,6 @@ export default function Settings() {
                 checked={isServerEnabled}
                 onChange={(e) => {
                   setIsServerEnabled(e.target.checked);
-                  saveServerEnabledChanged(e.target.checked);
                 }}
               />
               ポート{serverPort}でサーバーを起動する
