@@ -22,13 +22,15 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Mutex;
 use tokio::task;
-use window_shadows::set_shadow;
 
 mod config;
 use config::AppState;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+
+#[cfg(any(windows, target_os = "macos"))]
+use window_shadows::set_shadow;
 
 pub struct CommandManager {
     command_task: Option<task::JoinHandle<()>>,
