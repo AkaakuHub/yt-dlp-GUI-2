@@ -4,6 +4,7 @@ use encoding_rs;
 use open as openPath;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
@@ -26,6 +27,8 @@ use window_shadows::set_shadow;
 
 mod config;
 use config::AppState;
+
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub struct CommandManager {
     command_task: Option<task::JoinHandle<()>>,
@@ -57,6 +60,7 @@ impl CommandManager {
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
 
@@ -375,7 +379,10 @@ async fn is_program_available(program_name: String) -> Result<String, String> {
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
-    let output = Command::new(program_name.clone()).arg(command_arg).output();
+    let output = Command::new(program_name.clone())
+        .arg(command_arg)
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
 
     match output {
         Ok(output) => {

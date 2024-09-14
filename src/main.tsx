@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import Home from "./Home";
 import Setting from "./Setting";
@@ -26,6 +26,15 @@ const App = () => {
   const handleSlideChange = (swiper: SwiperCore): void => {
     setActiveIndex(swiper.activeIndex);
   };
+
+  useEffect(() => {
+    // リロード禁止
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "F5") {
+        e.preventDefault();
+      }
+    });
+  }, []);
 
   return (
     <>
