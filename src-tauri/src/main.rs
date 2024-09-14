@@ -221,7 +221,7 @@ async fn run_command(
             args.push("-o");
             args.push(&save_directory);
             args.push("-f");
-            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]");
+            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
             args.push("--no-mtime");
         }
         2 => {
@@ -237,34 +237,32 @@ async fn run_command(
             args.push("-o");
             args.push(&save_directory);
             args.push("-f");
-            args.push("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
+            args.push("616/270/137/614/248/399+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
             args.push("--no-mtime");
         }
         4 => {
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
-            args.push("--write-thumbnail");
-            args.push("--skip-download");
+            args.push("-f");
+            args.push("232/609/247/136/398+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
             args.push("--no-mtime");
         }
         5 => {
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
+            args.push("-f");
+            args.push("231/606/244/135/397+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
             args.push("--no-mtime");
         }
         6 => {
-            if subtitle_lang == "not_set" {
-                return Err("字幕言語が指定されていません".into());
-            }
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
-            args.push("--write-auto-sub");
-            args.push("--sub-lang");
-            args.push(&subtitle_lang);
-            args.push("--skip-download");
+            args.push("-f");
+            args.push("230/605/243/134/396+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
+            args.push("--no-mtime");
         }
         7 => {
             args.push(&url);
@@ -300,6 +298,26 @@ async fn run_command(
             args.push("--no-mtime");
         }
         11 => {
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--write-thumbnail");
+            args.push("--skip-download");
+            args.push("--no-mtime");
+        }
+        12 => {
+            if subtitle_lang == "not_set" {
+                return Err("字幕言語が指定されていません".into());
+            }
+            args.push(&url);
+            args.push("-o");
+            args.push(&save_directory);
+            args.push("--write-auto-sub");
+            args.push("--sub-lang");
+            args.push(&subtitle_lang);
+            args.push("--skip-download");
+        }
+        13 => {
             if arbitrary_code == "not_set" {
                 return Err("任意のコードが指定されていません".into());
             }
