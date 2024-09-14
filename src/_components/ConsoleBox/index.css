@@ -1,4 +1,4 @@
-.console-box {
+/* .console-box {
   font-family: monospace;
   white-space: pre;
   overflow: auto;
@@ -7,9 +7,41 @@
   color: #fff;
   border-radius: 8px;
   height: calc(100% - 20px);
+} */
+/* 
+.console-box {
+  font-family: monospace;
+  white-space: pre;
+  height: calc(100vh - 90px - 290px);
+  overflow: auto;
+  width: 100%;
+  background-color: #222222;
+  color: #fff;
+
+  div {
+    user-select: text;
+  }
+} */
+
+.console-box-wrapper {
+  height: calc(100vh - 90px - 346px);
+  padding: 10px;
+  background-color: #222222;
+  border-radius: 8px;
 }
 
-.console-box-text {
-  min-width: 900px;
-  user-select: text;
+.console-box {
+  font-family: monospace;
+  white-space: pre;
+  overflow: auto;
+  color: #fff;
+  box-sizing: border-box;
+
+  div {
+    user-select: text;
+  }
+}
+
+.console-list>div {
+  width: 900px !important;
 }

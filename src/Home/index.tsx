@@ -79,12 +79,12 @@ export default function Home() {
   })
 
   useEffect(() => {
-    // Tauriイベントからffmpegの出力をリアルタイムで受け取る
     const unlistenOutput = listen<string>("process-output", (event) => {
       if (event.payload === "") {
         return;
       }
-      const maxLength = 10000;
+      // const maxLength = 10000;
+      // 仮想化に移行
       setConsoleText((prev) => {
         // prev が空なら最初の改行を削除した新しいテキストをセット
         if (prev === "") {
@@ -144,11 +144,13 @@ export default function Home() {
           toast.error("URLが空です。");
           return;
         } else if (!(url.startsWith("http"))) {
+          if (url.length > 100) {
+            url = url.slice(0, 97) + "…";
+          }
           toast.error(`"${url}"は有効なURLではありません。`);
           return;
         }
         url = deleteQuery(url);
-        if (url.length > 100) { url = url.slice(0, 97) + "…"; }
         processId = (await invoke("run_command", {
           param: {
             ...param,

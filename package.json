@@ -23,6 +23,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.26.1",
     "react-toastify": "^10.0.5",
+    "react-window": "^1.8.10",
     "swiper": "^11.1.12"
   },
   "devDependencies": {
@@ -32,6 +33,7 @@
     "@types/lodash": "^4.17.7",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.2.1",
     "eslint": "^9.9.1",
     "eslint-plugin-react": "^7.35.0",
