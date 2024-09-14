@@ -9,7 +9,6 @@ use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
 use tauri::api::shell::open;
-use tauri::command;
 use tauri::Manager;
 use tauri::State;
 use tauri::Window;
@@ -85,10 +84,10 @@ impl CommandManager {
         let tx_clone = tx.clone();
         let command_manager_clone = Arc::clone(&command_manager);
 
-        let stop_signal = self
-            .stop_signal
-            .clone()
-            .ok_or("Stop signal not initialized")?;
+        // let stop_signal = self
+        //     .stop_signal
+        //     .clone()
+        //     .ok_or("Stop signal not initialized")?;
 
         let task_handle = task::spawn(async move {
             let stdout_reader = TokioBufReader::new(stdout);
