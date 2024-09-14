@@ -16,10 +16,18 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/api/dialog";
 import { debounce } from "lodash";
-import { check } from '@tauri-apps/plugin-updater';
-import { dialog } from "@tauri-apps/api";
+import {
+  checkUpdate,
+  installUpdate,
+  // onUpdaterEvent,
+} from '@tauri-apps/api/updater'
+import { relaunch } from '@tauri-apps/api/process'
+// import { dialog } from "@tauri-apps/api";
+
+import "./index.css";
 
 import { toast } from "react-toastify";
+import { dialog } from "@tauri-apps/api";
 
 export default function Settings() {
   const { saveDir, setSaveDir } = useAppContext();
@@ -29,25 +37,39 @@ export default function Settings() {
   const { isServerEnabled, setIsServerEnabled } = useAppContext();
 
   const [currentVersion, setCurrentVersion] = useState("");
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
+  const executeUpdate = async () => {
+    // Install the update. This will also restart the app on Windows!
+    await installUpdate();
+    // On macOS and Linux you will need to restart the app manually.
+    // You could use this step to display another confirmation dialog.
+    await relaunch();
+  }
 
   useEffect(() => {
-    async function checkForAppUpdates() {
-      const update = await check();
-      if (update === null) {
-        await dialog.message('Failed to check for updates.\nPlease try again later.');
-        return;
-      } else if (update?.available) {
-        const yes = await dialog.ask(`Update to ${update.version} is available!\n\nRelease notes: ${update.body}`);
-        if (yes) {
-          await update.downloadAndInstall();
-          // Restart the app after the update is installed by calling the Tauri command that handles restart for your app
-          // It is good practice to shut down any background processes gracefully before restarting
-          // As an alternative, you could ask the user to restart the app manually
-          await invoke("graceful_restart");
+    const checkForUpdates = async () => {
+      // await emit("tauri://update");
+      // const unlisten = await onUpdaterEvent(({ error, status }) => {
+      //   console.log('Updater event', error, status)
+      // })
+      try {
+        const { shouldUpdate, manifest } = await checkUpdate()
+        if (shouldUpdate) {
+          setIsUpdateAvailable(true);
+          const yes = await dialog.ask(`最新バージョン(${manifest?.version})があります！アップデートしますか？\n\nリリースノート: ${manifest?.body}`);
+          if (yes) {
+            executeUpdate();
+          } else {
+            toast.info("アップデートはキャンセルされました。設定タブから行うこともできます。");
+          }
         }
+      } catch (error) {
+        alert(error);
       }
+      // unlisten();
     }
-    checkForAppUpdates();
+    checkForUpdates();
   }, []);
 
   useEffect(() => {
@@ -198,6 +220,13 @@ export default function Settings() {
               GitHub
             </Link>
             ・ バージョン {currentVersion || ""}
+            {isUpdateAvailable && (
+              <span>・ <Link href={""} onClick={(e) => {
+                e.preventDefault();
+                executeUpdate();
+              }}>ここをクリックしてアップデート</Link>
+              </span>
+            )}
           </Typography>
         </Box>
       </Container>

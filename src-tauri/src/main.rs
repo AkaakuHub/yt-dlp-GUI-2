@@ -604,14 +604,6 @@ fn open_file(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn graceful_restart(window: tauri::Window) {
-    window
-        .emit("process-output", "プロセスを再起動します\n")
-        .unwrap();
-    std::process::exit(0x0);
-}
-
-#[tauri::command]
 async fn get_current_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
@@ -640,7 +632,6 @@ fn main() {
             toggle_server,
             get_sorted_directory_contents,
             open_file,
-            graceful_restart,
             get_current_version,
             config::commands::set_save_dir,
             config::commands::set_browser,

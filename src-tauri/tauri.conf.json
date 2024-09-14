@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "yt-dlp-GUI",
-    "version": "0.1.0"
+    "version": "0.0.1"
   },
   "tauri": {
     "allowlist": {
@@ -95,7 +95,7 @@
     },
     "updater": {
       "active": true,
-      "dialog": true,
+      "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2MzM3RDgwNEM3NDFFQTIKUldTaUhuUk1nSDB6ZGxOaWFEcFdMSWNHTGY1bHk1d0kvVzVYZGorc3V5SG1XUkhXUnQ1MjByNVQK",
       "windows": {
         "installMode": "passive"
