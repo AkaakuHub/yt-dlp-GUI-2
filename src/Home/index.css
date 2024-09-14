@@ -52,3 +52,8 @@
 .arbitrary-code-label {
   width: 6rem;
 }
+
+.is-running-inner {
+  display: flex;
+  gap: 8px;
+}

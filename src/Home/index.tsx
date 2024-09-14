@@ -90,9 +90,9 @@ export default function Home() {
         if (prev === "") {
           return event.payload.trimStart();
         }
-        if (prev.length > maxLength) {
-          return prev.slice(prev.length - maxLength) + "\n" + event.payload;
-        }
+        // if (prev.length > maxLength) {
+        //   return prev.slice(prev.length - maxLength) + "\n" + event.payload;
+        // }
         // そうでなければ改行して追加
         return prev + "\n" + event.payload;
       });
@@ -174,6 +174,11 @@ export default function Home() {
     }
   }
 
+  const stopProcessHanlder = async () => {
+    await invoke("stop_command", { pid });
+    setPid(null);
+  }
+
   const openDirectory = async () => {
     await invoke("open_directory", { path: saveDir });
   }
@@ -201,7 +206,17 @@ export default function Home() {
           />
           <div className="is-running-label-wrapper">
             {pid !== null ? (
-              <div className="is-running-label">PID {pid}で実行中です</div>
+              <div className="is-running-inner">
+                <div className="is-running-label">PID {pid}で実行中です</div>
+                <CustomButton
+                  variant="contained"
+                  onClick={() => {
+                    stopProcessHanlder();
+                  }}
+                >
+                  中止
+                </CustomButton>
+              </div>
             ) : (
               <div className="is-not-running-label"></div>
             )}

@@ -3,13 +3,13 @@
 use encoding_rs;
 use open as openPath;
 use serde::{Deserialize, Serialize};
-use std::env::current_dir;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
 use tauri::api::shell::open;
+use tauri::command;
 use tauri::Manager;
 use tauri::State;
 use tauri::Window;
@@ -17,7 +17,9 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader as TokioBufReader;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::process::{Child as TokioChild, Command as TokioCommand};
+use tokio::process::Command as TokioCommand;
+use tokio::select;
+use tokio::sync::broadcast;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Mutex;
 use tokio::task;
@@ -26,9 +28,146 @@ use window_shadows::set_shadow;
 mod config;
 use config::AppState;
 
-#[derive(Default)]
-struct ProcessManager {
-    process: Option<TokioChild>,
+pub struct CommandManager {
+    command_task: Option<task::JoinHandle<()>>,
+    stop_signal: Option<broadcast::Sender<()>>,
+}
+
+impl CommandManager {
+    pub fn new() -> Self {
+        Self {
+            command_task: None,
+            stop_signal: None,
+        }
+    }
+
+    pub async fn start_command(
+        &mut self,
+        command_manager: Arc<Mutex<CommandManager>>,
+        args: Vec<&str>,
+        window: tauri::Window,
+    ) -> Result<u32, String> {
+        if self.command_task.is_some() {
+            return Err("プロセスは既に実行中です".into());
+        }
+
+        let (tx, _) = broadcast::channel(1);
+        self.stop_signal = Some(tx.clone());
+
+        let mut child = TokioCommand::new("yt-dlp")
+            .args(&args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
+
+        let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
+
+        window
+            .emit(
+                "process-output",
+                format!(
+                    "{}>yt-dlp {}\n",
+                    std::env::current_dir().unwrap().to_string_lossy(),
+                    args.join(" ")
+                ),
+            )
+            .unwrap();
+
+        let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or("標準エラーの取得に失敗しました")?;
+
+        let window_clone = window.clone();
+        let window_clone2 = window.clone();
+        let tx_clone = tx.clone();
+        let command_manager_clone = Arc::clone(&command_manager);
+
+        let stop_signal = self
+            .stop_signal
+            .clone()
+            .ok_or("Stop signal not initialized")?;
+
+        let task_handle = task::spawn(async move {
+            let stdout_reader = TokioBufReader::new(stdout);
+            let stderr_reader = TokioBufReader::new(stderr);
+
+            let stop_rx1 = tx.subscribe();
+            let stop_rx2 = tx.subscribe();
+
+            let window_clone_stdout = window_clone.clone();
+            let window_clone_stderr = window_clone2.clone();
+
+            let stdout_task = tokio::spawn(async move {
+                process_lines(stdout_reader, window_clone_stdout, stop_rx1).await;
+            });
+
+            let stderr_task = tokio::spawn(async move {
+                process_lines(stderr_reader, window_clone_stderr, stop_rx2).await;
+            });
+
+            let mut rx = tx_clone.subscribe();
+
+            tokio::select! {
+                _ = rx.recv() => {
+                    // println!("Command stop signal received");
+                    if let Err(e) = child.kill().await {
+                        eprintln!("Failed to kill process: {}", e);
+                    }
+                    let _ = child.wait().await;
+                    window_clone2.emit("process-exit", "プロセス終了").unwrap();
+
+                    return ;
+                }
+                status = child.wait() => {
+                    match status {
+                        Ok(_) => {
+                            window_clone.emit("process-output", "\n").unwrap();
+                            window_clone2.emit("process-exit", "プロセス終了").unwrap();
+                        }
+                        Err(e) => {
+                            window_clone
+                                .emit("process-exit", format!("プロセス終了エラー: {}", e))
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+
+            let _ = stdout_task.await;
+            let _ = stderr_task.await;
+
+            let mut manager = command_manager_clone.lock().await;
+            manager.command_task = None;
+        });
+
+        self.command_task = Some(task_handle);
+
+        Ok(pid)
+    }
+
+    pub async fn stop_command(&mut self, window: tauri::Window) -> Result<(), String> {
+        if let Some(stop_signal) = self.stop_signal.take() {
+            if let Err(err) = stop_signal.send(()) {
+                return Err(format!("Failed to send stop signal: {}", err));
+            }
+        } else {
+            return Err("Command is not running.".to_string());
+        }
+
+        if let Some(handle) = self.command_task.take() {
+            if let Err(err) = handle.await {
+                return Err(format!("Failed to stop command task: {}", err));
+            }
+        }
+
+        window
+            .emit("process-output", "プロセスを停止しました\n")
+            .unwrap();
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
@@ -40,21 +179,16 @@ struct RunCommandParam {
     is_cookie: bool,
     arbitrary_code: Option<String>,
 }
-
 #[tauri::command]
 async fn run_command(
-    process_manager: State<'_, Arc<Mutex<ProcessManager>>>,
+    command_manager: State<'_, Arc<Mutex<CommandManager>>>,
     window: tauri::Window,
     param: RunCommandParam,
 ) -> Result<u32, String> {
     let app_state = AppState::new();
     let settings = app_state.settings.lock().await;
 
-    let mut manager = process_manager.lock().await;
-
-    if manager.process.is_some() {
-        return Err("プロセスは既に実行中です".into());
-    }
+    let mut manager = command_manager.lock().await;
 
     let url = param.url.unwrap_or("not_set".to_string());
     let codec_id = param.codec_id.unwrap_or("not_set".to_string());
@@ -167,99 +301,48 @@ async fn run_command(
         args.push(&browser);
     }
 
-    let mut child = TokioCommand::new("yt-dlp")
-        .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
-
-    window
-        .emit(
-            "process-output",
-            format!(
-                "{}>yt-dlp {}\n",
-                current_dir().unwrap().to_string_lossy(),
-                args.join(" ")
-            ),
-        )
-        .unwrap();
-
-    let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
-    let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or("標準エラーの取得に失敗しました")?;
-
-    manager.process = Some(child);
-
-    let process_manager_clone: Arc<Mutex<ProcessManager>> = Arc::clone(&process_manager);
-    tauri::async_runtime::spawn(async move {
-        let stdout_reader = TokioBufReader::new(stdout);
-        let stderr_reader = TokioBufReader::new(stderr);
-
-        let window_clone = window.clone();
-        let window_clone2 = window.clone();
-
-        tokio::spawn(async move {
-            process_lines(stdout_reader, window_clone).await;
-        });
-
-        tokio::spawn(async move {
-            process_lines(stderr_reader, window_clone2).await;
-        });
-
-        let mut manager = process_manager_clone.lock().await;
-        if let Some(ref mut child) = manager.process {
-            let result = child.wait().await;
-            match result {
-                Ok(_) => {
-                    window.emit("process-output", "\n").unwrap();
-                    window.emit("process-exit", "プロセス終了").unwrap();
-                }
-                Err(e) => {
-                    window
-                        .emit("process-exit", format!("プロセス終了エラー: {}", e))
-                        .unwrap();
-                }
-            }
-        }
-
-        manager.process = None;
-    });
-
-    Ok(pid)
+    return manager
+        .start_command(command_manager.inner().clone(), args, window)
+        .await;
 }
-
-async fn process_lines<R>(mut reader: R, window: tauri::Window)
-where
+async fn process_lines<R>(
+    mut reader: R,
+    window: tauri::Window,
+    mut stop_rx: broadcast::Receiver<()>,
+) where
     R: AsyncReadExt + Unpin,
 {
     let mut buffer = Vec::new();
     let mut temp_buffer = [0u8; 1024];
 
     loop {
-        match reader.read(&mut temp_buffer).await {
-            Ok(0) => break, // EOF
-            Ok(n) => {
-                for &byte in &temp_buffer[..n] {
-                    if byte == b'\r' || byte == b'\n' {
-                        // 改行でemit
-                        let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
-                        if decode_error {
-                            eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
+        select! {
+            result = reader.read(&mut temp_buffer) => {
+                match result {
+                    Ok(0) => break, // EOF
+                    Ok(n) => {
+                        for &byte in &temp_buffer[..n] {
+                            if byte == b'\r' || byte == b'\n' {
+                                // 改行でemit
+                                let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
+                                if decode_error {
+                                    eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
+                                }
+                                let line = decoded.to_string();
+                                window.emit("process-output", line).unwrap();
+                                buffer.clear();
+                            } else {
+                                buffer.push(byte);
+                            }
                         }
-                        let line = decoded.to_string();
-                        window.emit("process-output", line.clone()).unwrap();
-                        buffer.clear();
-                    } else {
-                        buffer.push(byte);
+                    }
+                    Err(e) => {
+                        eprintln!("読み取りエラー: {}", e);
+                        break;
                     }
                 }
             }
-            Err(e) => {
-                eprintln!("読み取りエラー: {}", e);
+            _ = stop_rx.recv() => {
                 break;
             }
         }
@@ -272,8 +355,17 @@ where
             eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
         }
         let line = decoded.to_string();
-        window.emit("process-output", line.clone()).unwrap();
+        window.emit("process-output", line).unwrap();
     }
+}
+
+#[tauri::command]
+async fn stop_command(
+    command_manager: State<'_, Arc<Mutex<CommandManager>>>,
+    window: tauri::Window,
+) -> Result<(), String> {
+    let mut manager = command_manager.lock().await;
+    manager.stop_command(window).await
 }
 
 #[tauri::command]
@@ -372,7 +464,6 @@ impl ServerManager {
                 match TcpListener::bind(format!("127.0.0.1:{}", port)).await {
                     Ok(listener) => break listener,
                     Err(_) => {
-                        println!("Error: Port {} is in use.", port);
                         window.emit("start-server-output", "失敗").unwrap();
                         return;
                     }
@@ -399,17 +490,16 @@ impl ServerManager {
     async fn stop_server(&mut self) {
         if let Some(stop_signal) = self.stop_signal.take() {
             if let Err(err) = stop_signal.send(()).await {
-                println!("Failed to send stop signal: {}", err);
+                eprintln!("Failed to send stop signal: {}", err);
                 return;
             }
         } else {
-            println!("Server is not running.");
             return;
         }
 
         if let Some(handle) = self.server_task.take() {
             if let Err(err) = handle.await {
-                println!("Failed to stop server task: {}", err);
+                eprintln!("Failed to stop server task: {}", err);
             }
         }
     }
@@ -450,7 +540,6 @@ async fn handle_client(mut socket: TcpStream, window: Window) {
                 let body_start = request.find("\r\n\r\n").unwrap_or(0) + 4;
                 let body = &request[body_start..];
 
-                // println!("Received: {}", body);
                 window.emit("server-output", body).unwrap();
 
                 // レスポンスを作成
@@ -545,7 +634,7 @@ fn open_file(path: String) -> Result<(), String> {
 
 fn main() {
     let app_state = config::AppState::new();
-    let process_manager = Arc::new(Mutex::new(ProcessManager::default()));
+    let command_manager = Arc::new(Mutex::new(CommandManager::new()));
     let server_manager = Arc::new(Mutex::new(ServerManager::new()));
 
     tauri::Builder::default()
@@ -556,10 +645,11 @@ fn main() {
             Ok(())
         })
         .manage(app_state)
-        .manage(process_manager)
+        .manage(command_manager)
         .manage(server_manager)
         .invoke_handler(tauri::generate_handler![
             run_command,
+            stop_command,
             open_directory,
             is_program_available,
             open_url_and_exit,
