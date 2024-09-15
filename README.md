@@ -1,7 +1,7 @@
 <div style="display: flex; gap: 10px">
 <img src="https://shields.io/badge/Windows--9cf?logo=Windows&style=social"> ◎
-<img src="https://shields.io/badge/macOS--9cf?logo=Apple&style=social">?
-<img src="https://shields.io/badge/Linux--9cf?logo=Linux&style=social">?
+<img src="https://shields.io/badge/macOS--9cf?logo=Apple&style=social">WIP
+<img src="https://shields.io/badge/Linux--9cf?logo=Linux&style=social">WIP
 </div>
 
 # yt-dlp-GUI
@@ -31,9 +31,13 @@ https://github.com/AkaakuHub/YDG-Helper
 `ffmpeg.exe`と`ffprobe.exe`
 を2番と同じユーザーディレクトリに移動する。<br/>
 
+4.[**こちら**](###「yt-dlp/ffmpegがインストールされていないか、パスが通っていません。表示される手順に従ってパスを通してください。」と表示される)の手順に従い、パスを通す。
+
 ### Mac
 
-WIP
+1.自分のアーキテクチャにあったバイナリ([**Intelチップ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/yt-dlp-GUI_x64.app.tar.gz)または[**M1/M2チップ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/yt-dlp-GUI_1.0.1_aarch64.dmg))をダウンロードする。
+
+2.ffmpegとyt-dlpをインストールする。(brew推奨)
 
 ### Linux
 
@@ -73,4 +77,4 @@ WIP
 
 3. 「環境変数名の編集」のウィンドウが開いたら、「新規」をクリックして、以下のように入力する。<br/>例：ユーザー名が「guest」の場合、`C:\Users\guest`
 
-4. 「OK」を2つ押してウィンドウを閉じる。
+4. 「OK」を2回押してウィンドウを閉じる。

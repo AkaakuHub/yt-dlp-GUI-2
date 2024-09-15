@@ -5780,7 +5780,7 @@ dependencies = [
 
 [[package]]
 name = "yt-dlp-GUI"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "dirs",
  "encoding_rs",
