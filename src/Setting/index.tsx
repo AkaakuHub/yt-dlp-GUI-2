@@ -55,7 +55,11 @@ export default function Settings() {
         const { shouldUpdate, manifest } = await checkUpdate()
         if (shouldUpdate) {
           setIsUpdateAvailable(true);
-          const yes = await dialog.ask(`最新バージョン(${manifest?.version})があります！アップデートしますか？\n\nリリースノート: ${manifest?.body}`);
+          const yes = await dialog.ask(`最新バージョン(${manifest?.version})があります！アップデートしますか？`, {
+            "okLabel": "はい",
+            "cancelLabel": "いいえ",
+          });
+          // \n\nリリースノート: ${manifest?.body}
           if (yes) {
             executeUpdate();
           } else {

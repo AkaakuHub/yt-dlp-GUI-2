@@ -50,22 +50,6 @@ export default function Home() {
     selectedIndexRef.current = selectedIndexNumber;
   }, [selectedIndexNumber]);
 
-  // // debug
-  // useEffect(() => {
-  //   setPid(0);
-  // }, [])
-
-  useEffect(() => {
-    // setLatestConsoleText("[download]  58.5% of ~ 759.19MiB at   38.95MiB/s ETA 00:16 (frag 49/173)");
-    // setLatestConsoleText("[download]   29.1% of  925.79KiB at    7.32MiB/s ETA 00:02 (frag 12/12)");
-    // setLatestConsoleText("[download] Destination: C:\\Videos\\hogehogehogehogehogehogehogehogehogehogehogehoge1111111111111111111");
-    // setLatestConsoleText("[download]   8.1% of   83.35MiB at  Unknown B/s ETA Unknown");
-    // setLatestConsoleText("[download] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
-    // setLatestConsoleText("[fixUpM3u8] 100% of    4.42MiB in 00:00:00 at 6.21MiB/s         ");
-    // setLatestConsoleText("[FixupM3u8] Fixing MPEG-TS in MP4 container of hoge.mp4");
-    // setLatestConsoleText("");
-  }, [])
-
   interface Param {
     codec_id?: string;
     subtitle_lang?: string;
