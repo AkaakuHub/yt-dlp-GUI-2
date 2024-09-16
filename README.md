@@ -18,7 +18,9 @@ https://github.com/AkaakuHub/YDG-Helper
 
 ### Windows
 
-1.[**ここ(推奨)**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/yt-dlp-GUI_1.0.0_x64_ja-JP.msi)か、[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/yt-dlp-GUI_1.0.0_x64-setup.exe)をクリックしてダウンロードする。
+1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)から、
+`yt-dlp-GUI_x.x.x_x64_ja-JP.msi`(推奨)か、
+`yt-dlp-GUI_x.x.x_x64-setup.exe`をダウンロードする。
 
 2.[**ここ**](https://github.com/yt-dlp/yt-dlp/releases)にある最新バージョンのリリース("Latest"と書いてあるもの)から
 `yt-dlp.exe`
@@ -31,13 +33,19 @@ https://github.com/AkaakuHub/YDG-Helper
 `ffmpeg.exe`と`ffprobe.exe`
 を2番と同じユーザーディレクトリに移動する。<br/>
 
-4.[**こちら**](###「yt-dlp/ffmpegがインストールされていないか、パスが通っていません。表示される手順に従ってパスを通してください。」と表示される)の手順に従い、パスを通す。
+4.[**こちら**](#トラブルシューティング)の手順に従い、パスを通す。
 
 ### Mac
 
-1.自分のアーキテクチャにあったバイナリ([**Intelチップ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/yt-dlp-GUI_x64.app.tar.gz)または[**M1/M2チップ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest/download/yt-dlp-GUI_1.0.1_aarch64.dmg))をダウンロードする。
+1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)から、
+自分のアーキテクチャにあったバイナリ
+(Intelチップなら`yt-dlp-GUI_x64.app.tar.gz`, M1/M2チップなら`yt-dlp-GUI_x.x.x_aarch64.dmg`)
+をダウンロードする。
 
-2.ffmpegとyt-dlpをインストールする。(brew推奨)
+2.`"yt-dlp-GUI.app"は壊れているため開けません。`
+と表示される場合は、`xattr -rc [appファイルのファイルパス]`を実行する。
+
+3.ffmpegとyt-dlpをインストールする。(brew推奨)
 
 ### Linux
 
