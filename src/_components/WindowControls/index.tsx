@@ -1,14 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { appWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
-import { Button } from "@mui/material";
-import MinimizeIcon from "@mui/icons-material/Minimize";
-import FullscreenIcon from "@mui/icons-material/Fullscreen";
-import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import CloseIcon from "@mui/icons-material/Close";
-
-import { styled } from "@mui/material/styles";
-
 import { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
@@ -18,38 +8,6 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 import "./index.css";
 
 function WindowControls() {
-  const [isMaximized, setIsMaximized] = useState(false);
-
-  useEffect(() => {
-    const checkMaximizedState = async () => {
-      const maximized = await appWindow.isMaximized();
-      setIsMaximized(maximized);
-    };
-
-    checkMaximizedState();
-
-    const unlistenMaximize = listen("tauri://resize", checkMaximizedState);
-
-    return () => {
-      unlistenMaximize.then((unlisten) => unlisten());
-    };
-  }, []);
-
-  const minimizeWindow = () => appWindow.minimize();
-
-  const maximizeWindow = async () => {
-    const isMaximized = await appWindow.isMaximized();
-    if (isMaximized) {
-      appWindow.unmaximize();
-    } else {
-      appWindow.maximize();
-    }
-    const updateMaximized = await appWindow.isMaximized();
-    setIsMaximized(updateMaximized);
-  };
-
-  const closeWindow = () => appWindow.close();
-
   useEffect(() => {
     const checkNotificationPermission = async () => {
       let permissionGranted = await isPermissionGranted();
@@ -74,26 +32,6 @@ function WindowControls() {
     }
   }
 
-  const BaseCustomWindowButton = styled(Button)(() => ({
-    width: "20px",
-    color: "#9d9d9d",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-
-    "&:hover": {
-      color: "#fff",
-      backgroundColor: "#3d3d3d",
-    },
-  }));
-
-  const CustomWindowButton = styled(BaseCustomWindowButton)(() => ({}));
-
-  const CustomWindowButton2 = styled(BaseCustomWindowButton)(() => ({
-    "&:hover": {
-      backgroundColor: "#e81123",
-    },
-  }));
 
   const DownloadProgress = () => {
     const { latestConsoleText } = useAppContext();
@@ -233,21 +171,8 @@ function WindowControls() {
 
   return (
     <div data-tauri-drag-region className="window-controls-root">
-      <div data-tauri-drag-region className="window-left-controls">
-        <img src="assets/128x128.png" alt="logo" className="window-logo"
-        />
-      </div>
       <DownloadProgress />
       <div data-tauri-drag-region className="window-right-controls">
-        <CustomWindowButton onClick={minimizeWindow}>
-          <MinimizeIcon fontSize={"small"} />
-        </CustomWindowButton>
-        <CustomWindowButton onClick={maximizeWindow} >
-          {isMaximized ? <FullscreenExitIcon fontSize={"small"} /> : <FullscreenIcon fontSize={"small"} />}
-        </CustomWindowButton>
-        <CustomWindowButton2 onClick={closeWindow} >
-          <CloseIcon fontSize={"small"} />
-        </CustomWindowButton2>
       </div>
     </div>
   );
