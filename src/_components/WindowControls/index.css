@@ -3,16 +3,6 @@
   margin: 4px;
 }
 
-.window-left-controls {
-  position: absolute;
-  left: 0px;
-  top: 0px;
-  align-items: center;
-  width: 36px;
-  height: 36px;
-  z-index: 5;
-}
-
 .window-logo {
   padding: 6px 0 0 8px;
   width: 24px;
