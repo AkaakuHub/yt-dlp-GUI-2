@@ -1,6 +1,6 @@
 [package]
 name = "yt-dlp-GUI"
-version = "1.0.2"
+version = "1.0.3"
 description = "yt-dlp-GUI"
 authors = ["AkaakuHub"]
 edition = "2021"
