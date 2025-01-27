@@ -648,6 +648,7 @@ async fn get_current_version() -> String {
 }
 
 fn main() {
+    let _ = fix_path_env::fix();
     let app_state = config::AppState::new();
     let command_manager = Arc::new(Mutex::new(CommandManager::new()));
     let server_manager = Arc::new(Mutex::new(ServerManager::new()));
