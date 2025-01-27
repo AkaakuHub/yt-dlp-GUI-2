@@ -1,7 +1,7 @@
 <div style="display: flex; gap: 10px">
 <img src="https://shields.io/badge/Windows--9cf?logo=Windows&style=social"> ◎
-<img src="https://shields.io/badge/macOS--9cf?logo=Apple&style=social">WIP
-<img src="https://shields.io/badge/Linux--9cf?logo=Linux&style=social">WIP
+<img src="https://shields.io/badge/macOS--9cf?logo=Apple&style=social">◎
+<img src="https://shields.io/badge/Linux--9cf?logo=Linux&style=social">未検証
 </div>
 
 # yt-dlp-GUI
@@ -39,13 +39,13 @@ https://github.com/AkaakuHub/YDG-Helper
 
 1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)から、
 自分のアーキテクチャにあったバイナリ
-(Intelチップなら`yt-dlp-GUI_x64.app.tar.gz`, M1/M2チップなら`yt-dlp-GUI_x.x.x_aarch64.dmg`)
+(Intelチップなら`yt-dlp-GUI_x64.app.tar.gz`, M1~M4チップなら`yt-dlp-GUI_x.x.x_aarch64.dmg`)
 をダウンロードする。
 
 2.`"yt-dlp-GUI.app"は壊れているため開けません。`
-と表示される場合は、`xattr -rc [appファイルのファイルパス]`を実行する。
+と表示される場合は、ターミナルで`xattr -rc [appファイルのパス]`を実行する。
 
-3.ffmpegとyt-dlpをインストールする。(brew推奨)
+3.ffmpegとyt-dlpをインストールする。(homebrew推奨)
 
 ### Linux
 
