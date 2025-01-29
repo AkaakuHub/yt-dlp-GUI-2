@@ -37,15 +37,18 @@ https://github.com/AkaakuHub/YDG-Helper
 
 ### Mac
 
-1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)から、
-自分のアーキテクチャにあったバイナリ
-(Intelチップなら`yt-dlp-GUI_x64.app.tar.gz`, M1~M4チップなら`yt-dlp-GUI_x.x.x_aarch64.dmg`)
+1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)にある最新バージョンのリリース("Latest"と書いてあるもの)から
+`yt-dlp-GUI_x.x.x_aarch64.dmg`
 をダウンロードする。
 
-2.`"yt-dlp-GUI.app"は壊れているため開けません。`
-と表示される場合は、ターミナルで`xattr -rc [appファイルのパス]`を実行する。
+2. ダブルクリックすると、このような画面が開くので、右のアイコンを左にドラッグアンドドロップする。
+   ![image](https://github.com/user-attachments/assets/5e7805aa-4ad8-49e9-9eba-d154554378fb)
 
-3.ffmpegとyt-dlpをインストールする。(homebrew推奨)
+3.`"yt-dlp-GUI.app"は壊れているため開けません。`
+と表示される場合は、ターミナルで`xattr -rc [appファイルのパス]`を実行する。<br/>
+例: `xattr -rc /Applications/yt-dlp-GUI.app`
+
+4.ffmpegとyt-dlpをインストールする。(homebrew推奨)
 
 ### Linux
 
