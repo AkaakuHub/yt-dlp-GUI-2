@@ -93,6 +93,9 @@ importers:
       prettier:
         specifier: ^3.3.3
         version: 3.5.3
+      prop-types:
+        specifier: ^15.8.1
+        version: 15.8.1
       typescript:
         specifier: ^5.2.2
         version: 5.8.3
