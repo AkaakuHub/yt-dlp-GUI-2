@@ -193,6 +193,27 @@ struct RunCommandParam {
     is_cookie: bool,
     arbitrary_code: Option<String>,
 }
+
+fn get_format_command(kind: i32) -> Result<String, String> {
+    // kindの値に応じてビデオIDのリストを選択
+    let video_ids_str = match kind {
+        3 => "616/270/137/614/248/399",
+        4 => "232/609/247/136/398",
+        5 => "231/606/244/135/397",
+        6 => "230/605/243/134/396",
+        // このケースは3..=6の範囲外からは到達しない
+        _ => unreachable!(),
+    };
+    // video_ids_strを'/'で分割し、各IDに音声オプションを結合してから、再度'/'で連結する
+    let format_option = video_ids_str
+        .split('/')
+        .map(|id| format!("{}+bestaudio", id))
+        .collect::<Vec<String>>()
+        .join("/");
+
+    Ok(format_option)
+}
+
 #[tauri::command]
 async fn run_command(
     command_manager: State<'_, Arc<Mutex<CommandManager>>>,
@@ -215,6 +236,8 @@ async fn run_command(
 
     let mut args: Vec<&str> = Vec::new();
 
+    let specific_command = get_format_command(param.kind)?;
+
     match param.kind {
         1 => {
             args.push(&url);
@@ -232,36 +255,12 @@ async fn run_command(
             args.push("bestaudio[ext=m4a]");
             args.push("--no-mtime");
         }
-        3 => {
+        3..=6 => {
             args.push(&url);
             args.push("-o");
             args.push(&save_directory);
             args.push("-f");
-            args.push("616/270/137/614/248/399+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
-            args.push("--no-mtime");
-        }
-        4 => {
-            args.push(&url);
-            args.push("-o");
-            args.push(&save_directory);
-            args.push("-f");
-            args.push("232/609/247/136/398+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
-            args.push("--no-mtime");
-        }
-        5 => {
-            args.push(&url);
-            args.push("-o");
-            args.push(&save_directory);
-            args.push("-f");
-            args.push("231/606/244/135/397+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
-            args.push("--no-mtime");
-        }
-        6 => {
-            args.push(&url);
-            args.push("-o");
-            args.push(&save_directory);
-            args.push("-f");
-            args.push("230/605/243/134/396+bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio");
+            args.push(&specific_command);
             args.push("--no-mtime");
         }
         7 => {
