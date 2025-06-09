@@ -25,15 +25,13 @@ const dropdownOptions = [
   { label: "サムネイル" },
   { label: "字幕" },
   { label: "任意コード >yt-dlp" },
-].reduce((acc: ({ value: number; label: string } | null)[], option) => {
-  const currentValue = acc.filter(opt => opt !== null).length + 1;
+].map((option, index) => {
   if (option) {
-    acc.push({ ...option, value: currentValue });
+    return { ...option, value: index + 1 }; // インデックスベースでvalueを設定（1から開始）
   } else {
-    acc.push(null);
+    return null;
   }
-  return acc;
-}, []);
+});
 
 console.log(dropdownOptions);
 
@@ -51,32 +49,34 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
 
   const { isSettingLoaded } = useAppContext();
 
-  let maxValue = 0
-  dropdownOptions.map((option, index) => {
-    if (option) {
-      if (option.value > maxValue) {
-        maxValue = index
-      }
-    }
-  })
+  // 有効な選択肢のvalue値を取得
+  const validValues = dropdownOptions
+    .filter(option => option !== null)
+    .map(option => option!.value);
 
   const handleNext = () => {
     setSelectedIndexNumber((prev) => {
-      let next = prev + 1;
-      while (dropdownOptions[next - 1] === null) {
-        next = (next === dropdownOptions.length) ? 1 : next + 1;
+      const currentIndex = validValues.indexOf(prev);
+      if (currentIndex === -1) {
+        // 現在の値が有効でない場合は最初の値を返す
+        return validValues[0];
       }
-      return next > dropdownOptions.length ? 1 : next;
+      // 次の値に移動、最後の場合は最初に戻る
+      const nextIndex = (currentIndex + 1) % validValues.length;
+      return validValues[nextIndex];
     });
   };
 
   const handlePrevious = () => {
     setSelectedIndexNumber((prev) => {
-      let next = prev - 1;
-      while (dropdownOptions[next - 1] === null) {
-        next = (next === 1) ? dropdownOptions.length : next - 1;
+      const currentIndex = validValues.indexOf(prev);
+      if (currentIndex === -1) {
+        // 現在の値が有効でない場合は最初の値を返す
+        return validValues[0];
       }
-      return next < 1 ? dropdownOptions.length : next;
+      // 前の値に移動、最初の場合は最後に移動
+      const prevIndex = currentIndex === 0 ? validValues.length - 1 : currentIndex - 1;
+      return validValues[prevIndex];
     });
   };
 
