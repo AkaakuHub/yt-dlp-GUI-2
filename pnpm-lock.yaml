@@ -29,6 +29,9 @@ importers:
       '@tauri-apps/plugin-updater':
         specifier: ^2.0.0-rc.2
         version: 2.7.1
+      '@types/prop-types':
+        specifier: ^15.7.14
+        version: 15.7.14
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
