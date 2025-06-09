@@ -18,7 +18,7 @@ const dropdownOptions = [
   { label: "360p" },
   null,
   { label: "リストを表示" },
-  { label: "コーデックIDを指定ダウンロード" },
+  { label: "IDを指定" },
   null,
   { label: "配信録画(最初から)" },
   { label: "配信録画(現在から)" },
