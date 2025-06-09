@@ -201,8 +201,8 @@ fn get_format_command(kind: i32) -> Result<String, String> {
         4 => "232/609/247/136/398",
         5 => "231/606/244/135/397",
         6 => "230/605/243/134/396",
-        // このケースは3..=6の範囲外からは到達しない
-        _ => unreachable!(),
+        // その他は特にから文字列を返す
+        _ => "",
     };
     // video_ids_strを'/'で分割し、各IDに音声オプションを結合してから、再度'/'で連結する
     let format_option = video_ids_str
@@ -355,7 +355,12 @@ async fn process_lines<R>(
                         for &byte in &temp_buffer[..n] {
                             if byte == b'\r' || byte == b'\n' {
                                 // 改行でemit
+                                #[cfg(target_os = "windows")]
                                 let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
+
+                                #[cfg(any(target_os = "linux", target_os = "macos"))]
+                                let (decoded, _, decode_error) = encoding_rs::UTF_8.decode(&buffer);
+
                                 if decode_error {
                                     eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
                                 }
@@ -381,7 +386,12 @@ async fn process_lines<R>(
 
     // 最後に残ったバッファの内容があればemit
     if !buffer.is_empty() {
+        #[cfg(target_os = "windows")]
         let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
+
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        let (decoded, _, decode_error) = encoding_rs::UTF_8.decode(&buffer);
+
         if decode_error {
             eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
         }
