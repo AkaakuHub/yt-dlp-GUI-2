@@ -70,6 +70,8 @@ impl CommandManager {
         #[cfg(any(target_os = "linux", target_os = "macos"))]
         let mut child = TokioCommand::new("yt-dlp")
             .args(&args)
+            .env("LC_ALL", "en_US.UTF-8")
+            .env("LANG", "en_US.UTF-8")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -336,6 +338,46 @@ async fn run_command(
         .start_command(command_manager.inner().clone(), args, window)
         .await;
 }
+
+// 文字のデコードを行う関数
+// macOSとLinuxではUTF-8を優先、WindowsではShift_JISを優先
+fn decode_buffer(buffer: &[u8]) -> String {
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    {
+        // Try UTF-8 first
+        match std::str::from_utf8(buffer) {
+            Ok(s) => return s.to_string(),
+            Err(_) => {
+                // If UTF-8 fails, try Shift_JIS as fallback
+                let (decoded, _, has_errors) = encoding_rs::SHIFT_JIS.decode(buffer);
+                if !has_errors {
+                    return decoded.to_string();
+                }
+                // If both fail, use lossy UTF-8 conversion
+                return String::from_utf8_lossy(buffer).to_string();
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Try Shift_JIS first on Windows
+        let (decoded, _, has_errors) = encoding_rs::SHIFT_JIS.decode(buffer);
+        if !has_errors {
+            return decoded.to_string();
+        }
+
+        // If Shift_JIS fails, try UTF-8
+        match std::str::from_utf8(buffer) {
+            Ok(s) => return s.to_string(),
+            Err(_) => {
+                // If both fail, use lossy UTF-8 conversion
+                return String::from_utf8_lossy(buffer).to_string();
+            }
+        }
+    }
+}
+
 async fn process_lines<R>(
     mut reader: R,
     window: tauri::Window,
@@ -345,6 +387,7 @@ async fn process_lines<R>(
 {
     let mut buffer = Vec::new();
     let mut temp_buffer = [0u8; 1024];
+    const MAX_LINE_LENGTH: usize = 8192; // Maximum line length to prevent memory issues
 
     loop {
         select! {
@@ -355,20 +398,17 @@ async fn process_lines<R>(
                         for &byte in &temp_buffer[..n] {
                             if byte == b'\r' || byte == b'\n' {
                                 // 改行でemit
-                                #[cfg(target_os = "windows")]
-                                let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
-
-                                #[cfg(any(target_os = "linux", target_os = "macos"))]
-                                let (decoded, _, decode_error) = encoding_rs::UTF_8.decode(&buffer);
-
-                                if decode_error {
-                                    eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
-                                }
-                                let line = decoded.to_string();
+                                let line = decode_buffer(&buffer);
                                 window.emit("process-output", line).unwrap();
                                 buffer.clear();
                             } else {
                                 buffer.push(byte);
+                                // Prevent buffer from growing too large
+                                if buffer.len() > MAX_LINE_LENGTH {
+                                    let line = decode_buffer(&buffer);
+                                    window.emit("process-output", line).unwrap();
+                                    buffer.clear();
+                                }
                             }
                         }
                     }
@@ -386,16 +426,7 @@ async fn process_lines<R>(
 
     // 最後に残ったバッファの内容があればemit
     if !buffer.is_empty() {
-        #[cfg(target_os = "windows")]
-        let (decoded, _, decode_error) = encoding_rs::SHIFT_JIS.decode(&buffer);
-
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
-        let (decoded, _, decode_error) = encoding_rs::UTF_8.decode(&buffer);
-
-        if decode_error {
-            eprintln!("デコードエラー: {}", String::from_utf8_lossy(&buffer));
-        }
-        let line = decoded.to_string();
+        let line = decode_buffer(&buffer);
         window.emit("process-output", line).unwrap();
     }
 }
@@ -424,7 +455,11 @@ async fn is_program_available(program_name: String) -> Result<String, String> {
         .output();
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
-    let output = Command::new(program_name.clone()).arg(command_arg).output();
+    let output = Command::new(program_name.clone())
+        .arg(command_arg)
+        .env("LC_ALL", "en_US.UTF-8")
+        .env("LANG", "en_US.UTF-8")
+        .output();
 
     match output {
         Ok(output) => {
