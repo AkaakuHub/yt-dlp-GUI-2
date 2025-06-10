@@ -1,37 +1,7 @@
-.settings-paper{
-  background: var(--surface-elevated);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-}
-
-.switch-group:hover {
-  background: var(--surface-elevated);
-  border-color: var(--accent-primary);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.settings-switch .MuiSwitch-switchBase.Mui-checked {
-  color: var(--accent-primary) !important;
-}
-
-.settings-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
-  background-color: var(--accent-primary) !important;
-}
-
-.settings-switch .MuiSwitch-track {
-  background-color: var(--border-primary) !important;
-}
-
-.switch-label {
-  color: var(--text-primary);
-  font-weight: 500;
-  font-size: 0.875rem;
-  flex: 1;
-}
-
-.settings-input{
-  color:var(--text-primary);
+.settings-container {
+  background: var(--background-app);
+  min-height: 100vh;
+  padding: 0;
 }
 
 .version-info {
@@ -89,18 +59,13 @@
 
 /* アクセシビリティ改善 */
 @media (prefers-reduced-motion: reduce) {
-  .settings-paper,
-  .input-group,
-  .folder-button,
-  .switch-group,
-  .version-info {
+  .version-info,
+  .github-link,
+  .update-link {
     transition: none;
     animation: none;
   }
   
-  .settings-paper:hover,
-  .folder-button:hover,
-  .switch-group:hover,
   .version-info:hover {
     transform: none;
   }
@@ -108,14 +73,8 @@
 
 /* 高コントラスト対応 */
 @media (prefers-contrast: high) {
-  .settings-paper,
-  .switch-group,
   .version-info {
     border-width: 2px;
-  }
-  
-  .switch-label {
-    font-weight: 600;
   }
   
   .github-link,
