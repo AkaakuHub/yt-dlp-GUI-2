@@ -3,9 +3,17 @@ name: 'Build and Release'
 on:
   push:
     tags:
+      - 'v*'
+      - 'v*.*'  
       - 'v*.*.*'
+    branches:
+      - release
+  create:
+    # This will trigger when tags are created via GitHub Actions
+  workflow_dispatch:
+    # Allow manual trigger for testing
 
-# This workflow will trigger when a version tag is pushed to build and create a GitHub release.
+# This workflow will trigger when a version tag is pushed or when pushing to release branch.
 
 jobs:
   build-and-release:
@@ -28,10 +36,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract version from tag
+      - name: Extract version
         id: extract_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            # Extract from tag
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "Triggered by tag: v$VERSION"
+          else
+            # Extract from Cargo.toml when triggered by branch
+            VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+            echo "Triggered by branch, extracted version: $VERSION"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
