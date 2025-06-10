@@ -36,17 +36,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract version
-        id: extract_version
+      - name: Extract version from tag (if tag triggered)
+        if: startsWith(github.ref, 'refs/tags/')
+        id: extract_version_tag
+        shell: bash
         run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            # Extract from tag
-            VERSION=${GITHUB_REF#refs/tags/v}
-            echo "Triggered by tag: v$VERSION"
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Triggered by tag: v$VERSION"
+
+      - name: Extract version from Cargo.toml (if branch triggered)
+        if: startsWith(github.ref, 'refs/heads/')
+        id: extract_version_branch
+        shell: bash
+        run: |
+          VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Triggered by branch, extracted version: $VERSION"
+
+      - name: Set final version
+        id: extract_version
+        shell: bash
+        run: |
+          if [ "${{ steps.extract_version_tag.outputs.version }}" != "" ]; then
+            VERSION="${{ steps.extract_version_tag.outputs.version }}"
           else
-            # Extract from Cargo.toml when triggered by branch
-            VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-            echo "Triggered by branch, extracted version: $VERSION"
+            VERSION="${{ steps.extract_version_branch.outputs.version }}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
