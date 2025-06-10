@@ -5,11 +5,9 @@
   gap: 12px;
   padding: 4px;
   border-radius: 12px;
-  background: var(--surface-color);
   backdrop-filter: blur(10px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  box-shadow: var(--shadow-sm);
 }
 
 .form-control-wrapper::before {
@@ -29,20 +27,8 @@
   transition: opacity 0.3s ease;
 }
 
-.form-control-wrapper:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-hover);
-  box-shadow: var(--shadow-md);
-}
-
 .form-control-wrapper:hover::before {
   opacity: 0.3;
-}
-
-.form-control-wrapper:focus-within {
-  background: var(--surface-hover);
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-lg);
 }
 
 .form-control-wrapper:focus-within::before {
