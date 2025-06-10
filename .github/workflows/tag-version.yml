@@ -1,0 +1,73 @@
+name: 'Create Version Tag'
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from Cargo.toml
+        id: extract_version
+        run: |
+          VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG="v${{ steps.extract_version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist"
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify version consistency
+        if: steps.check_tag.outputs.tag_exists == 'false'
+        run: |
+          CARGO_VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          TAURI_VERSION=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')
+          PACKAGE_VERSION=$(grep '"version":' package.json | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')
+          
+          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "tauri.conf.json version: $TAURI_VERSION"
+          echo "package.json version: $PACKAGE_VERSION"
+          
+          if [ "$CARGO_VERSION" != "$TAURI_VERSION" ] || [ "$CARGO_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "ERROR: Version mismatch detected!"
+            echo "Cargo.toml: $CARGO_VERSION"
+            echo "tauri.conf.json: $TAURI_VERSION"
+            echo "package.json: $PACKAGE_VERSION"
+            exit 1
+          fi
+          
+          echo "All versions match: $CARGO_VERSION"
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.tag_exists == 'false'
+        run: |
+          TAG="v${{ steps.extract_version.outputs.version }}"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          echo "Created and pushed tag: $TAG"
+
+      - name: Skip tag creation
+        if: steps.check_tag.outputs.tag_exists == 'true'
+        run: |
+          echo "Tag v${{ steps.extract_version.outputs.version }} already exists. Skipping tag creation."
