@@ -1,25 +1,110 @@
 .execute-button {
   height: 160px;
-  border: 1px solid #7a7a7a;
+  border: 1px solid var(--border-primary);
   margin: 1rem;
-  border-radius: 8px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  background: var(--surface-primary);
+  backdrop-filter: var(--backdrop-blur);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+
+  /* グラデーション効果 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--accent-gradient);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: -1;
+  }
 
   &:hover {
-    border: 1px solid #0078d4;
-    background-color: #e0eef9;
+    border-color: var(--accent-primary);
+    background: var(--surface-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    color: var(--accent-primary);
+
+    &::before {
+      left: 0;
+      opacity: 0.1;
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-active);
   }
 }
 
 .execute-button-disabled {
-  background-color: #9b9b9b;
+  background: var(--surface-disabled);
+  color: var(--text-disabled);
   cursor: not-allowed;
+  opacity: 0.6;
+
+  &::before {
+    display: none;
+  }
 
   &:hover {
-    border: 1px solid #7a7a7a;
-    background-color: #9b9b9b;
+    border-color: var(--border-primary);
+    background: var(--surface-disabled);
+    transform: none;
+    box-shadow: var(--shadow-md);
+    color: var(--text-disabled);
   }
+
+  &:active {
+    transform: none;
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* アクセシビリティ改善 */
+@media (prefers-reduced-motion: reduce) {
+  .execute-button {
+    transition: none;
+    animation: none;
+  }
+  
+  .execute-button:hover {
+    transform: none;
+  }
+  
+  .execute-button::before {
+    transition: none;
+  }
+}
+
+/* 高コントラスト対応 */
+@media (prefers-contrast: high) {
+  .execute-button {
+    border-width: 2px;
+    font-weight: 700;
+  }
+  
+  .execute-button-disabled {
+    border-width: 2px;
+  }
+}
+
+/* フォーカス状態 */
+.execute-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }

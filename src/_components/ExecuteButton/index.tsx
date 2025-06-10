@@ -29,8 +29,18 @@ const ExecuteButton: React.FC<ExecuteButtonProps> = ({
         if (isRunning) { return; }
         onClickHandler();
       }}
+      role="button"
+      tabIndex={isRunning ? -1 : 0}
+      aria-label={isRunning ? "実行中..." : "クリップボードのURLでダウンロードを実行"}
+      aria-disabled={isRunning}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !isRunning) {
+          e.preventDefault();
+          onClickHandler();
+        }
+      }}
     >
-      ここをクリックして実行
+      {isRunning ? "実行中..." : "ここをクリックして実行"}
     </div>
   )
 }
