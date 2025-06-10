@@ -27,7 +27,7 @@ const dropdownOptions = [
   { label: "任意コード >yt-dlp" },
 ].map((option, index) => {
   if (option) {
-    return { ...option, value: index + 1 }; // インデックスベースでvalueを設定（1から開始）
+    return { ...option, value: index }; // インデックスベースでvalueを設定
   } else {
     return null;
   }

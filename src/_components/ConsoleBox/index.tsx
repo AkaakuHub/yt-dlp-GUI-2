@@ -18,7 +18,7 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
   }, [consoleText]);
 
   const updateListHeight = () => {
-    const boxHeight = window.innerHeight - 90 - 290 - 46;
+    const boxHeight = window.innerHeight - 110 - 290 - 46;
     setListHeight(boxHeight);
   };
 
@@ -35,9 +35,9 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
     const maxScrollTop = Math.max(0, contentHeight - listHeight);
 
     setTimeout(() => {
-      if (!scrollUpdateWasRequested && scrollOffset < maxScrollTop - 50) {
+      if (!scrollUpdateWasRequested && scrollOffset < maxScrollTop - 90) {
         setAutoScrollEnabled(false);
-      } else if (scrollOffset >= maxScrollTop - 50) {
+      } else if (scrollOffset >= maxScrollTop - 90) {
         setAutoScrollEnabled(true);
       }
     }, 100);
