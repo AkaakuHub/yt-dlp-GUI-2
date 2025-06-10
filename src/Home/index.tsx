@@ -28,6 +28,8 @@ const StyledInput = styled(Input)(() => ({
   borderRadius: '8px',
   border: '1px solid var(--border-primary)',
   transition: 'all 0.2s ease-in-out',
+  paddingLeft: "8px",
+  paddingRight: "8px",
   '&::before': {
     display: 'none',
   },
@@ -43,8 +45,7 @@ const StyledInput = styled(Input)(() => ({
     borderColor: 'var(--accent-primary)',
   },
   '& input': {
-    Padding: 0,
-    paddingLeft: 4,
+    Padding: 4,
   }
 }));
 
