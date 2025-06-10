@@ -11,6 +11,7 @@ jobs:
     steps:
       - name: Extract version from tag
         id: extract_version
+        shell: bash
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT

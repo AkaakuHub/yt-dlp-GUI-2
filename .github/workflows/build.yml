@@ -90,8 +90,13 @@ jobs:
 
       - name: Generate release notes
         id: release_notes
+        shell: bash
         run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+          else
+            TAG_NAME="v${{ steps.extract_version.outputs.version }}"
+          fi
           COMMIT_MESSAGE=$(git log --format=%B -n 1 ${{ github.sha }})
           RELEASE_NOTES="Release $TAG_NAME
 
