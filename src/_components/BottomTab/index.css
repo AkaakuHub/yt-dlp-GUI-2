@@ -1,10 +1,8 @@
-/* ===== BottomTab 2025 Modern Styles ===== */
 .bottom-tab-container {
   position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--surface-color);
   border-radius: var(--border-radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
@@ -14,7 +12,6 @@
   display: flex;
   gap: 4px;
   padding: 12px 16px 0;
-  background: var(--surface-secondary);
   border-bottom: 1px solid var(--border-color);
   position: relative;
   z-index: 10;
