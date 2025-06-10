@@ -30,6 +30,9 @@ import { dialog } from "@tauri-apps/api";
 
 // StyledComponents for dark mode support
 const StyledTextField = styled(TextField)(() => ({
+  '& .MuiInputBase-root': {
+    borderRadius: '12px',
+  },
   '& .MuiOutlinedInput-root': {
     backgroundColor: 'var(--input-background)',
     color: 'var(--text-primary)',
