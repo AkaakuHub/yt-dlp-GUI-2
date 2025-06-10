@@ -44,9 +44,6 @@ interface DropDownWithArrowsProps {
 const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
   { selectedIndexNumber, setSelectedIndexNumber }
 ) => {
-
-  console.log(dropdownOptions)
-
   const { isSettingLoaded } = useAppContext();
 
   // 有効な選択肢のvalue値を取得
@@ -93,23 +90,29 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
 
   return (
     <div className="form-control-wrapper">
-      <FormControl fullWidth>
-        <InputLabel id="demo-simple-select-label">モード</InputLabel>
+      <FormControl fullWidth className="select-control">
+        <InputLabel id="mode-select-label" className="select-label">モード</InputLabel>
         <Select
-          labelId="demo-simple-select-label"
+          labelId="mode-select-label"
           label="モード"
-          id="demo-simple-select"
+          id="mode-select"
           value={selectedIndexNumber}
           onChange={(e) => setSelectedIndexNumber(e.target.value as number)}
           disabled={!isSettingLoaded}
+          className="select-input"
+          MenuProps={{
+            PaperProps: {
+              className: "select-menu"
+            }
+          }}
         >
           {dropdownOptions.map((option, index) =>
             option ? (
-              <MenuItem key={index} value={option.value}>
+              <MenuItem key={index} value={option.value} className="menu-item">
                 {option.label}
               </MenuItem>
             ) : (
-              <MenuItem key={index} disabled>
+              <MenuItem key={index} disabled className="menu-divider">
                 {"――――――――"}
               </MenuItem>
             )
@@ -119,15 +122,17 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
       <div className="arrow-buttons-wrapper">
         <IconButton
           size="large"
-          className="arrow-buttons"
-          onClick={handlePrevious}>
-          <PlayArrowIcon sx={{ transform: "rotate(180deg)" }} />
+          className="arrow-button arrow-button-prev"
+          onClick={handlePrevious}
+          disabled={!isSettingLoaded}>
+          <PlayArrowIcon className="arrow-icon" sx={{ transform: "rotate(180deg)" }} />
         </IconButton>
         <IconButton
           size="large"
-          className="arrow-buttons"
-          onClick={handleNext}>
-          <PlayArrowIcon />
+          className="arrow-button arrow-button-next"
+          onClick={handleNext}
+          disabled={!isSettingLoaded}>
+          <PlayArrowIcon className="arrow-icon" />
         </IconButton>
       </div>
     </div>

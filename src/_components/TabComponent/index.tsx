@@ -1,6 +1,6 @@
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
+import React from "react";
 import SwiperCore from "swiper";
+import "./index.css";
 
 interface Props {
   tabNames: string[];
@@ -15,10 +15,7 @@ export function TabComponent({
   setActiveIndex,
   activeIndex,
 }: Props) {
-  const handleChange = (
-    _event: React.ChangeEvent<object>,
-    newValue: number,
-  ): void => {
+  const handleChange = (newValue: number): void => {
     setActiveIndex(newValue);
     if (swiper) {
       swiper.slideTo(newValue);
@@ -26,15 +23,18 @@ export function TabComponent({
   };
 
   return (
-    <Tabs value={activeIndex} onChange={handleChange} variant="fullWidth"
-      sx={{
-        backgroundColor: "#fafafa",
-        borderBottom: "1px solid #e0e0e0",
-      }}
-    >
-      {tabNames.map((tabName, index) => {
-        return <Tab key={index} label={tabName} />;
-      })}
-    </Tabs>
+    <div className="tab-component-wrapper">
+      <div className="tab-component-buttons">
+        {tabNames.map((tabName, index) => (
+          <button
+            key={index}
+            className={`tab-component-button ${activeIndex === index ? 'active' : ''}`}
+            onClick={() => handleChange(index)}
+          >
+            {tabName}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

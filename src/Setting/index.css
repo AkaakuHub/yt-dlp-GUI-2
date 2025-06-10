@@ -1,8 +1,125 @@
-.root-setting {
-  width: 100vw;
-  height: calc(100vh - 36px);
+.settings-paper{
+  background: var(--surface-elevated);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
 }
 
-.setting-container {
-  padding: 8px;
+.switch-group:hover {
+  background: var(--surface-elevated);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.settings-switch .MuiSwitch-switchBase.Mui-checked {
+  color: var(--accent-primary) !important;
+}
+
+.settings-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: var(--accent-primary) !important;
+}
+
+.settings-switch .MuiSwitch-track {
+  background-color: var(--border-primary) !important;
+}
+
+.switch-label {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  flex: 1;
+}
+
+.settings-input{
+  color:var(--text-primary);
+}
+
+.version-info {
+  background: var(--surface-primary);
+  backdrop-filter: var(--backdrop-blur);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.version-info:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-primary);
+}
+
+.version-text {
+  color: var(--text-secondary) !important;
+  font-weight: 500;
+}
+
+.github-link,
+.update-link {
+  color: var(--accent-primary) !important;
+  text-decoration: none !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.github-link::after,
+.update-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  transition: width 0.3s ease;
+}
+
+.github-link:hover::after,
+.update-link:hover::after {
+  width: 100%;
+}
+
+.github-link:hover,
+.update-link:hover {
+  color: var(--accent-secondary) !important;
+  transform: translateY(-1px);
+}
+
+/* アクセシビリティ改善 */
+@media (prefers-reduced-motion: reduce) {
+  .settings-paper,
+  .input-group,
+  .folder-button,
+  .switch-group,
+  .version-info {
+    transition: none;
+    animation: none;
+  }
+  
+  .settings-paper:hover,
+  .folder-button:hover,
+  .switch-group:hover,
+  .version-info:hover {
+    transform: none;
+  }
+}
+
+/* 高コントラスト対応 */
+@media (prefers-contrast: high) {
+  .settings-paper,
+  .switch-group,
+  .version-info {
+    border-width: 2px;
+  }
+  
+  .switch-label {
+    font-weight: 600;
+  }
+  
+  .github-link,
+  .update-link {
+    font-weight: 700;
+  }
 }

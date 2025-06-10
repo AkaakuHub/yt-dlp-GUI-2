@@ -1,49 +1,221 @@
 .console-box-wrapper {
   height: calc(100vh - 90px - 346px);
-  padding: 10px 0px 10px 10px;
-  background-color: #222222;
-  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface-primary);
+  backdrop-filter: var(--backdrop-blur);
+  border-radius: 16px;
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.console-box-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-gradient);
+  opacity: 0.02;
+  border-radius: 16px;
+  transition: opacity 0.3s ease;
+}
+
+.console-box-wrapper:hover::before {
+  opacity: 0.05;
 }
 
 .console-box {
-  font-family: monospace;
+  height: 100%;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+  font-size: 13px;
+  line-height: 1.5;
   white-space: pre;
-  overflow: auto;
-  color: #fff;
-  background-color: #222222;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: transparent;
   box-sizing: border-box;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
+}
 
-  div {
-    user-select: text;
+.console-box div {
+  user-select: text;
+  padding: 2px 8px;
+  transition: background-color 0.15s ease;
+  border-radius: 4px;
+  margin: 1px 0;
+}
+
+.console-box div:hover {
+  background-color: var(--surface-secondary);
+}
+
+.console-list {
+  border-radius: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-primary) var(--surface-secondary);
+}
+
+.console-list > div {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* 現代的なスクロールバー */
+.console-list::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.console-list::-webkit-scrollbar-track {
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  margin: 4px;
+}
+
+.console-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+  border-radius: 8px;
+  border: 2px solid var(--surface-secondary);
+  transition: all 0.2s ease;
+}
+
+.console-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--primary-600) 100%);
+  border-width: 1px;
+  transform: scale(1.05);
+}
+
+.console-list::-webkit-scrollbar-thumb:active {
+  background: var(--accent-primary);
+  border-width: 0;
+}
+
+.console-list::-webkit-scrollbar-corner {
+  background: var(--surface-secondary);
+  border-radius: 8px;
+}
+
+/* ログレベル別のカラーリング */
+.console-box div:has(> span[data-level="error"]),
+.console-box div[data-level="error"] {
+  color: var(--error);
+  background-color: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid var(--error);
+  padding-left: 12px;
+}
+
+.console-box div:has(> span[data-level="warning"]),
+.console-box div[data-level="warning"] {
+  color: var(--warning);
+  background-color: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid var(--warning);
+  padding-left: 12px;
+}
+
+.console-box div:has(> span[data-level="info"]),
+.console-box div[data-level="info"] {
+  color: var(--info);
+  background-color: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid var(--info);
+  padding-left: 12px;
+}
+
+.console-box div:has(> span[data-level="success"]),
+.console-box div[data-level="success"] {
+  color: var(--success);
+  background-color: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid var(--success);
+  padding-left: 12px;
+}
+
+/* タイムスタンプスタイル */
+.console-timestamp {
+  opacity: 0.6;
+  font-size: 0.75rem;
+  margin-right: 8px;
+  color: var(--text-tertiary);
+}
+
+/* シンタックスハイライト風 */
+.console-box .console-url {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.console-box .console-url:hover {
+  text-decoration-color: var(--accent-primary);
+}
+
+.console-box .console-number {
+  color: var(--accent-secondary);
+}
+
+.console-box .console-string {
+  color: var(--success);
+}
+
+.console-box .console-keyword {
+  color: var(--primary-500);
+  font-weight: 600;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .console-box-wrapper {
+    padding: 12px;
+    border-radius: 12px;
+  }
+  
+  .console-box {
+    font-size: 12px;
+  }
+  
+  .console-list::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
 }
 
-.console-list>div {
-  width: 900px !important;
+/* アニメーション */
+@keyframes consoleLineAppear {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-::-webkit-scrollbar,
-::-webkit-scrollbar:horizontal {
-  width: 14px;
-  /* スクロールバーの太さ */
+.console-box div:last-child {
+  animation: consoleLineAppear 0.2s ease-out;
 }
 
-/* 背景 */
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-track:horizontal {
-  background-color: #222222;
-  border-radius: 12px;
-}
-
-/* ドラッグ中の背景 */
-::-webkit-scrollbar-thumb:hover,
-::-webkit-scrollbar-thumb:hover:horizontal {
-  background-color: #61636c;
-}
-
-/* 取っ手 */
-::-webkit-scrollbar-thumb,
-::-webkit-scrollbar-thumb:horizontal {
-  background-color: #8c8992;
-  border-radius: 12px;
+/* 高コントラスト対応 */
+@media (prefers-contrast: high) {
+  .console-box-wrapper {
+    border-width: 2px;
+  }
+  
+  .console-box div[data-level="error"] {
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  
+  .console-box div[data-level="warning"] {
+    background-color: rgba(245, 158, 11, 0.2);
+  }
+  
+  .console-box div[data-level="info"] {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  
+  .console-box div[data-level="success"] {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
 }

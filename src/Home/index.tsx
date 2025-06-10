@@ -214,7 +214,7 @@ export default function Home() {
               variant="contained"
               onClick={openDirectory}
               sx={{
-                width: "8rem",
+                width: "7rem",
               }}
             >
               保存先を開く

@@ -3,12 +3,13 @@ import { resolve, dirname } from "@tauri-apps/api/path";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { invoke } from "@tauri-apps/api/tauri";
 import {
-  IconButton, InputBase, ListItem, ListItemIcon, ListItemText,
-  Paper, Toolbar, styled
-} from "@mui/material";
-import {
-  Folder as FolderIcon, InsertDriveFile as FileIcon, Refresh as RefreshIcon,
-  ArrowUpward as UpIcon, ArrowBack as BackIcon, ArrowForward as ForwardIcon
+  Folder as FolderIcon, 
+  InsertDriveFile as FileIcon, 
+  Refresh as RefreshIcon,
+  ArrowUpward as UpIcon, 
+  ArrowBack as BackIcon, 
+  ArrowForward as ForwardIcon,
+  Home as HomeIcon
 } from "@mui/icons-material";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
@@ -22,25 +23,13 @@ interface FileInfo {
   file_size: number;
 }
 
-const PathInput = styled(InputBase)(({ theme }) => ({
-  marginLeft: theme.spacing(1),
-  flex: 1,
-  fontSize: "0.75rem",
-}));
-
-const StyledListItem = styled(ListItem)(({ theme }) => ({
-  padding: theme.spacing(0.25, 0.5),
-  "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-  },
-}));
-
-const Item: React.FC<{
+interface ItemProps {
   handleClick: (fileName: string) => void;
   file: FileInfo;
   fullPath: string;
-}> = ({ handleClick, file, fullPath }) => {
+}
 
+const Item: React.FC<ItemProps> = ({ handleClick, file, fullPath }) => {
   const calculateFileSize = (size: number): string => {
     if (size < 1024) {
       return `${size} B`;
@@ -67,46 +56,42 @@ const Item: React.FC<{
     return new Intl.DateTimeFormat('ja-JP', options).format(date);
   };
 
+  const handleItemClick = () => {
+    if (file.is_dir) {
+      handleClick(file.name);
+    } else {
+      invoke("open_file", { path: fullPath });
+    }
+  };
+
+  const handleDragStart = () => {
+    if (!file.is_dir) {
+      startDrag({ item: [fullPath], icon: "📄" });
+    }
+  };
+
   return (
-    <StyledListItem
-      onClick={() => {
-        if (file.is_dir) {
-          handleClick(file.name);
-        } else {
-          invoke("open_file", { path: fullPath });
-        }
-      }}
+    <div
+      className={`explorer-item ${file.is_dir ? 'directory' : 'file'}`}
+      onClick={handleItemClick}
       draggable={!file.is_dir}
-      onDragStart={() => {
-        if (!file.is_dir) {
-          startDrag({ item: [fullPath], icon: "📄" });
-        }
-      }}
-      style={{
-        cursor: file.is_dir ? "pointer" : "grab",
-      }}
+      onDragStart={handleDragStart}
     >
-      <ListItemIcon style={{ minWidth: 24 }}>
+      <div className="explorer-item-icon">
         {file.is_dir ? <FolderIcon fontSize="small" /> : <FileIcon fontSize="small" />}
-      </ListItemIcon>
-      <ListItemText
-        primary={file.name}
-        primaryTypographyProps={{ variant: "body2", noWrap: true }}
-        style={{ flex: "1 1 auto", marginRight: 8 }}
-      />
-      <ListItemText
-        primary={file.is_dir ? "" : calculateFileSize(file.file_size)}
-        primaryTypographyProps={{ variant: "caption", noWrap: true }}
-        style={{ flex: "0 0 auto", textAlign: "right", marginRight: 8 }}
-      />
-      <ListItemText
-        primary={formatDateTime(file.last_modified)}
-        primaryTypographyProps={{ variant: "caption", noWrap: true }}
-        style={{ flex: "0 0 auto", textAlign: "right" }}
-      />
-    </StyledListItem>
+      </div>
+      <div className="explorer-item-name">
+        {file.name}
+      </div>
+      <div className="explorer-item-size">
+        {file.is_dir ? "" : calculateFileSize(file.file_size)}
+      </div>
+      <div className="explorer-item-date">
+        {formatDateTime(file.last_modified)}
+      </div>
+    </div>
   );
-}
+};
 
 const CustomExplorer: React.FC = () => {
   const { saveDir } = useAppContext();
@@ -144,7 +129,6 @@ const CustomExplorer: React.FC = () => {
       eventEmitter.off("refreshFiles", handleRefreshFiles);
     };
   }, []);
-
 
   useEffect(() => {
     fetchFiles();
@@ -185,38 +169,83 @@ const CustomExplorer: React.FC = () => {
     navigateTo(parentDir);
   };
 
+  const goHome = () => {
+    if (saveDir) {
+      navigateTo(saveDir);
+    }
+  };
+
+  const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentPath(e.target.value);
+  };
+
+  const handlePathSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      navigateTo(currentPath);
+    }
+  };
+
   return (
     <div className="explorer-wrapper">
-      <Paper elevation={1} sx={{ mb: 0.5 }}>
-        <Toolbar variant="dense" sx={{ minHeight: 40, px: 0.5 }}>
-          <IconButton size="small" onClick={goBack} disabled={historyIndex <= 0}>
+      <div className="explorer-toolbar">
+        <div className="explorer-navigation">
+          <button 
+            className="explorer-button" 
+            onClick={goBack} 
+            disabled={historyIndex <= 0}
+            title="戻る"
+          >
             <BackIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={goForward} disabled={historyIndex >= history.length - 1}>
+          </button>
+          <button 
+            className="explorer-button" 
+            onClick={goForward} 
+            disabled={historyIndex >= history.length - 1}
+            title="進む"
+          >
             <ForwardIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={goUp}>
+          </button>
+          <button 
+            className="explorer-button" 
+            onClick={goUp}
+            title="上の階層"
+          >
             <UpIcon fontSize="small" />
-          </IconButton>
-          <PathInput
+          </button>
+          <button 
+            className="explorer-button" 
+            onClick={goHome}
+            title="ホーム"
+          >
+            <HomeIcon fontSize="small" />
+          </button>
+        </div>
+        <div className="explorer-path-container">
+          <input
+            className="explorer-path-input"
             value={currentPath}
-            onChange={(e) => setCurrentPath(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter") {
-                navigateTo(currentPath);
-              }
-            }}
+            onChange={handlePathChange}
+            onKeyPress={handlePathSubmit}
             placeholder="パスを入力..."
           />
-          <IconButton size="small" onClick={fetchFiles}>
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Toolbar>
-      </Paper>
+        </div>
+        <button 
+          className="explorer-button" 
+          onClick={fetchFiles}
+          title="更新"
+        >
+          <RefreshIcon fontSize="small" />
+        </button>
+      </div>
+      <div className="explorer-header">
+        <div className="explorer-header-name">名前</div>
+        <div className="explorer-header-size">サイズ</div>
+        <div className="explorer-header-date">更新日時</div>
+      </div>
       <div className="explorer-list">
         {files.map((file: FileInfo, index: number) => (
           <Item
-            key={index}
+            key={`${file.name}-${index}`}
             handleClick={handleClick}
             file={file}
             fullPath={`${currentPath}/${file.name}`}

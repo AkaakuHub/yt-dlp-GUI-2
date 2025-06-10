@@ -1,5 +1,6 @@
 import React, { useEffect, createContext, useContext, useState, ReactNode } from "react";
 import { invoke } from "@tauri-apps/api";
+import { ThemeProvider } from "../ThemeContext";
 
 import { ConfigProps } from "../../types";
 
@@ -49,26 +50,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   return (
-    <AppContext.Provider value={{
-      latestConsoleText,
-      setLatestConsoleText,
-      isSettingLoaded,
-      setIsSettingLoaded,
-      saveDir,
-      setSaveDir,
-      browser,
-      setBrowser,
-      serverPort,
-      setServerPort,
-      isSendNotification,
-      setIsSendNotification,
-      selectedIndexNumber,
-      setSelectedIndexNumber,
-      isServerEnabled,
-      setIsServerEnabled,
-    }}>
-      {children}
-    </AppContext.Provider>
+    <ThemeProvider>
+      <AppContext.Provider value={{
+        latestConsoleText,
+        setLatestConsoleText,
+        isSettingLoaded,
+        setIsSettingLoaded,
+        saveDir,
+        setSaveDir,
+        browser,
+        setBrowser,
+        serverPort,
+        setServerPort,
+        isSendNotification,
+        setIsSendNotification,
+        selectedIndexNumber,
+        setSelectedIndexNumber,
+        isServerEnabled,
+        setIsServerEnabled,
+      }}>
+        {children}
+      </AppContext.Provider>
+    </ThemeProvider>
   );
 };
 

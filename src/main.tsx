@@ -37,7 +37,7 @@ const App = () => {
   }, []);
 
   return (
-    <>
+    <div className="main-app-root">
       <WindowControls />
       <ToastContainer
         position="top-left"
@@ -83,7 +83,7 @@ const App = () => {
           </SwiperSlide>
         </Swiper>
       </div>
-    </>
+    </div>
   );
 }
 

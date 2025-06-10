@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { useAppContext } from "../_components/AppContext";
+import ThemeSelector from "../_components/ThemeSelector";
 import {
   IconButton,
   Container,
@@ -141,11 +142,15 @@ export default function Settings() {
   }, [])
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Container maxWidth="sm" sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
+    <Box sx={{ flexGrow: 1 }} className="settings-container">
+      <Container maxWidth="sm" sx={{ mt: 3 }}>
+        <div className="settings-paper">
+          <Box sx={{ mb: 2 }}>
+            <ThemeSelector />
+          </Box>
+
           <Box component="form" sx={{ "& > :not(style)": { m: 1 } }}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", pb: 1 }} className="input-group">
               <TextField
                 fullWidth
                 label="保存先"
@@ -155,70 +160,84 @@ export default function Settings() {
                   setSaveDir(e.target.value);
                   saveDirChanged(e.target.value);
                 }}
+                className="settings-input"
               />
               <IconButton
                 color="primary"
                 aria-label="フォルダを開く"
                 onClick={openDirectoryDialog}
                 sx={{ ml: 1 }}
+                className="folder-button"
               >
                 <FolderOpenIcon />
               </IconButton>
             </Box>
-            <TextField
-              fullWidth
-              label="Cookie取得元のブラウザ"
-              variant="outlined"
-              value={browser}
-              onChange={(e) => {
-                setBrowser(e.target.value);
-                saveBrowserChanged(e.target.value);
-              }}
-            />
-            <TextField
-              fullWidth
-              label="使用するポート番号"
-              variant="outlined"
-              value={serverPort}
-              disabled={isServerEnabled}
-              onChange={(e) => {
-                try {
-                  parseInt(e.target.value);
-                } catch (error) {
-                  return;
-                }
-                if (isNaN(parseInt(e.target.value))) return;
-                if (parseInt(e.target.value) > 65535) return;
+            <Box sx={{ mb: 2, display: "flex", gap: 2 }} className="input-group">
+              <TextField
+                label="Cookie取得元のブラウザ"
+                variant="outlined"
+                value={browser}
+                onChange={(e) => {
+                  setBrowser(e.target.value);
+                  saveBrowserChanged(e.target.value);
+                }}
+                className="settings-input"
+                sx={{
+                  flexGrow: 1,
+                  width: "50%",
+                }}
+              />
+              <TextField
+                label="使用するポート番号"
+                variant="outlined"
+                value={serverPort}
+                disabled={isServerEnabled}
+                onChange={(e) => {
+                  try {
+                    parseInt(e.target.value);
+                  } catch (error) {
+                    return;
+                  }
+                  if (isNaN(parseInt(e.target.value))) return;
+                  if (parseInt(e.target.value) > 65535) return;
 
-                setServerPort(parseInt(e.target.value));
-                saveServerPortChanged(parseInt(e.target.value));
-              }}
-            />
-            <div>
+                  setServerPort(parseInt(e.target.value));
+                  saveServerPortChanged(parseInt(e.target.value));
+                }}
+                className="settings-input"
+                sx={{
+                  flexGrow: 1,
+                  width: "50%",
+                }}
+              />
+            </Box>
+            <div className="switch-group">
               <Switch
                 checked={isSendNotification}
                 onChange={(e) => {
                   setIsSendNotification(e.target.checked);
                   saveNotificationChanged(e.target.checked);
                 }}
+                className="settings-switch"
               />
-              ダウンロード完了時に通知を受け取る
+              <span className="switch-label">ダウンロード完了時に通知を受け取る</span>
             </div>
-            <div>
+            <div className="switch-group">
               <Switch
                 checked={isServerEnabled}
                 onChange={(e) => {
                   setIsServerEnabled(e.target.checked);
                 }}
+                className="settings-switch"
               />
-              ポート{serverPort}でサーバーを起動する
+              <span className="switch-label">ポート{serverPort}でサーバーを起動する</span>
             </div>
           </Box>
-        </Paper>
+        </div>
 
-        <Box sx={{ mt: 4, textAlign: "center" }}>
-          <Typography variant="body2" color="textSecondary">
-            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2" target="_blank" rel="noopener">
+        <Box sx={{ mt: 4, textAlign: "center" }} className="version-info">
+          <Typography variant="body2" color="textSecondary" className="version-text">
+            <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2" target="_blank" rel="noopener" className="github-link">
               GitHub
             </Link>
             ・ バージョン {currentVersion || ""}
@@ -226,7 +245,7 @@ export default function Settings() {
               <span>・ <Link href={""} onClick={(e) => {
                 e.preventDefault();
                 executeUpdate();
-              }}>ここをクリックしてアップデート</Link>
+              }} className="update-link">ここをクリックしてアップデート</Link>
               </span>
             ) : (
               <span>・ 最新です</span>
