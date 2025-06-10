@@ -141,7 +141,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--surface-color);
-  padding-bottom: 30px;
+  padding-bottom: 36px;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
 }

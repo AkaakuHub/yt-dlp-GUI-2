@@ -15,10 +15,55 @@ import {
   Input,
   Switch,
 } from "@mui/material";
+import { styled } from "@mui/material/styles";
 
 import DropDownWithArrows from "../_components/DropDownWithArrows";
 
 import { useAppContext } from "../_components/AppContext";
+
+// StyledComponents for dark mode support
+const StyledInput = styled(Input)(() => ({
+  backgroundColor: 'var(--input-background)',
+  color: 'var(--text-primary)',
+  borderRadius: '8px',
+  border: '1px solid var(--border-primary)',
+  transition: 'all 0.2s ease-in-out',
+  '&::before': {
+    display: 'none',
+  },
+  '&::after': {
+    display: 'none',
+  },
+  '&:hover': {
+    backgroundColor: 'var(--input-background-hover)',
+    borderColor: 'var(--accent-primary)',
+  },
+  '&.Mui-focused': {
+    backgroundColor: 'var(--input-background-focus)',
+    borderColor: 'var(--accent-primary)',
+  },
+  '& input': {
+    Padding: 0,
+    paddingLeft: 4,
+  }
+}));
+
+const StyledSwitch = styled(Switch)(() => ({
+  '& .MuiSwitch-switchBase': {
+    color: 'var(--border-primary)',
+    '&.Mui-checked': {
+      color: 'var(--accent-primary)',
+      '& + .MuiSwitch-track': {
+        backgroundColor: 'var(--accent-primary)',
+        opacity: 0.7,
+      }
+    }
+  },
+  '& .MuiSwitch-track': {
+    backgroundColor: 'var(--border-primary)',
+    opacity: 0.5,
+  }
+}));
 
 export default function Home() {
   const { setLatestConsoleText } = useAppContext();
@@ -177,14 +222,14 @@ export default function Home() {
         <div className="line-1">
           <div className="line-children">
             <p>コーデックID</p>
-            <Input
+            <StyledInput
               value={param.codec_id || ""}
               onChange={(e) => setParam({ ...param, codec_id: e.target.value })}
             />
           </div>
           <div className="line-children">
             <p>字幕言語</p>
-            <Input
+            <StyledInput
               value={param.subtitle_lang || ""}
               onChange={(e) => setParam({ ...param, subtitle_lang: e.target.value })}
             />
@@ -219,7 +264,7 @@ export default function Home() {
             >
               保存先を開く
             </CustomButton>
-            <Switch
+            <StyledSwitch
               checked={param.is_cookie}
               onChange={(e) => setParam({ ...param, is_cookie: e.target.checked })}
             />
@@ -237,7 +282,7 @@ export default function Home() {
             >
               任意コード
             </span>
-            <Input
+            <StyledInput
               sx={{
                 width: "100%",
               }}
