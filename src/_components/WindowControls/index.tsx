@@ -164,7 +164,9 @@ function WindowControls() {
               </div>
             </div>
           </div>
-        ) : null}
+        ) :
+          <div data-tauri-drag-region className="download-progress-wrapper">
+          </div>}
       </>
     );
   };
