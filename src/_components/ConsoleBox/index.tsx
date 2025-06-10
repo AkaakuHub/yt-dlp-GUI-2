@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { FixedSizeList, ListOnScrollProps } from "react-window";
 import PropTypes from "prop-types";
 import "./index.css";
@@ -11,6 +11,7 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [listHeight, setListHeight] = useState<number>(0);
+  const listRef = useRef<FixedSizeList>(null);
 
   useEffect(() => {
     setConsoleLines(consoleText.split("\n"));
@@ -30,34 +31,34 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
   }, []);
 
   const handleScroll = ({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
-    const contentHeight = consoleLines.length * 16 - 34;
+    const contentHeight = consoleLines.length * 20;
+    const maxScrollTop = Math.max(0, contentHeight - listHeight);
 
     setTimeout(() => {
-      if (!scrollUpdateWasRequested && scrollOffset + listHeight < contentHeight) {
+      if (!scrollUpdateWasRequested && scrollOffset < maxScrollTop - 50) {
         setAutoScrollEnabled(false);
-      } else {
+      } else if (scrollOffset >= maxScrollTop - 50) {
         setAutoScrollEnabled(true);
       }
     }, 100);
   };
 
   useEffect(() => {
-    if (autoScrollEnabled) {
-      const scrollElement = document.querySelector(".console-list");
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+    if (autoScrollEnabled && consoleLines.length > 0) {
+      // FixedSizeListの最後の項目にスクロール
+      listRef.current?.scrollToItem(consoleLines.length - 1, "end");
     }
-  }, [consoleText, autoScrollEnabled]);
+  }, [consoleLines, autoScrollEnabled]);
 
   return (
     <div className="console-box-wrapper">
       <div className="console-box">
         <FixedSizeList
+          ref={listRef}
           height={listHeight}
           width={"100%"}
           itemCount={consoleLines.length}
-          itemSize={16}
+          itemSize={20}
           className="console-list"
           onScroll={handleScroll}
         >
