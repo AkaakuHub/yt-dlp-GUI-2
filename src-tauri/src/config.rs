@@ -38,6 +38,7 @@ pub struct Settings {
     pub is_send_notification: bool,
     pub index: u32,
     pub is_server_enabled: bool,
+    pub theme_mode: String,
     // custom_commands_list: Vec<String>,
 }
 
@@ -50,6 +51,7 @@ impl Default for Settings {
             is_send_notification: true,
             index: 3,
             is_server_enabled: true,
+            theme_mode: "system".to_string(),
             // custom_commands_list: vec![],
         }
     }
@@ -114,6 +116,11 @@ impl Settings {
 
     pub fn set_is_server_enabled(&mut self, new_is_server_enabled: bool) {
         self.is_server_enabled = new_is_server_enabled;
+        self.write_file();
+    }
+
+    pub fn set_theme_mode(&mut self, new_theme_mode: String) {
+        self.theme_mode = new_theme_mode;
         self.write_file();
     }
 }
@@ -188,6 +195,16 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_is_server_enabled(new_is_server_enabled);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_theme_mode(
+        state: State<'_, AppState>,
+        new_theme_mode: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_theme_mode(new_theme_mode);
         Ok(())
     }
 

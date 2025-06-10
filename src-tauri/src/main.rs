@@ -723,6 +723,7 @@ fn main() {
             config::commands::set_is_send_notification,
             config::commands::set_index,
             config::commands::set_is_server_enabled,
+            config::commands::set_theme_mode,
             config::commands::get_settings
         ])
         .plugin(tauri_plugin_drag::init())
