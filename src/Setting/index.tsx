@@ -128,6 +128,8 @@ export default function Settings() {
     await installUpdate();
     // On macOS and Linux you will need to restart the app manually.
     // You could use this step to display another confirmation dialog.
+    await dialog.message("アップデートが完了しました。アプリケーションを終了します。");
+    await invoke("exit_app");
     await relaunch();
   }
 
