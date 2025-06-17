@@ -16,21 +16,15 @@ const dropdownOptions = [
   { label: "720p" },
   { label: "480p" },
   { label: "360p" },
-  null,
   { label: "リストを表示" },
   { label: "IDを指定" },
-  null,
   { label: "配信録画(最初から)" },
   { label: "配信録画(現在から)" },
   { label: "サムネイル" },
   { label: "字幕" },
   { label: "任意コード >yt-dlp" },
 ].map((option, index) => {
-  if (option) {
-    return { ...option, value: index }; // インデックスベースでvalueを設定
-  } else {
-    return null;
-  }
+  return { ...option, value: index + 1 }; // インデックスベースでvalueを設定(1から始まる)
 });
 
 console.log(dropdownOptions);
