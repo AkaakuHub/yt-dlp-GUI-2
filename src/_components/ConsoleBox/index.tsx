@@ -9,9 +9,10 @@ interface ConsoleBoxProps {
 
 const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [listHeight, setListHeight] = useState<number>(0);
+  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
   const listRef = useRef<FixedSizeList>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     setConsoleLines(consoleText.split("\n"));
@@ -31,24 +32,33 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
   }, []);
 
   const handleScroll = ({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
+    if (scrollUpdateWasRequested) return;
+
+    setIsUserScrolling(true);
+
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsUserScrolling(false);
+    }, 1000);
+
     const contentHeight = consoleLines.length * 20;
     const maxScrollTop = Math.max(0, contentHeight - listHeight);
 
-    setTimeout(() => {
-      if (!scrollUpdateWasRequested && scrollOffset < maxScrollTop - 90) {
-        setAutoScrollEnabled(false);
-      } else if (scrollOffset >= maxScrollTop - 90) {
-        setAutoScrollEnabled(true);
-      }
-    }, 100);
+    if (scrollOffset >= maxScrollTop - 50) {
+      setIsUserScrolling(false);
+    }
   };
 
   useEffect(() => {
-    if (autoScrollEnabled && consoleLines.length > 0) {
-      // FixedSizeListの最後の項目にスクロール
-      listRef.current?.scrollToItem(consoleLines.length - 1, "end");
+    if (!isUserScrolling && consoleLines.length > 0) {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToItem(consoleLines.length - 1, "end");
+      });
     }
-  }, [consoleLines, autoScrollEnabled]);
+  }, [consoleLines, isUserScrolling]);
 
   return (
     <div className="console-box-wrapper">

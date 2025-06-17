@@ -483,6 +483,11 @@ async fn open_url_and_exit(window: Window, url: String) {
     }
 }
 
+#[tauri::command]
+async fn exit_app() {
+    std::process::exit(0x0);
+}
+
 #[cfg(target_os = "windows")]
 #[tauri::command]
 fn open_directory(path: String) {
@@ -713,6 +718,7 @@ fn main() {
             open_directory,
             is_program_available,
             open_url_and_exit,
+            exit_app,
             toggle_server,
             get_sorted_directory_contents,
             open_file,
