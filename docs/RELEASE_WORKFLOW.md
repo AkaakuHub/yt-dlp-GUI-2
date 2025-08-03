@@ -1,6 +1,6 @@
 # GitHub Actions Release Workflow
 
-このプロジェクトでは、自動化されたリリースワークフローを設定しています。
+このプロジェクトでは、完全自動化されたリリースワークフローを設定しています。
 
 ## ワークフローの概要
 
@@ -19,46 +19,27 @@
   - GitHub Releaseを自動作成
   - アーティファクトのアップロード
 
-### 3. `create-release-pr.yml` - プルリクエスト作成
-- **トリガー**: リリースの公開
-- **機能**:
-  - `release`ブランチから`main`ブランチへのプルリクエストを自動作成
+## 使用方法（完全自動化）
 
-## 使用方法
-
-### 方法1: ヘルパースクリプトを使用
+### 新しいリリースを作成するには
 ```bash
-# バージョンを更新（例：1.0.6）
-./scripts/update-version.sh 1.0.6
+# 新しいバージョンを指定してスクリプトを実行
+./scripts/update-version.sh 1.0.9
 
-# 変更を確認
-git diff
-
-# コミット・プッシュ
-git add .
-git commit -m "v1.0.6"
-git push origin release
-```
-
-### 方法2: 手動更新
-1. 以下のファイルでバージョンを更新:
-   - `src-tauri/Cargo.toml` (version = "x.x.x")
-   - `src-tauri/tauri.conf.json` ("version": "x.x.x")
-   - `package.json` ("version": "x.x.x")
-
-2. `release`ブランチにコミット・プッシュ:
-```bash
-git add .
-git commit -m "vx.x.x"
-git push origin release
+# 以降は全て自動で実行されます:
+# 1. バージョンファイルの更新
+# 2. releaseブランチへの切り替え
+# 3. 変更のコミット・プッシュ
+# 4. GitHub Actionsによるタグ作成
+# 5. ビルドとリリースの自動実行
 ```
 
 ## ワークフローの流れ
 
-1. **開発者**: `release`ブランチにバージョン更新をプッシュ
-2. **自動**: `tag-version.yml`がバージョンタグを作成
-3. **自動**: `build.yml`がタグに反応してビルド・リリースを実行
-4. **自動**: `create-release-pr.yml`がリリース後にプルリクエストを作成
+1. **開発者**: `./scripts/update-version.sh X.Y.Z` を実行
+2. **スクリプト**: 自動でバージョン更新 → `release`ブランチ切り替え → コミット・プッシュ
+3. **自動**: `tag-version.yml`がバージョンタグを作成
+4. **自動**: `build.yml`がタグに反応してビルド・リリースを実行
 
 ## 必要な設定
 
@@ -70,4 +51,4 @@ git push origin release
 
 - 全バージョンファイルで整合性が取れていない場合、ワークフローは失敗します
 - 既存のタグと同じバージョンの場合、タグ作成はスキップされます
-- リリースブランチでのみ動作します
+- `main`ブランチで作業していても、スクリプトが自動で`release`ブランチに切り替えます
