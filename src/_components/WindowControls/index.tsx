@@ -26,12 +26,18 @@ function WindowControls() {
         const permission = await requestPermission();
         permissionGranted = permission === "granted";
       }
-      sendNotification({ title, body });
-    } catch (error) {
-      console.error(error);
+      if (permissionGranted) {
+        sendNotification({
+          title,
+          body,
+          icon: "icons/32x32.png"
+        });
+        return;
+      }
+    } catch {
+      // Tauri通知が失敗した場合
     }
   }
-
 
   const DownloadProgress = () => {
     const { latestConsoleText } = useAppContext();

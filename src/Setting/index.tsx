@@ -10,6 +10,8 @@ import {
   Link,
   Switch,
   FormControlLabel,
+  Alert,
+  Button,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -27,6 +29,7 @@ import "./index.css";
 
 import { toast } from "react-toastify";
 import { dialog } from "@tauri-apps/api";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/api/notification";
 
 // StyledComponents for dark mode support
 const StyledTextField = styled(TextField)(() => ({
@@ -122,6 +125,8 @@ export default function Settings() {
 
   const [currentVersion, setCurrentVersion] = useState("");
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<boolean | null>(null);
+  const [osType, setOsType] = useState<string>("");
 
   const executeUpdate = async () => {
     // Install the update. This will also restart the app on Windows!
@@ -169,6 +174,41 @@ export default function Settings() {
     };
     getCurrentVersion();
   }, []);
+
+  useEffect(() => {
+    const getOsType = async () => {
+      const os = await invoke<string>("get_os_type");
+      setOsType(os);
+    };
+    getOsType();
+  }, []);
+
+  useEffect(() => {
+    const checkNotificationPermission = async () => {
+      try {
+        const granted = await isPermissionGranted();
+        setNotificationPermission(granted);
+      } catch {
+        setNotificationPermission(false);
+      }
+    };
+    checkNotificationPermission();
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    try {
+      const permission = await requestPermission();
+      const granted = permission === "granted";
+      setNotificationPermission(granted);
+      if (granted) {
+        toast.success("通知権限が許可されました");
+      } else {
+        toast.error("通知権限が拒否されました。システム設定で手動で許可してください。");
+      }
+    } catch {
+      toast.error("通知権限の要求に失敗しました");
+    }
+  };
 
   // デバウンスで遅延
   const saveDirChanged = debounce(async (temp_saveDir: string) => {
@@ -295,8 +335,29 @@ export default function Settings() {
                 }}
               />
             }
-            label="ダウンロード完了時に通知を受け取る"
+            label={
+              <Box>
+                ダウンロード完了時に通知を受け取る
+                {osType === "macos" && (
+                  <Typography variant="caption" display="block" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                    macOSでは「通知パネル」設定でバナー通知が表示されます
+                  </Typography>
+                )}
+              </Box>
+            }
           />
+          {isSendNotification && notificationPermission === false && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              通知権限が許可されていません。
+              <Button
+                size="small"
+                onClick={requestNotificationPermission}
+                sx={{ ml: 1 }}
+              >
+                権限を要求
+              </Button>
+            </Alert>
+          )}
           <StyledFormControlLabel
             control={
               <StyledSwitch

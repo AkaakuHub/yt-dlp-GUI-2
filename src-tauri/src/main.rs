@@ -696,6 +696,11 @@ async fn get_current_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+#[tauri::command]
+fn get_os_type() -> String {
+    std::env::consts::OS.to_string()
+}
+
 fn main() {
     let _ = fix_path_env::fix();
     let app_state = config::AppState::new();
@@ -723,6 +728,7 @@ fn main() {
             get_sorted_directory_contents,
             open_file,
             get_current_version,
+            get_os_type,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_server_port,
