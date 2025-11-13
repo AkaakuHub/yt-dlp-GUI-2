@@ -334,6 +334,9 @@ async fn run_command(
         args.push(&browser);
     }
 
+    args.push("--remote-components");
+    args.push("ejs:github");
+
     return manager
         .start_command(command_manager.inner().clone(), args, window)
         .await;
