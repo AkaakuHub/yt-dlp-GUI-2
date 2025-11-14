@@ -1,8 +1,8 @@
 import { useEffect } from "react"
 import { useAppContext } from "../AppContext"
-import { MenuItem, Select, InputLabel, FormControl } from "@mui/material"
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import { IconButton } from "@mui/material"
+import { Select } from "../../ui/select"
+import CustomButton from "../CustomButton"
+import { PlayIcon } from "../../ui/icons"
 import { invoke } from "@tauri-apps/api";
 import { debounce } from "lodash";
 import PropTypes from "prop-types";
@@ -83,51 +83,42 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = (
   }, 500);
 
   return (
-    <div className="form-control-wrapper">
-      <FormControl fullWidth className="select-control">
-        <InputLabel id="mode-select-label" className="select-label">モード</InputLabel>
+    <div className="form-control-wrapper" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="select-control" style={{ flex: 1 }}>
+        <label htmlFor="mode-select" className="select-label" style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>モード</label>
         <Select
-          labelId="mode-select-label"
-          label="モード"
           id="mode-select"
           value={selectedIndexNumber}
-          onChange={(e) => setSelectedIndexNumber(e.target.value as number)}
+          onChange={(e) => setSelectedIndexNumber(parseInt(e.target.value as unknown as string))}
           disabled={!isSettingLoaded}
           className="select-input"
-          MenuProps={{
-            PaperProps: {
-              className: "select-menu"
-            }
-          }}
         >
           {dropdownOptions.map((option, index) =>
             option ? (
-              <MenuItem key={index} value={option.value} className="menu-item">
-                {option.label}
-              </MenuItem>
+              <option key={index} value={option.value}>{option.label}</option>
             ) : (
-              <MenuItem key={index} disabled className="menu-divider">
-                {"――――――――"}
-              </MenuItem>
+              <option key={index} disabled>――――――――</option>
             )
           )}
         </Select>
-      </FormControl>
-      <div className="arrow-buttons-wrapper">
-        <IconButton
-          size="large"
-          className="arrow-button arrow-button-prev"
+      </div>
+      <div className="arrow-buttons-wrapper" style={{ display: 'flex', gap: 4 }}>
+        <CustomButton
           onClick={handlePrevious}
-          disabled={!isSettingLoaded}>
-          <PlayArrowIcon className="arrow-icon" sx={{ transform: "rotate(180deg)" }} />
-        </IconButton>
-        <IconButton
-          size="large"
-          className="arrow-button arrow-button-next"
+          disabled={!isSettingLoaded}
+          aria-label="前へ"
+          variant="secondary"
+        >
+          <PlayIcon style={{ transform: 'rotate(180deg)' }} />
+        </CustomButton>
+        <CustomButton
           onClick={handleNext}
-          disabled={!isSettingLoaded}>
-          <PlayArrowIcon className="arrow-icon" />
-        </IconButton>
+          disabled={!isSettingLoaded}
+          aria-label="次へ"
+          variant="secondary"
+        >
+          <PlayIcon />
+        </CustomButton>
       </div>
     </div>
   );

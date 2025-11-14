@@ -1,15 +1,15 @@
 import React from 'react';
 import { useTheme, ThemeMode } from '../ThemeContext';
-import { LightMode, DarkMode, Computer } from '@mui/icons-material';
+import { LightIcon, DarkIcon, SystemIcon } from '../../ui/icons';
 import './index.css';
 
 const ThemeSelector: React.FC = () => {
   const { themeMode, setThemeMode } = useTheme();
 
   const themes: { mode: ThemeMode; label: string; icon: React.ReactElement }[] = [
-    { mode: 'light', label: 'ライト', icon: <LightMode /> },
-    { mode: 'dark', label: 'ダーク', icon: <DarkMode /> },
-    { mode: 'system', label: 'システム', icon: <Computer /> }
+    { mode: 'light', label: 'ライト', icon: <LightIcon /> },
+    { mode: 'dark', label: 'ダーク', icon: <DarkIcon /> },
+    { mode: 'system', label: 'システム', icon: <SystemIcon /> }
   ];
 
   return (

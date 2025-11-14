@@ -2,15 +2,7 @@ import React, { useEffect, useState } from "react";
 import { resolve, dirname } from "@tauri-apps/api/path";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { invoke } from "@tauri-apps/api/tauri";
-import {
-  Folder as FolderIcon, 
-  InsertDriveFile as FileIcon, 
-  Refresh as RefreshIcon,
-  ArrowUpward as UpIcon, 
-  ArrowBack as BackIcon, 
-  ArrowForward as ForwardIcon,
-  Home as HomeIcon
-} from "@mui/icons-material";
+import { FolderIcon, FileIcon, RefreshIcon, UpIcon, BackIcon, ForwardIcon, HomeIcon } from "../../ui/icons";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
@@ -78,7 +70,7 @@ const Item: React.FC<ItemProps> = ({ handleClick, file, fullPath }) => {
       onDragStart={handleDragStart}
     >
       <div className="explorer-item-icon">
-        {file.is_dir ? <FolderIcon fontSize="small" /> : <FileIcon fontSize="small" />}
+        {file.is_dir ? <FolderIcon /> : <FileIcon />}
       </div>
       <div className="explorer-item-name">
         {file.name}
@@ -195,7 +187,7 @@ const CustomExplorer: React.FC = () => {
             disabled={historyIndex <= 0}
             title="戻る"
           >
-            <BackIcon fontSize="small" />
+            <BackIcon />
           </button>
           <button 
             className="explorer-button" 
@@ -203,21 +195,21 @@ const CustomExplorer: React.FC = () => {
             disabled={historyIndex >= history.length - 1}
             title="進む"
           >
-            <ForwardIcon fontSize="small" />
+            <ForwardIcon />
           </button>
           <button 
             className="explorer-button" 
             onClick={goUp}
             title="上の階層"
           >
-            <UpIcon fontSize="small" />
+            <UpIcon />
           </button>
           <button 
             className="explorer-button" 
             onClick={goHome}
             title="ホーム"
           >
-            <HomeIcon fontSize="small" />
+            <HomeIcon />
           </button>
         </div>
         <div className="explorer-path-container">
@@ -234,7 +226,7 @@ const CustomExplorer: React.FC = () => {
           onClick={fetchFiles}
           title="更新"
         >
-          <RefreshIcon fontSize="small" />
+          <RefreshIcon />
         </button>
       </div>
       <div className="explorer-header">
