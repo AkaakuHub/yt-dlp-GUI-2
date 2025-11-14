@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FixedSizeList, ListOnScrollProps } from "react-window";
 import PropTypes from "prop-types";
 import "./index.css";
 
@@ -10,9 +9,7 @@ interface ConsoleBoxProps {
 const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [listHeight, setListHeight] = useState<number>(0);
-  const [isUserScrolling, setIsUserScrolling] = useState<boolean>(false);
-  const listRef = useRef<FixedSizeList>(null);
-  const scrollTimeoutRef = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setConsoleLines(consoleText.split("\n"));
@@ -31,58 +28,25 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
     };
   }, []);
 
-  const handleScroll = ({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
-    if (scrollUpdateWasRequested) return;
-
-    setIsUserScrolling(true);
-
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-
-    scrollTimeoutRef.current = setTimeout(() => {
-      setIsUserScrolling(false);
-    }, 1000);
-
-    const contentHeight = consoleLines.length * 20;
-    const maxScrollTop = Math.max(0, contentHeight - listHeight);
-
-    if (scrollOffset >= maxScrollTop - 50) {
-      setIsUserScrolling(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isUserScrolling && consoleLines.length > 0) {
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToItem(consoleLines.length - 1, "end");
-      });
-    }
-  }, [consoleLines, isUserScrolling]);
-
   return (
     <div className="console-box-wrapper">
       <div className="console-box">
-        <FixedSizeList
+        <div
           ref={listRef}
-          height={listHeight}
-          width={"100%"}
-          itemCount={consoleLines.length}
-          itemSize={20}
+          style={{ height: listHeight, width: "100%" }}
           className="console-list"
-          onScroll={handleScroll}
         >
-          {({ index, style }: { index: number; style: React.CSSProperties }) => {
-            const text = consoleLines[index];
+          {consoleLines.map((text, index) => {
             if (text !== "") {
               return (
-                <div style={style}>
+                <div key={index} className="console-line">
                   {text}
                 </div>
-              )
+              );
             }
-          }}
-        </FixedSizeList>
+            return null;
+          })}
+        </div>
       </div >
     </div >
   );
