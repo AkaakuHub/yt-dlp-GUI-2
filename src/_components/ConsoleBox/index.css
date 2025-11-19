@@ -1,12 +1,11 @@
 .console-box-wrapper {
-  height: calc(100vh - 50px - 346px);
+  position: relative;
   padding: 16px;
   background: var(--surface-primary);
   backdrop-filter: var(--backdrop-blur);
   border-radius: 16px;
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-lg);
-  position: relative;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -19,6 +18,7 @@
   opacity: 0.02;
   border-radius: 16px;
   transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 .console-box-wrapper:hover::before {
@@ -30,41 +30,19 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
   font-size: 13px;
   line-height: 1.5;
-  white-space: pre;
-  overflow: hidden;
+  overflow: hidden; /* react-windowが制御 */
   color: var(--text-primary);
   background: transparent;
-  box-sizing: border-box;
   border-radius: 12px;
   position: relative;
   z-index: 1;
 }
 
-.console-box div {
-  user-select: text;
-  padding: 1px 8px;
-  transition: background-color 0.15s ease;
-  border-radius: 4px;
-  margin: 0;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.console-box div:hover {
-  background-color: var(--surface-secondary);
-}
-
+/* react-windowのリスト用スタイル */
 .console-list {
   border-radius: 12px;
   scrollbar-width: thin;
   scrollbar-color: var(--accent-primary) var(--surface-secondary);
-}
-
-.console-list > div {
-  width: 100% !important;
-  max-width: none !important;
 }
 
 /* 現代的なスクロールバー */
@@ -102,37 +80,142 @@
   border-radius: 8px;
 }
 
+/* react-windowのアイテム用スタイル */
+.console-list > div {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* コンソール行のスタイル */
+.console-line {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  user-select: text;
+  cursor: text;
+  transition: background-color 0.1s ease;
+  box-sizing: border-box;
+  border: none !important;
+  position: relative;
+}
+
+.console-line:hover {
+  background-color: var(--surface-secondary) !important;
+}
+
+.console-line.empty-line {
+  opacity: 0.7;
+}
+
+.line-number {
+  flex-shrink: 0;
+  width: 40px;
+  padding: 2px 8px;
+  color: var(--text-tertiary);
+  background-color: var(--surface-secondary);
+  border-right: 1px solid var(--border-secondary);
+  font-size: 11px;
+  text-align: right;
+  user-select: none;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.line-content {
+  flex: 1;
+  padding: 2px 12px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 16px;
+  word-break: break-all;
+}
+
+/* フローティングスクロールボタン */
+.scroll-fab {
+  position: absolute !important;
+  bottom: 16px !important;
+  right: 16px !important;
+  z-index: 10;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: var(--shadow-lg) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+}
+
+.scroll-fab.following {
+  background: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+  opacity: 0.8;
+}
+
+.scroll-fab.not-following {
+  background: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--accent-primary);
+  opacity: 0.9;
+}
+
+.scroll-fab:hover {
+  transform: scale(1.05) !important;
+  opacity: 1 !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+
+.scroll-fab:active {
+  transform: scale(0.95) !important;
+}
+
+/* 行選択時のハイライト */
+.console-line:focus-within {
+  background-color: var(--surface-secondary) !important;
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
+/* 選択テキストのスタイル */
+.line-content::selection {
+  background-color: var(--accent-primary);
+  color: var(--text-on-accent);
+}
+
 /* ログレベル別のカラーリング */
-.console-box div:has(> span[data-level="error"]),
-.console-box div[data-level="error"] {
+.console-line[data-level="error"] .line-content {
   color: var(--error);
-  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.console-line[data-level="error"] {
+  background-color: rgba(239, 68, 68, 0.1) !important;
   border-left: 3px solid var(--error);
-  padding-left: 9px;
 }
 
-.console-box div:has(> span[data-level="warning"]),
-.console-box div[data-level="warning"] {
+.console-line[data-level="warning"] .line-content {
   color: var(--warning);
-  background-color: rgba(245, 158, 11, 0.1);
+}
+
+.console-line[data-level="warning"] {
+  background-color: rgba(245, 158, 11, 0.1) !important;
   border-left: 3px solid var(--warning);
-  padding-left: 9px;
 }
 
-.console-box div:has(> span[data-level="info"]),
-.console-box div[data-level="info"] {
+.console-line[data-level="info"] .line-content {
   color: var(--info);
-  background-color: rgba(59, 130, 246, 0.1);
-  border-left: 3px solid var(--info);
-  padding-left: 9px;
 }
 
-.console-box div:has(> span[data-level="success"]),
-.console-box div[data-level="success"] {
+.console-line[data-level="info"] {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border-left: 3px solid var(--info);
+}
+
+.console-line[data-level="success"] .line-content {
   color: var(--success);
-  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.console-line[data-level="success"] {
+  background-color: rgba(16, 185, 129, 0.1) !important;
   border-left: 3px solid var(--success);
-  padding-left: 9px;
 }
 
 /* タイムスタンプスタイル */
@@ -144,26 +227,26 @@
 }
 
 /* シンタックスハイライト風 */
-.console-box .console-url {
+.console-url {
   color: var(--accent-primary);
   text-decoration: underline;
   text-decoration-color: transparent;
   transition: text-decoration-color 0.2s ease;
 }
 
-.console-box .console-url:hover {
+.console-url:hover {
   text-decoration-color: var(--accent-primary);
 }
 
-.console-box .console-number {
+.console-number {
   color: var(--accent-secondary);
 }
 
-.console-box .console-string {
+.console-string {
   color: var(--success);
 }
 
-.console-box .console-keyword {
+.console-keyword {
   color: var(--primary-500);
   font-weight: 600;
 }
@@ -180,29 +263,40 @@
   }
 }
 
-.console-box div:last-child {
-  animation: consoleLineAppear 0.2s ease-out;
-}
-
 /* 高コントラスト対応 */
 @media (prefers-contrast: high) {
   .console-box-wrapper {
     border-width: 2px;
   }
-  
-  .console-box div[data-level="error"] {
-    background-color: rgba(239, 68, 68, 0.2);
+
+  .console-line[data-level="error"] {
+    background-color: rgba(239, 68, 68, 0.2) !important;
   }
-  
-  .console-box div[data-level="warning"] {
-    background-color: rgba(245, 158, 11, 0.2);
+
+  .console-line[data-level="warning"] {
+    background-color: rgba(245, 158, 11, 0.2) !important;
   }
-  
-  .console-box div[data-level="info"] {
-    background-color: rgba(59, 130, 246, 0.2);
+
+  .console-line[data-level="info"] {
+    background-color: rgba(59, 130, 246, 0.2) !important;
   }
-  
-  .console-box div[data-level="success"] {
-    background-color: rgba(16, 185, 129, 0.2);
+
+  .console-line[data-level="success"] {
+    background-color: rgba(16, 185, 129, 0.2) !important;
+  }
+
+  .line-number {
+    border-width: 2px;
+  }
+
+  .scroll-fab {
+    border-width: 2px !important;
+  }
+}
+
+/* ダークモードでの調整 */
+@media (prefers-color-scheme: dark) {
+  .console-list {
+    scrollbar-color: var(--accent-secondary) var(--surface-secondary);
   }
 }
