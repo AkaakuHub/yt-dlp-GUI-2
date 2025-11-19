@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { FixedSizeList, ListOnScrollProps } from "react-window";
 import { Fab, Tooltip } from "@mui/material";
-import { ArrowDownward, KeyboardArrowUp } from "@mui/icons-material";
+import { ArrowDownward } from "@mui/icons-material";
 import PropTypes from "prop-types";
 import "./index.css";
 
@@ -177,7 +177,7 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
           onClick={scrollToBottom}
           color={isAtBottom ? "primary" : "secondary"}
         >
-          {isAtBottom ? <ArrowDownward /> : <KeyboardArrowUp />}
+          <ArrowDownward />
         </Fab>
       </Tooltip>
     </div>
