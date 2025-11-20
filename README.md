@@ -35,13 +35,15 @@ https://github.com/AkaakuHub/YDG-Helper
 
 4.[**こちら**](#トラブルシューティング)の手順に従い、パスを通す。
 
+5.なんらかの方法で`deno`をインストールする。
+
 ### Mac
 
 1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)にある最新バージョンのリリース("Latest"と書いてあるもの)から
 `yt-dlp-GUI_x.x.x_aarch64.dmg`
 をダウンロードする。
 
-2. ダブルクリックすると、このような画面が開くので、右のアイコンを左にドラッグアンドドロップする。
+2.ダブルクリックすると、このような画面が開くので、右のアイコンを左にドラッグアンドドロップする。
    ![image](https://github.com/user-attachments/assets/5e7805aa-4ad8-49e9-9eba-d154554378fb)
 
 3.`"yt-dlp-GUI.app"は壊れているため開けません。`
@@ -49,6 +51,8 @@ https://github.com/AkaakuHub/YDG-Helper
 例: `xattr -rc /Applications/yt-dlp-GUI.app`
 
 4.ffmpegとyt-dlpをインストールする。(homebrew推奨)
+
+5.なんらかの方法で`deno`をインストールする。
 
 ### Linux
 
