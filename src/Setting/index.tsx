@@ -515,7 +515,7 @@ export default function Settings() {
         </Box>
 
         {/* ツール設定ボタン */}
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "center"}}>
           <Button
             variant="outlined"
             onClick={openToolsModal}
@@ -533,7 +533,7 @@ export default function Settings() {
           </Button>
         </Box>
 
-        <Box sx={{ mt: 4, textAlign: "center" }} className="version-info">
+        <Box sx={{ textAlign: "center" }} className="version-info">
           <Typography variant="body2" color="textSecondary" className="version-text">
             <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2" target="_blank" rel="noopener" className="github-link">
               GitHub

@@ -91,6 +91,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [downloadedOnce, setDownloadedOnce] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { setIsSettingLoaded } = useAppContext();
 
@@ -112,9 +113,23 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
       const settings = await invoke<ConfigProps>("get_settings");
       setUseBundle(settings.use_bundle_tools);
 
+      // ツールパスが既に設定されている場合は設定済みとして完了
+      if (settings.yt_dlp_path && settings.yt_dlp_path !== "" &&
+          settings.ffmpeg_path && settings.ffmpeg_path !== "") {
+        setYtDlpPath(settings.yt_dlp_path);
+        setFfmpegPath(settings.ffmpeg_path);
+        setCheckResults({ ytDlp: true, ffmpeg: true });
+        // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
+        setTimeout(() => {
+          setIsSettingLoaded(true);
+          onComplete();
+        }, 500);
+        setIsLoading(false);
+        return;
+      }
+
       // バンドルモードの場合、現在の実行環境に合わせた正しいデフォルトパスを設定
       if (settings.use_bundle_tools) {
-        // 現在の設定が古い可能性があるため、バンドルモードの場合は正しいパスを強制設定
         await invoke("set_use_bundle_tools", { useBundleTools: true });
         const updatedSettings = await invoke<ConfigProps>("get_settings");
         setYtDlpPath(updatedSettings.yt_dlp_path);
@@ -123,8 +138,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
         setYtDlpPath(settings.yt_dlp_path);
         setFfmpegPath(settings.ffmpeg_path);
       }
+
+      setIsLoading(false);
     } catch (error) {
       console.error("Failed to load settings:", error);
+      setIsLoading(false);
     }
   };
 
@@ -140,8 +158,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
       // 再度設定を読み込み
       await invoke<ConfigProps>("get_settings");
 
-      setIsSettingLoaded(true);
-      onComplete();
+      // 設定完了後、少し待ってから完了通知（スムーズな体験のため）
+      setTimeout(() => {
+        setIsSettingLoaded(true);
+        onComplete();
+      }, 1000);
     } catch (error) {
       console.error("Failed to save settings:", error);
       toast.error("設定の保存に失敗しました");
@@ -231,6 +252,29 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   };
 
   const isConfigValid = useBundle ? true : ytDlpPath.trim() !== "" && ffmpegPath.trim() !== "";
+
+  // ローディング中はローディング画面を表示
+  if (isLoading) {
+    return (
+      <div className="tool-setup-root">
+        <div className="tool-setup-container">
+          <StyledPaper elevation={3}>
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+              minHeight="300px"
+            >
+              <CircularProgress size={60} sx={{
+                color: 'var(--accent-primary)',
+              }} />
+            </Box>
+          </StyledPaper>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="tool-setup-root">
