@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
-import { dialog } from "@tauri-apps/api";
 import "./index.css";
 
 import ExecuteButton from "../_components/ExecuteButton";
@@ -78,18 +77,7 @@ export default function Home() {
   const selectedIndexRef = useRef(selectedIndexNumber);
 
   useEffect(() => {
-    const checkProgram = async (programName: string) => {
-      try {
-        await invoke<string>("is_program_available", { programName });
-      } catch (error) {
-        console.error(`${programName} is not available: ${error}`);
-        await dialog.message(`${programName}がインストールされていないか、パスが通っていません。表示される手順に従ってパスを通してください。`);
-        await invoke("open_url_and_exit", { url: "https://github.com/AkaakuHub/yt-dlp-GUI-2?tab=readme-ov-file#yt-dlpffmpeg%E3%81%8C%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB%E3%81%95%E3%82%8C%E3%81%A6%E3%81%84%E3%81%AA%E3%81%84%E3%81%8B%E3%83%91%E3%82%B9%E3%81%8C%E9%80%9A%E3%81%A3%E3%81%A6%E3%81%84%E3%81%BE%E3%81%9B%E3%82%93%E8%A1%A8%E7%A4%BA%E3%81%95%E3%82%8C%E3%82%8B%E6%89%8B%E9%A0%86%E3%81%AB%E5%BE%93%E3%81%A3%E3%81%A6%E3%83%91%E3%82%B9%E3%82%92%E9%80%9A%E3%81%97%E3%81%A6%E3%81%8F%E3%81%A0%E3%81%95%E3%81%84%E3%81%A8%E8%A1%A8%E7%A4%BA%E3%81%95%E3%82%8C%E3%82%8B" });
-      }
-    };
-
-    checkProgram("yt-dlp");
-    checkProgram("ffmpeg");
+    // ツールチェックは初期設定画面で行うため、ここでは不要
   }, []);
 
   useEffect(() => {

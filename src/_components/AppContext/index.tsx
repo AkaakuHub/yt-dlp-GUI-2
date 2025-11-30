@@ -21,6 +21,12 @@ interface AppContextProps {
   setSelectedIndexNumber: React.Dispatch<React.SetStateAction<number>>;
   isServerEnabled: boolean;
   setIsServerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  useBundleTools: boolean;
+  setUseBundleTools: React.Dispatch<React.SetStateAction<boolean>>;
+  ytDlpPath: string;
+  setYtDlpPath: React.Dispatch<React.SetStateAction<string>>;
+  ffmpegPath: string;
+  setFfmpegPath: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -36,6 +42,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isSendNotification, setIsSendNotification] = useState(true);
   const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(1);
   const [isServerEnabled, setIsServerEnabled] = useState(true);
+  const [useBundleTools, setUseBundleTools] = useState(true);
+  const [ytDlpPath, setYtDlpPath] = useState("");
+  const [ffmpegPath, setFfmpegPath] = useState("");
 
   useEffect(() => {
     invoke<ConfigProps>("get_settings").then((config) => {
@@ -45,6 +54,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsSendNotification(config.is_send_notification);
       setSelectedIndexNumber(config.index);
       setIsServerEnabled(config.is_server_enabled);
+      setUseBundleTools(config.use_bundle_tools);
+      setYtDlpPath(config.yt_dlp_path);
+      setFfmpegPath(config.ffmpeg_path);
     });
     setIsSettingLoaded(true);
   }, []);
@@ -68,6 +80,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSelectedIndexNumber,
         isServerEnabled,
         setIsServerEnabled,
+        useBundleTools,
+        setUseBundleTools,
+        ytDlpPath,
+        setYtDlpPath,
+        ffmpegPath,
+        setFfmpegPath,
       }}>
         {children}
       </AppContext.Provider>

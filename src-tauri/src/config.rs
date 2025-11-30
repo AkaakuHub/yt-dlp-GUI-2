@@ -25,6 +25,40 @@ fn get_default_save_dir() -> String {
         .to_string()
 }
 
+fn get_default_yt_dlp_path() -> String {
+    let mut path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
+    path.pop(); // exeファイル名を削除
+    if cfg!(target_os = "windows") {
+        path.join("binaries").join("yt-dlp.exe").to_string_lossy().to_string()
+    } else {
+        path.join("binaries").join("yt-dlp").to_string_lossy().to_string()
+    }
+}
+
+fn get_default_ffmpeg_path() -> String {
+    let mut path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
+    path.pop(); // exeファイル名を削除
+    if cfg!(target_os = "windows") {
+        if cfg!(target_arch = "aarch64") {
+            path.join("binaries").join("ffmpeg-master-latest-winarm64-gpl").join("bin").join("ffmpeg.exe").to_string_lossy().to_string()
+        } else {
+            path.join("binaries").join("ffmpeg-master-latest-win64-gpl").join("bin").join("ffmpeg.exe").to_string_lossy().to_string()
+        }
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            path.join("binaries").join("ffmpeg-master-latest-macosarm64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
+        } else {
+            path.join("binaries").join("ffmpeg-master-latest-macos64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
+        }
+    } else {
+        if cfg!(target_arch = "aarch64") {
+            path.join("binaries").join("ffmpeg-master-latest-linuxarm64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
+        } else {
+            path.join("binaries").join("ffmpeg-master-latest-linux64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
+        }
+    }
+}
+
 trait Config {
     fn write_file(&self) {}
     fn read_file(&mut self) {}
@@ -39,6 +73,9 @@ pub struct Settings {
     pub index: u32,
     pub is_server_enabled: bool,
     pub theme_mode: String,
+    pub use_bundle_tools: bool, // true: バンドル版使用, false: パス版使用
+    pub yt_dlp_path: String,    // バンドル版またはカスタムパスのyt-dlp
+    pub ffmpeg_path: String,    // バンドル版またはカスタムパスのffmpeg
     // custom_commands_list: Vec<String>,
 }
 
@@ -50,8 +87,11 @@ impl Default for Settings {
             server_port: 50000,
             is_send_notification: true,
             index: 3,
-            is_server_enabled: true,
+            is_server_enabled: false,
             theme_mode: "system".to_string(),
+            use_bundle_tools: true, // デフォルトはバンドル版（初心者向け）
+            yt_dlp_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
+            ffmpeg_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             // custom_commands_list: vec![],
         }
     }
@@ -121,6 +161,26 @@ impl Settings {
 
     pub fn set_theme_mode(&mut self, new_theme_mode: String) {
         self.theme_mode = new_theme_mode;
+        self.write_file();
+    }
+
+    pub fn set_use_bundle_tools(&mut self, use_bundle_tools: bool) {
+        self.use_bundle_tools = use_bundle_tools;
+        // バンドルモードに変更した場合はデフォルトパスを再設定
+        if use_bundle_tools {
+            self.yt_dlp_path = get_default_yt_dlp_path();
+            self.ffmpeg_path = get_default_ffmpeg_path();
+        }
+        self.write_file();
+    }
+
+    pub fn set_yt_dlp_path(&mut self, yt_dlp_path: String) {
+        self.yt_dlp_path = yt_dlp_path;
+        self.write_file();
+    }
+
+    pub fn set_ffmpeg_path(&mut self, ffmpeg_path: String) {
+        self.ffmpeg_path = ffmpeg_path;
         self.write_file();
     }
 }
@@ -212,5 +272,35 @@ pub mod commands {
     pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
         let settings = state.settings.lock().await.clone();
         Ok(settings)
+    }
+
+    #[tauri::command]
+    pub async fn set_use_bundle_tools(
+        state: State<'_, AppState>,
+        use_bundle_tools: bool,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_use_bundle_tools(use_bundle_tools);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_yt_dlp_path(
+        state: State<'_, AppState>,
+        yt_dlp_path: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_yt_dlp_path(yt_dlp_path);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_ffmpeg_path(
+        state: State<'_, AppState>,
+        ffmpeg_path: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_ffmpeg_path(ffmpeg_path);
+        Ok(())
     }
 }

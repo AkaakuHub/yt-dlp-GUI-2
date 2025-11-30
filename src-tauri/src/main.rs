@@ -4,7 +4,7 @@ use encoding_rs;
 use open as openPath;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -22,6 +22,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Mutex;
 use tokio::task;
+use tokio::fs as TokioFs;
 
 mod config;
 use config::AppState;
@@ -50,6 +51,7 @@ impl CommandManager {
         command_manager: Arc<Mutex<CommandManager>>,
         args: Vec<&str>,
         window: tauri::Window,
+        yt_dlp_path: &str,
     ) -> Result<u32, String> {
         if self.command_task.is_some() {
             return Err("プロセスは既に実行中です".into());
@@ -59,7 +61,7 @@ impl CommandManager {
         self.stop_signal = Some(tx.clone());
 
         #[cfg(target_os = "windows")]
-        let mut child = TokioCommand::new("yt-dlp")
+        let mut child = TokioCommand::new(yt_dlp_path)
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -68,7 +70,7 @@ impl CommandManager {
             .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
 
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        let mut child = TokioCommand::new("yt-dlp")
+        let mut child = TokioCommand::new(yt_dlp_path)
             .args(&args)
             .env("LC_ALL", "en_US.UTF-8")
             .env("LANG", "en_US.UTF-8")
@@ -196,6 +198,13 @@ struct RunCommandParam {
     arbitrary_code: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct DownloadProgress {
+    tool_name: String,
+    progress: f64,
+    status: String,
+}
+
 fn get_format_command(kind: i32) -> Result<String, String> {
     // kindの値に応じてビデオIDのリストを選択
     let video_ids_str = match kind {
@@ -221,11 +230,12 @@ async fn run_command(
     command_manager: State<'_, Arc<Mutex<CommandManager>>>,
     window: tauri::Window,
     param: RunCommandParam,
+    app_state: State<'_, AppState>,
 ) -> Result<u32, String> {
-    let app_state = AppState::new();
     let settings = app_state.settings.lock().await;
 
     let mut manager = command_manager.lock().await;
+    let yt_dlp_path = &settings.yt_dlp_path;
 
     let url = param.url.unwrap_or("not_set".to_string());
     let codec_id = param.codec_id.unwrap_or("not_set".to_string());
@@ -338,7 +348,7 @@ async fn run_command(
     args.push("ejs:github");
 
     return manager
-        .start_command(command_manager.inner().clone(), args, window)
+        .start_command(command_manager.inner().clone(), args, window, yt_dlp_path)
         .await;
 }
 
@@ -444,21 +454,37 @@ async fn stop_command(
 }
 
 #[tauri::command]
-async fn is_program_available(program_name: String) -> Result<String, String> {
+async fn is_program_available(program_name: String, custom_path: Option<String>) -> Result<String, String> {
+    let command_path = if let Some(path) = custom_path {
+        path
+    } else {
+        // パスが指定されていない場合はプログラム名をそのまま使用
+        program_name.clone()
+    };
+
     let command_arg = match program_name.as_str() {
         "yt-dlp" => "--version",
         "ffmpeg" => "-version",
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
+    // ファイルの存在チェック
+    let file_exists = Path::new(&command_path).exists();
+    if !file_exists {
+        return Err(format!(
+            "{} not found at path: {}",
+            program_name, command_path
+        ));
+    }
+
     #[cfg(target_os = "windows")]
-    let output = Command::new(program_name.clone())
+    let output = Command::new(&command_path)
         .arg(command_arg)
         .creation_flags(0x08000000)
         .output();
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
-    let output = Command::new(program_name.clone())
+    let output = Command::new(&command_path)
         .arg(command_arg)
         .env("LC_ALL", "en_US.UTF-8")
         .env("LANG", "en_US.UTF-8")
@@ -467,15 +493,18 @@ async fn is_program_available(program_name: String) -> Result<String, String> {
     match output {
         Ok(output) => {
             if output.status.success() {
-                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                Ok(format!("{} found at: {}", program_name, command_path))
             } else {
                 Err(format!(
-                    "{} is not installed or not found in the system path.",
-                    program_name
+                    "{} is not working at path: {} (exit code: {})",
+                    program_name, command_path, output.status.code().unwrap_or(-1)
                 ))
             }
         }
-        Err(err) => Err(format!("Failed to run command: {}", err)),
+        Err(err) => Err(format!(
+            "Failed to run {} at path {}: {}",
+            program_name, command_path, err
+        )),
     }
 }
 
@@ -704,6 +733,198 @@ fn get_os_type() -> String {
     std::env::consts::OS.to_string()
 }
 
+#[tauri::command]
+async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> {
+    let os_type = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+
+    // binariesフォルダを作成
+    let exe_path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
+    let binaries_dir = exe_path.parent().unwrap().join("binaries");
+
+    if !binaries_dir.exists() {
+        TokioFs::create_dir_all(&binaries_dir).await
+            .map_err(|e| format!("Failed to create binaries directory: {}", e))?;
+    }
+
+    // yt-dlpのダウンロード
+    window.emit("download-progress", DownloadProgress {
+        tool_name: "yt-dlp".to_string(),
+        progress: 0.0,
+        status: "Getting latest version...".to_string(),
+    }).unwrap();
+
+    let yt_dlp_url = get_yt_dlp_download_url(&os_type, &arch)?;
+    let yt_dlp_path = binaries_dir.join(if cfg!(target_os = "windows") { "yt-dlp.exe" } else { "yt-dlp" });
+
+    download_file_with_progress(&yt_dlp_url, &yt_dlp_path, &window, "yt-dlp").await?;
+
+    // FFmpegのダウンロード
+    window.emit("download-progress", DownloadProgress {
+        tool_name: "ffmpeg".to_string(),
+        progress: 0.0,
+        status: "Getting latest version...".to_string(),
+    }).unwrap();
+
+    let ffmpeg_url = get_ffmpeg_download_url(&os_type, &arch)?;
+    let ffmpeg_filename = if cfg!(target_os = "windows") {
+        if cfg!(target_arch = "aarch64") {
+            "ffmpeg-master-latest-winarm64-gpl.zip"
+        } else {
+            "ffmpeg-master-latest-win64-gpl.zip"
+        }
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            "ffmpeg-master-latest-macosarm64-gpl.tar.xz"
+        } else {
+            "ffmpeg-master-latest-macos64-gpl.tar.xz"
+        }
+    } else {
+        if cfg!(target_arch = "aarch64") {
+            "ffmpeg-master-latest-linuxarm64-gpl.tar.xz"
+        } else {
+            "ffmpeg-master-latest-linux64-gpl.tar.xz"
+        }
+    };
+
+    let ffmpeg_archive_path = binaries_dir.join(ffmpeg_filename);
+    download_file_with_progress(&ffmpeg_url, &ffmpeg_archive_path, &window, "ffmpeg").await?;
+
+    // FFmpegを展開（Windowsの場合はzipを展開、Unix系はtar.xzを展開）
+    if cfg!(target_os = "windows") {
+        extract_zip(&ffmpeg_archive_path, &binaries_dir)?;
+    } else {
+        extract_tar_xz(&ffmpeg_archive_path, &binaries_dir).await?;
+    }
+
+    // アーカイブファイルを削除
+    TokioFs::remove_file(ffmpeg_archive_path).await.ok();
+
+    Ok("All tools downloaded successfully".to_string())
+}
+
+fn get_yt_dlp_download_url(os: &str, arch: &str) -> Result<String, String> {
+    match (os, arch) {
+        ("windows", "x86_64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe".to_string()),
+        ("windows", "aarch64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe".to_string()),
+        ("windows", "x86") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe".to_string()),
+        ("linux", "x86_64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux".to_string()),
+        ("linux", "aarch64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64".to_string()),
+        ("linux", "arm") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_armv7l".to_string()),
+        ("macos", "x86_64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string()),
+        ("macos", "aarch64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string()),
+        _ => Err(format!("Unsupported platform: {} {}", os, arch))
+    }
+}
+
+fn get_ffmpeg_download_url(os: &str, arch: &str) -> Result<String, String> {
+    match (os, arch) {
+        ("windows", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip".to_string()),
+        ("windows", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip".to_string()),
+        ("linux", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz".to_string()),
+        ("linux", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz".to_string()),
+        ("macos", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macos64-gpl.tar.xz".to_string()),
+        ("macos", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macosarm64-gpl.tar.xz".to_string()),
+        _ => Err(format!("Unsupported platform: {} {}", os, arch))
+    }
+}
+
+async fn download_file_with_progress(url: &str, path: &Path, window: &tauri::Window, tool_name: &str) -> Result<(), String> {
+    let response = reqwest::get(url).await
+        .map_err(|e| format!("Failed to download {}: {}", tool_name, e))?;
+
+    let total_size = response.content_length().unwrap_or(0);
+    let mut downloaded = 0u64;
+    let mut stream = response.bytes_stream();
+
+    let mut file = TokioFs::File::create(path).await
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+
+    use futures_util::StreamExt;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
+        file.write_all(&chunk).await
+            .map_err(|e| format!("Failed to write chunk: {}", e))?;
+
+        downloaded += chunk.len() as u64;
+        let progress = if total_size > 0 {
+            (downloaded as f64 / total_size as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        window.emit("download-progress", DownloadProgress {
+            tool_name: tool_name.to_string(),
+            progress,
+            status: format!("Downloading... {:.1}%", progress),
+        }).unwrap();
+    }
+
+    // ファイルに実行権限を付与（Unix系）
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(path).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(path, perms).unwrap();
+    }
+
+    Ok(())
+}
+
+fn extract_zip(archive_path: &Path, extract_dir: &Path) -> Result<(), String> {
+    use zip::ZipArchive;
+
+    let file = std::fs::File::open(archive_path)
+        .map_err(|e| format!("Failed to open zip file: {}", e))?;
+
+    let mut archive = ZipArchive::new(file)
+        .map_err(|e| format!("Failed to read zip archive: {}", e))?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)
+            .map_err(|e| format!("Failed to get file from zip: {}", e))?;
+
+        let outpath = extract_dir.join(file.name());
+
+        if file.name().ends_with('/') {
+            std::fs::create_dir_all(&outpath)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+        } else {
+            if let Some(parent) = outpath.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+            }
+
+            let mut outfile = std::fs::File::create(&outpath)
+                .map_err(|e| format!("Failed to create output file: {}", e))?;
+
+            std::io::copy(&mut file, &mut outfile)
+                .map_err(|e| format!("Failed to extract file: {}", e))?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn extract_tar_xz(archive_path: &Path, extract_dir: &Path) -> Result<(), String> {
+    let output = TokioCommand::new("tar")
+        .arg("-xf")
+        .arg(archive_path)
+        .arg("-C")
+        .arg(extract_dir)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to extract tar.xz: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!("tar extraction failed: {}", String::from_utf8_lossy(&output.stderr)));
+    }
+
+    Ok(())
+}
+
 fn main() {
     let _ = fix_path_env::fix();
     let app_state = config::AppState::new();
@@ -732,6 +953,7 @@ fn main() {
             open_file,
             get_current_version,
             get_os_type,
+            download_bundle_tools,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_server_port,
@@ -739,7 +961,10 @@ fn main() {
             config::commands::set_index,
             config::commands::set_is_server_enabled,
             config::commands::set_theme_mode,
-            config::commands::get_settings
+            config::commands::get_settings,
+            config::commands::set_use_bundle_tools,
+            config::commands::set_yt_dlp_path,
+            config::commands::set_ffmpeg_path
         ])
         .plugin(tauri_plugin_drag::init())
         .run(tauri::generate_context!())

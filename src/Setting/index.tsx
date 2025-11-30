@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAppContext } from "../_components/AppContext";
 import ThemeSelector from "../_components/ThemeSelector";
+import { ConfigProps } from "../types";
 import {
   IconButton,
   Container,
@@ -12,9 +13,18 @@ import {
   FormControlLabel,
   Alert,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  RadioGroup,
+  FormControlLabel as MuiFormControlLabel,
+  Radio,
+  CircularProgress,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/api/dialog";
@@ -66,22 +76,6 @@ const StyledTextField = styled(TextField)(() => ({
   }
 }));
 
-const StyledSwitch = styled(Switch)(() => ({
-  '& .MuiSwitch-switchBase': {
-    color: 'var(--border-primary)',
-    '&.Mui-checked': {
-      color: 'var(--accent-primary)',
-      '& + .MuiSwitch-track': {
-        backgroundColor: 'var(--accent-primary)',
-        opacity: 0.7,
-      }
-    }
-  },
-  '& .MuiSwitch-track': {
-    backgroundColor: 'var(--border-primary)',
-    opacity: 0.5,
-  }
-}));
 
 const StyledFormControlLabel = styled(FormControlLabel)(() => ({
   margin: 0,
@@ -122,11 +116,54 @@ export default function Settings() {
   const { serverPort, setServerPort } = useAppContext();
   const { isSendNotification, setIsSendNotification } = useAppContext();
   const { isServerEnabled, setIsServerEnabled } = useAppContext();
+  const { useBundleTools, setUseBundleTools } = useAppContext();
+  const { ytDlpPath, setYtDlpPath } = useAppContext();
+  const { ffmpegPath, setFfmpegPath } = useAppContext();
+  const { isSettingLoaded } = useAppContext();
 
   const [currentVersion, setCurrentVersion] = useState("");
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<boolean | null>(null);
   const [osType, setOsType] = useState<string>("");
+
+  // ツール設定モーダル用
+  const [showToolsModal, setShowToolsModal] = useState(false);
+  const [tempUseBundle, setTempUseBundle] = useState(useBundleTools);
+  const [tempYtDlpPath, setTempYtDlpPath] = useState(ytDlpPath);
+  const [tempFfmpegPath, setTempFfmpegPath] = useState(ffmpegPath);
+  const [isCheckingTools, setIsCheckingTools] = useState(false);
+  const [toolCheckResults, setToolCheckResults] = useState<{ ytDlp: boolean; ffmpeg: boolean }>({ ytDlp: false, ffmpeg: false });
+
+  // ツ�備スイッチ
+  const StyledSwitch = styled(Switch)(() => ({
+    '& .MuiSwitch-switchBase': {
+      color: 'var(--border-primary)',
+      '&.Mui-checked': {
+        color: 'var(--accent-primary)',
+        '& + .MuiSwitch-track': {
+          backgroundColor: 'var(--accent-primary)',
+          opacity: 0.7,
+        }
+      }
+    },
+    '& .MuiSwitch-track': {
+      backgroundColor: 'var(--border-primary)',
+      opacity: 0.5,
+    }
+  }));
+
+  // ツード用ラジオグル
+  const StyledRadioGroup = styled(RadioGroup)(() => ({
+    '& .MuiFormControlLabel-root': {
+      color: 'var(--text-primary)',
+    },
+    '& .MuiRadio-root': {
+      color: 'var(--text-primary)',
+      '&.Mui-checked': {
+        color: 'var(--accent-primary)',
+      },
+    },
+  }));
 
   const executeUpdate = async () => {
     // Install the update. This will also restart the app on Windows!
@@ -231,6 +268,111 @@ export default function Settings() {
     await invoke("set_is_server_enabled", { newIsServerEnabled: temp_serverEnabled });
   }, 500);
 
+  // ツール設定用デバンス関数
+  const saveBundleToolsChanged = debounce(async (temp_useBundle: boolean) => {
+    await invoke("set_use_bundle_tools", { useBundleTools: temp_useBundle });
+  }, 500);
+
+  const saveYtDlpPathChanged = debounce(async (temp_ytDlpPath: string) => {
+    await invoke("set_yt_dlp_path", { ytDlpPath: temp_ytDlpPath });
+  }, 500);
+
+  const saveFfmpegPathChanged = debounce(async (temp_ffmpegPath: string) => {
+    await invoke("set_ffmpeg_path", { ffmpegPath: temp_ffmpegPath });
+  }, 500);
+
+  // ツールチェック関数
+  const checkTools = async () => {
+    setIsCheckingTools(true);
+    try {
+      const settings = await invoke<ConfigProps>("get_settings");
+
+      let ytDlpPathToUse: string | undefined;
+      let ffmpegPathToUse: string | undefined;
+
+      if (tempUseBundle) {
+        ytDlpPathToUse = settings.yt_dlp_path;
+        ffmpegPathToUse = settings.ffmpeg_path;
+      } else {
+        ytDlpPathToUse = tempYtDlpPath || undefined;
+        ffmpegPathToUse = tempFfmpegPath || undefined;
+      }
+
+      const ytDlpResult = await invoke<string>("is_program_available", {
+        programName: "yt-dlp",
+        customPath: ytDlpPathToUse,
+      });
+
+      const ffmpegResult = await invoke<string>("is_program_available", {
+        programName: "ffmpeg",
+        customPath: ffmpegPathToUse,
+      });
+
+      setToolCheckResults({
+        ytDlp: ytDlpResult.includes("found"),
+        ffmpeg: ffmpegResult.includes("found"),
+      });
+
+      if (ytDlpResult.includes("found") && ffmpegResult.includes("found")) {
+        toast.success("すべてのツールが利用可能です");
+      } else {
+        const failedTools = [];
+        if (!ytDlpResult.includes("found")) failedTools.push("yt-dlp");
+        if (!ffmpegResult.includes("found")) failedTools.push("FFmpeg");
+        toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      if (errorMsg.includes("yt-dlp")) {
+        toast.error(`yt-dlpのチェックに失敗しました: ${errorMsg}`);
+      } else if (errorMsg.includes("ffmpeg")) {
+        toast.error(`FFmpegのチェックに失敗しました: ${errorMsg}`);
+      } else {
+        toast.error(`ツールのチェックに失敗しました: ${errorMsg}`);
+      }
+
+      setToolCheckResults({ ytDlp: false, ffmpeg: false });
+    } finally {
+      setIsCheckingTools(false);
+    }
+  };
+
+  // ツール設定モーダルを開く
+  const openToolsModal = () => {
+    setTempUseBundle(useBundleTools);
+    setTempYtDlpPath(ytDlpPath);
+    setTempFfmpegPath(ffmpegPath);
+    setToolCheckResults({ ytDlp: false, ffmpeg: false });
+    setShowToolsModal(true);
+  };
+
+  // ツール設定を保存
+  const saveToolsSettings = async () => {
+    try {
+      await saveBundleToolsChanged(tempUseBundle);
+
+      if (!tempUseBundle) {
+        await saveYtDlpPathChanged(tempYtDlpPath);
+        await saveFfmpegPathChanged(tempFfmpegPath);
+      }
+
+      // 設定を再読み込み
+      const settings = await invoke<ConfigProps>("get_settings");
+      setUseBundleTools(settings.use_bundle_tools);
+      setYtDlpPath(settings.yt_dlp_path);
+      setFfmpegPath(settings.ffmpeg_path);
+
+      // ツールチェックを実行
+      await checkTools();
+
+      setShowToolsModal(false);
+      toast.success("ツール設定を保存しました");
+    } catch {
+      toast.error("ツール設定の保存に失敗しました");
+    }
+  };
+
   const openDirectoryDialog = async () => {
     const selectedDir = await open({
       directory: true,
@@ -242,11 +384,12 @@ export default function Settings() {
     }
   };
 
+  // サーバーの自動起動を無効化 - ユーザーが手動で有効にするまで起動しない
   useEffect(() => {
-    if (serverPort === 0 || isNaN(serverPort)) { return; }
-
+    // 設定がロードされていない、またはポートが無効な場合は起動しない
+    if (!isSettingLoaded || serverPort === 0 || isNaN(serverPort)) { return; }
     invoke("toggle_server", { enable: isServerEnabled, port: serverPort });
-  }, [isServerEnabled, serverPort]);
+  }, [isServerEnabled, serverPort, isSettingLoaded]);
 
 
   useEffect(() => {
@@ -371,6 +514,25 @@ export default function Settings() {
           />
         </Box>
 
+        {/* ツール設定ボタン */}
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={openToolsModal}
+            startIcon={<SettingsIcon />}
+            sx={{
+              borderColor: 'var(--accent-primary)',
+              color: 'var(--accent-primary)',
+              '&:hover': {
+                borderColor: 'var(--accent-primary)',
+                backgroundColor: 'var(--surface-hover)',
+              }
+            }}
+          >
+            ツール設定を管理
+          </Button>
+        </Box>
+
         <Box sx={{ mt: 4, textAlign: "center" }} className="version-info">
           <Typography variant="body2" color="textSecondary" className="version-text">
             <Link href="https://github.com/AkaakuHub/yt-dlp-GUI-2" target="_blank" rel="noopener" className="github-link">
@@ -389,6 +551,146 @@ export default function Settings() {
           </Typography>
         </Box>
       </Container>
+
+      {/* ツール設定モーダル */}
+      <Dialog
+        open={showToolsModal}
+        onClose={() => setShowToolsModal(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: 'var(--surface-primary)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-primary)',
+            borderRadius: '12px',
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          color: 'var(--text-primary)',
+          borderBottom: '1px solid var(--border-primary)',
+          pb: 2
+        }}>
+          ツール設定
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="body1" sx={{ color: 'var(--text-secondary)', mb: 3 }}>
+            yt-dlpとFFmpegの設定を管理します。
+          </Typography>
+
+          <Box mb={3}>
+            <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
+              ツールの使用方法を選択
+            </Typography>
+            <StyledRadioGroup
+              value={tempUseBundle ? "bundle" : "path"}
+              onChange={(e) => setTempUseBundle(e.target.value === "bundle")}
+            >
+              <MuiFormControlLabel
+                value="bundle"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body1" fontWeight="bold">
+                      バンドル版を使用
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      アプリに内蔵されたツールを自動的に使用します
+                    </Typography>
+                  </Box>
+                }
+              />
+              <MuiFormControlLabel
+                value="path"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body1" fontWeight="bold">
+                      カスタムパスを使用
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      指定したパスのツールを使用します
+                    </Typography>
+                  </Box>
+                }
+              />
+            </StyledRadioGroup>
+          </Box>
+
+          {!tempUseBundle && (
+            <Box mb={3}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'var(--text-primary)' }}>
+                ツールのパス設定
+              </Typography>
+
+              <Box mb={2}>
+                <StyledTextField
+                  fullWidth
+                  label="yt-dlp のパス"
+                  placeholder="yt-dlp"
+                  value={tempYtDlpPath}
+                  onChange={(e) => setTempYtDlpPath(e.target.value)}
+                  margin="normal"
+                  helperText="yt-dlp実行ファイルへのパスを入力してください"
+                />
+              </Box>
+
+              <Box mb={2}>
+                <StyledTextField
+                  fullWidth
+                  label="FFmpeg のパス"
+                  placeholder="ffmpeg"
+                  value={tempFfmpegPath}
+                  onChange={(e) => setTempFfmpegPath(e.target.value)}
+                  margin="normal"
+                  helperText="FFmpeg実行ファイルへのパスを入力してください"
+                />
+              </Box>
+            </Box>
+          )}
+
+          <Box mb={3}>
+            <Button
+              variant="contained"
+              onClick={checkTools}
+              disabled={isCheckingTools || (!tempUseBundle && (tempYtDlpPath.trim() === "" || tempFfmpegPath.trim() === ""))}
+              sx={{ mr: 2 }}
+            >
+              {isCheckingTools ? <CircularProgress size={20} /> : "ツールの状態を確認"}
+            </Button>
+          </Box>
+
+          {(toolCheckResults.ytDlp || toolCheckResults.ffmpeg) && (
+            <Box mb={2}>
+              <Alert
+                severity={toolCheckResults.ytDlp && toolCheckResults.ffmpeg ? "success" : "warning"}
+              >
+                <Typography variant="body2">
+                  yt-dlp: {toolCheckResults.ytDlp ? "✓ 利用可能" : "✗ 利用不可"}
+                  <br />
+                  FFmpeg: {toolCheckResults.ffmpeg ? "✓ 利用可能" : "✗ 利用不可"}
+                </Typography>
+              </Alert>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, borderTop: '1px solid var(--border-primary)' }}>
+          <Button
+            onClick={() => setShowToolsModal(false)}
+            sx={{ color: 'var(--text-secondary)' }}
+          >
+            キャンセル
+          </Button>
+          <Button
+            onClick={saveToolsSettings}
+            variant="contained"
+            disabled={!toolCheckResults.ytDlp || !toolCheckResults.ffmpeg}
+          >
+            設定を保存
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
