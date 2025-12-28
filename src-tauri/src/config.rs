@@ -25,39 +25,6 @@ fn get_default_save_dir() -> String {
         .to_string()
 }
 
-fn get_default_yt_dlp_path() -> String {
-    let mut path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-    path.pop(); // exeファイル名を削除
-    if cfg!(target_os = "windows") {
-        path.join("binaries").join("yt-dlp.exe").to_string_lossy().to_string()
-    } else {
-        path.join("binaries").join("yt-dlp").to_string_lossy().to_string()
-    }
-}
-
-fn get_default_ffmpeg_path() -> String {
-    let mut path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-    path.pop(); // exeファイル名を削除
-    if cfg!(target_os = "windows") {
-        if cfg!(target_arch = "aarch64") {
-            path.join("binaries").join("ffmpeg-master-latest-winarm64-gpl").join("bin").join("ffmpeg.exe").to_string_lossy().to_string()
-        } else {
-            path.join("binaries").join("ffmpeg-master-latest-win64-gpl").join("bin").join("ffmpeg.exe").to_string_lossy().to_string()
-        }
-    } else if cfg!(target_os = "macos") {
-        if cfg!(target_arch = "aarch64") {
-            path.join("binaries").join("ffmpeg-master-latest-macosarm64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
-        } else {
-            path.join("binaries").join("ffmpeg-master-latest-macos64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
-        }
-    } else {
-        if cfg!(target_arch = "aarch64") {
-            path.join("binaries").join("ffmpeg-master-latest-linuxarm64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
-        } else {
-            path.join("binaries").join("ffmpeg-master-latest-linux64-gpl").join("bin").join("ffmpeg").to_string_lossy().to_string()
-        }
-    }
-}
 
 trait Config {
     fn write_file(&self) {}
@@ -129,6 +96,7 @@ impl Settings {
         }
     }
 
+    
     pub fn set_save_dir(&mut self, new_save_dir: String) {
         self.save_dir = new_save_dir;
         self.write_file();
@@ -166,10 +134,10 @@ impl Settings {
 
     pub fn set_use_bundle_tools(&mut self, use_bundle_tools: bool) {
         self.use_bundle_tools = use_bundle_tools;
-        // バンドルモードに変更した場合はデフォルトパスを再設定
+        // バンドルモードに変更した場合は空文字列を設定（セットアップを強制するため）
         if use_bundle_tools {
-            self.yt_dlp_path = get_default_yt_dlp_path();
-            self.ffmpeg_path = get_default_ffmpeg_path();
+            self.yt_dlp_path = "".to_string();
+            self.ffmpeg_path = "".to_string();
         }
         self.write_file();
     }

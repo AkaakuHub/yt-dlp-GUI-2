@@ -5,32 +5,84 @@ import "./index.css";
 
 import CustomButton from "../_components/CustomButton";
 import { useAppContext } from "../_components/AppContext";
-import { ConfigProps } from "../types";
 import { toast } from "react-toastify";
 
 import {
   Box,
   Typography,
-  Paper,
+  Container,
+  TextField,
   RadioGroup,
   FormControlLabel,
   Radio,
-  TextField,
   Alert,
   CircularProgress,
   LinearProgress,
 } from "@mui/material";
+import {
+  Download,
+  CheckCircle,
+  PlayArrow,
+  Storage,
+  Settings,
+} from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 
-const StyledPaper = styled(Paper)(() => ({
-  backgroundColor: 'var(--surface-primary)',
-  color: 'var(--text-primary)',
-  border: '1px solid var(--border-primary)',
+// プロジェクト既存のスタイルを適用
+const StyledTextField = styled(TextField)(() => ({
+  '& .MuiInputBase-root': {
+    borderRadius: '12px',
+  },
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: 'var(--input-background)',
+    color: 'var(--text-primary)',
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      backgroundColor: 'var(--input-background-hover)',
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: 'var(--accent-primary)',
+      }
+    },
+    '&.Mui-focused': {
+      backgroundColor: 'var(--input-background-focus)',
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: 'var(--accent-primary)',
+        borderWidth: '2px',
+      }
+    },
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: 'var(--border-primary)',
+      transition: 'all 0.2s ease-in-out',
+    }
+  },
+  '& .MuiInputLabel-root': {
+    color: 'var(--text-secondary)',
+    '&.Mui-focused': {
+      color: 'var(--accent-primary)',
+    }
+  },
+  '& .MuiInputBase-input': {
+    color: 'var(--text-primary)',
+  }
+}));
+
+const StyledFormControlLabel = styled(FormControlLabel)(() => ({
+  margin: '8px 0',
+  padding: '14px 16px',
   borderRadius: '12px',
-  padding: '2rem',
-  marginBottom: '1rem',
-  backdropFilter: 'var(--backdrop-blur)',
-  boxShadow: 'var(--shadow-lg)',
+  border: '1px solid var(--border-primary)',
+  backgroundColor: 'var(--surface-primary)',
+  transition: 'all 0.2s ease-in-out',
+  '&:hover': {
+    backgroundColor: 'var(--surface-hover)',
+    borderColor: 'var(--accent-primary)',
+    transform: 'translateY(-1px)',
+    boxShadow: 'var(--shadow-md)',
+  },
+  '& .MuiFormControlLabel-label': {
+    color: 'var(--text-primary)',
+    fontWeight: 500,
+  }
 }));
 
 const StyledRadioGroup = styled(RadioGroup)(() => ({
@@ -41,33 +93,6 @@ const StyledRadioGroup = styled(RadioGroup)(() => ({
     color: 'var(--text-primary)',
     '&.Mui-checked': {
       color: 'var(--accent-primary)',
-    },
-  },
-}));
-
-const StyledTextField = styled(TextField)(() => ({
-  '& .MuiInputBase-input': {
-    backgroundColor: 'var(--input-background)',
-    color: 'var(--text-primary)',
-    borderRadius: '8px',
-    border: '1px solid var(--border-primary)',
-    padding: '12px 16px',
-    '&:focus': {
-      borderColor: 'var(--accent-primary)',
-    },
-  },
-  '& .MuiInputLabel-root': {
-    color: 'var(--text-secondary)',
-  },
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': {
-      borderColor: 'var(--border-primary)',
-    },
-    '&:hover fieldset': {
-      borderColor: 'var(--accent-primary)',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: 'var(--accent-primary)',
     },
   },
 }));
@@ -83,9 +108,6 @@ interface DownloadProgress {
 }
 
 export default function ToolSetup({ onComplete }: ToolSetupProps) {
-  const [useBundle, setUseBundle] = useState(true);
-  const [ytDlpPath, setYtDlpPath] = useState("");
-  const [ffmpegPath, setFfmpegPath] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [checkResults, setCheckResults] = useState<{ ytDlp: boolean; ffmpeg: boolean }>({ ytDlp: false, ffmpeg: false });
   const [isDownloading, setIsDownloading] = useState(false);
@@ -93,10 +115,22 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   const [downloadedOnce, setDownloadedOnce] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { setIsSettingLoaded } = useAppContext();
+  const {
+    useBundleTools,
+    setUseBundleTools,
+    ytDlpPath,
+    setYtDlpPath,
+    ffmpegPath,
+    setFfmpegPath,
+    isSettingLoaded,
+    setIsSettingLoaded
+  } = useAppContext();
 
   useEffect(() => {
-    loadSettings();
+    // AppContextの設定が読み込まれたら処理
+    if (isSettingLoaded) {
+      checkInitialSetup();
+    }
 
     // ダウンロード進捗リスナーを設定
     const unlisten = listen<DownloadProgress>('download-progress', (event) => {
@@ -106,61 +140,32 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
     return () => {
       unlisten.then(fn => fn());
     };
-  }, []);
+  }, [isSettingLoaded, ytDlpPath, ffmpegPath, useBundleTools]);
 
-  const loadSettings = async () => {
-    try {
-      const settings = await invoke<ConfigProps>("get_settings");
-      setUseBundle(settings.use_bundle_tools);
-
-      // ツールパスが既に設定されている場合は設定済みとして完了
-      if (settings.yt_dlp_path && settings.yt_dlp_path !== "" &&
-          settings.ffmpeg_path && settings.ffmpeg_path !== "") {
-        setYtDlpPath(settings.yt_dlp_path);
-        setFfmpegPath(settings.ffmpeg_path);
-        setCheckResults({ ytDlp: true, ffmpeg: true });
-        // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
-        setTimeout(() => {
-          setIsSettingLoaded(true);
-          onComplete();
-        }, 500);
-        setIsLoading(false);
-        return;
-      }
-
-      // バンドルモードの場合、現在の実行環境に合わせた正しいデフォルトパスを設定
-      if (settings.use_bundle_tools) {
-        await invoke("set_use_bundle_tools", { useBundleTools: true });
-        const updatedSettings = await invoke<ConfigProps>("get_settings");
-        setYtDlpPath(updatedSettings.yt_dlp_path);
-        setFfmpegPath(updatedSettings.ffmpeg_path);
-      } else {
-        setYtDlpPath(settings.yt_dlp_path);
-        setFfmpegPath(settings.ffmpeg_path);
-      }
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Failed to load settings:", error);
-      setIsLoading(false);
+  const checkInitialSetup = () => {
+    // ツールパスが既に設定されている場合は設定済みとして完了
+    if (ytDlpPath && ytDlpPath !== "" && ffmpegPath && ffmpegPath !== "") {
+      setCheckResults({ ytDlp: true, ffmpeg: true });
+      // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
+      setTimeout(() => {
+        setIsSettingLoaded(true);
+        onComplete();
+      }, 500);
     }
+    setIsLoading(false);
   };
 
   const saveSettings = async () => {
     try {
-      await invoke("set_use_bundle_tools", { useBundleTools: useBundle });
+      await invoke("set_use_bundle_tools", { useBundleTools: useBundleTools });
 
-      if (!useBundle) {
+      if (!useBundleTools) {
         await invoke("set_yt_dlp_path", { ytDlpPath });
         await invoke("set_ffmpeg_path", { ffmpegPath });
       }
 
-      // 再度設定を読み込み
-      await invoke<ConfigProps>("get_settings");
-
       // 設定完了後、少し待ってから完了通知（スムーズな体験のため）
       setTimeout(() => {
-        setIsSettingLoaded(true);
         onComplete();
       }, 1000);
     } catch (error) {
@@ -191,15 +196,14 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   const checkTools = async () => {
     setIsChecking(true);
     try {
-      // 設定から現在のパスを取得
-      const settings = await invoke<ConfigProps>("get_settings");
-
       let ytDlpPathToUse: string | undefined;
       let ffmpegPathToUse: string | undefined;
 
-      if (useBundle) {
-        ytDlpPathToUse = settings.yt_dlp_path;
-        ffmpegPathToUse = settings.ffmpeg_path;
+      // バンドルモードの場合はバックエンドから実際のバイナリパスを取得
+      if (useBundleTools) {
+        const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
+        ytDlpPathToUse = ytDlpBundlePath;
+        ffmpegPathToUse = ffmpegBundlePath;
       } else {
         ytDlpPathToUse = ytDlpPath || undefined;
         ffmpegPathToUse = ffmpegPath || undefined;
@@ -248,198 +252,309 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   };
 
   const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setUseBundle(event.target.value === "bundle");
+    setUseBundleTools(event.target.value === "bundle");
   };
 
-  const isConfigValid = useBundle ? true : ytDlpPath.trim() !== "" && ffmpegPath.trim() !== "";
+  const isConfigValid = useBundleTools ? true : ytDlpPath.trim() !== "" && ffmpegPath.trim() !== "";
 
   // ローディング中はローディング画面を表示
   if (isLoading) {
     return (
       <div className="tool-setup-root">
-        <div className="tool-setup-container">
-          <StyledPaper elevation={3}>
-            <Box
-              display="flex"
-              flexDirection="column"
-              alignItems="center"
-              justifyContent="center"
-              minHeight="300px"
-            >
-              <CircularProgress size={60} sx={{
-                color: 'var(--accent-primary)',
-              }} />
-            </Box>
-          </StyledPaper>
-        </div>
+        <Container maxWidth="sm" sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          gap: 3
+        }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "3rem",
+              backgroundColor: 'var(--surface-primary)',
+              border: '1px solid var(--border-primary)',
+              borderRadius: '12px',
+              boxShadow: 'var(--shadow-lg)',
+              backdropFilter: 'var(--backdrop-blur)',
+              textAlign: 'center'
+            }}
+          >
+            <CircularProgress size={60} sx={{
+              color: 'var(--accent-primary)',
+              marginBottom: '1rem'
+            }} />
+            <Typography variant="h6" component="h2" sx={{
+              color: 'var(--text-primary)',
+              marginBottom: '0.5rem',
+              fontWeight: 600
+            }}>
+              設定を読み込み中...
+            </Typography>
+            <Typography variant="body2" sx={{
+              color: 'var(--text-secondary)'
+            }}>
+              ツールの状態を確認しています
+            </Typography>
+          </Box>
+        </Container>
       </div>
     );
   }
 
   return (
     <div className="tool-setup-root">
-      <div className="tool-setup-container">
-        <StyledPaper elevation={3}>
-          <Typography variant="h4" component="h1" gutterBottom style={{ color: 'var(--text-primary)', marginBottom: '2rem' }}>
-            初期設定 - ツール設定
+      <Container maxWidth="md" className="tool-setup-container" sx={{ py: 4, px: { xs: 2, sm: 3 } }}>
+        <Box
+          className="tool-setup-panel"
+          sx={{
+            padding: { xs: "1.25rem", sm: "1.75rem" },
+            backgroundColor: 'var(--surface-primary)',
+            border: '1px solid var(--border-primary)',
+            borderRadius: '12px',
+            boxShadow: 'var(--shadow-lg)',
+            backdropFilter: 'var(--backdrop-blur)',
+          }}
+        >
+          <Typography variant="h4" component="h1" sx={{
+            color: 'var(--text-primary)',
+            marginBottom: '0.35rem',
+            fontWeight: 700,
+            textAlign: 'center',
+            fontSize: { xs: '1.35rem', sm: '1.6rem' }
+          }}>
+            初期設定
           </Typography>
 
-          <Typography variant="body1" style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-            yt-dlp GUIを使用するために必要なツールを設定します。初心者の方は「バンドル版を使用」をお勧めします。
+          <Typography variant="h6" sx={{
+            color: 'var(--accent-primary)',
+            marginBottom: '0.75rem',
+            textAlign: 'center',
+            fontWeight: 500,
+            fontSize: { xs: '0.95rem', sm: '1rem' }
+          }}>
+            ツール設定
           </Typography>
 
-          <Box mb={3}>
-            <Typography variant="h6" gutterBottom style={{ color: 'var(--text-primary)' }}>
-              ツールの使用方法を選択
+          <Typography variant="body2" sx={{
+            color: 'var(--text-secondary)',
+            marginBottom: '1rem',
+            textAlign: 'center',
+            fontSize: { xs: '0.9rem', sm: '0.95rem' },
+            lineHeight: 1.5
+          }}>
+            必要なツールを設定
+          </Typography>
+
+          <Box>
+            <Typography variant="subtitle1" sx={{
+              color: 'var(--text-primary)',
+              fontWeight: 600,
+              fontSize: { xs: '0.95rem', sm: '1rem' }
+            }}>
+              ツールの使用方法
             </Typography>
             <StyledRadioGroup
-              value={useBundle ? "bundle" : "path"}
+              value={useBundleTools ? "bundle" : "path"}
               onChange={handleModeChange}
+              sx={{ gap: 1, marginTop: 1 }}
             >
-              <FormControlLabel
+              <StyledFormControlLabel
                 value="bundle"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={
-                  <Box>
-                    <Typography variant="body1" fontWeight="bold">
-                      初心者向け: バンドル版を使用
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      アプリに内蔵されたツールを自動的に使用します（推奨）
-                    </Typography>
+                  <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Storage sx={{ fontSize: 20, color: 'var(--accent-primary)' }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight="600" sx={{ color: 'var(--text-primary)', fontSize: { xs: '0.95rem', sm: '1rem' }, lineHeight: 1.3 }}>
+                        バンドル版（初心者向け）
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block', mt: 0.4 }}>
+                        アプリ内蔵ツールを自動で設定・使用
+                      </Typography>
+                    </Box>
                   </Box>
                 }
               />
-              <FormControlLabel
+              <StyledFormControlLabel
                 value="path"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={
-                  <Box>
-                    <Typography variant="body1" fontWeight="bold">
-                      上級者向け: システムのツールを使用
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      パスが通っているツールまたは指定したパスのツールを使用します
-                    </Typography>
+                  <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Settings sx={{ fontSize: 20, color: 'var(--accent-primary)' }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight="600" sx={{ color: 'var(--text-primary)', fontSize: { xs: '0.95rem', sm: '1rem' }, lineHeight: 1.3 }}>
+                        カスタムパス（上級者向け）
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block', mt: 0.4 }}>
+                        手動でインストールしたツールを指定
+                      </Typography>
+                    </Box>
                   </Box>
                 }
               />
             </StyledRadioGroup>
           </Box>
 
-          {!useBundle && (
-            <Box mb={3}>
-              <Typography variant="h6" gutterBottom style={{ color: 'var(--text-primary)' }}>
-                ツールのパス設定
+          {!useBundleTools && (
+            <Box sx={{ marginBottom: '1.5rem', marginTop: 1.25 }}>
+              <Typography variant="subtitle1" sx={{
+                color: 'var(--text-primary)',
+                fontWeight: 600,
+                marginBottom: '0.5rem',
+                fontSize: { xs: '0.95rem', sm: '1rem' }
+              }}>
+                ツールパス設定
               </Typography>
 
-              <Box mb={2}>
+              <Box sx={{ marginBottom: '0.5rem' }}>
                 <StyledTextField
                   fullWidth
+                  size="small"
                   label="yt-dlp のパス"
                   placeholder="yt-dlp"
                   value={ytDlpPath}
                   onChange={(e) => setYtDlpPath(e.target.value)}
-                  margin="normal"
-                  helperText="yt-dlp実行ファイルへのパスを入力してください"
+                  margin="dense"
+                  helperText="yt-dlp実行ファイルのパス"
                 />
               </Box>
 
-              <Box mb={2}>
+              <Box sx={{ marginBottom: '0.5rem' }}>
                 <StyledTextField
                   fullWidth
+                  size="small"
                   label="FFmpeg のパス"
                   placeholder="ffmpeg"
                   value={ffmpegPath}
                   onChange={(e) => setFfmpegPath(e.target.value)}
-                  margin="normal"
-                  helperText="FFmpeg実行ファイルへのパスを入力してください"
+                  margin="dense"
+                  helperText="FFmpeg実行ファイルのパス"
                 />
               </Box>
             </Box>
           )}
 
-          <Box mb={3}>
-            {useBundle && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: '1rem' }}>
+            {useBundleTools && (
               <CustomButton
                 variant="contained"
+                className="variant-primary"
                 onClick={downloadBundleTools}
                 disabled={isDownloading || isChecking || (downloadedOnce && checkResults.ytDlp && checkResults.ffmpeg)}
-                style={{ marginRight: '1rem' }}
+                sx={{
+                  width: '100%',
+                  height: '48px',
+                  fontSize: '0.95rem'
+                }}
+                startIcon={isDownloading ? <CircularProgress size={16} color="inherit" /> : <Download />}
               >
-                {isDownloading ? <CircularProgress size={20} /> : "バンドルツールをダウンロード"}
+                {isDownloading ? "ダウンロード中..." : "ツールをダウンロード"}
               </CustomButton>
             )}
 
-            <CustomButton
-              variant="contained"
-              onClick={checkTools}
-              disabled={isChecking || isDownloading || (!useBundle && !isConfigValid) || (downloadedOnce && checkResults.ytDlp && checkResults.ffmpeg)}
-              style={{ marginRight: '1rem' }}
-            >
-              {isChecking ? <CircularProgress size={20} /> : "ツールの状態を確認"}
-            </CustomButton>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: { xs: "wrap", sm: "nowrap" } }}>
+              <CustomButton
+                variant="outlined"
+                className="variant-secondary"
+                onClick={checkTools}
+                disabled={isChecking || isDownloading || (!useBundleTools && !isConfigValid) || (downloadedOnce && checkResults.ytDlp && checkResults.ffmpeg)}
+                sx={{
+                  flex: '1 1 0px',
+                  height: '48px',
+                  fontSize: '0.95rem',
+                  minWidth: { xs: "100%", sm: "auto" }
+                }}
+                startIcon={isChecking ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
+              >
+                {isChecking ? "確認中..." : "ツールを確認"}
+              </CustomButton>
 
-            <CustomButton
-              variant="contained"
-              onClick={saveSettings}
-              disabled={!checkResults.ytDlp || !checkResults.ffmpeg}
-            >
-              設定を完了してアプリを開始
-            </CustomButton>
+              <CustomButton
+                variant="contained"
+                className="variant-primary"
+                onClick={saveSettings}
+                disabled={!checkResults.ytDlp || !checkResults.ffmpeg}
+                sx={{
+                  flex: '1 1 0px',
+                  height: '48px',
+                  fontSize: '0.95rem',
+                  minWidth: { xs: "100%", sm: "auto" }
+                }}
+                startIcon={<PlayArrow />}
+              >
+                設定完了して開始
+              </CustomButton>
+            </Box>
           </Box>
 
           {/* ダウンロード進捗表示 */}
           {downloadProgress && (
-            <Box mb={2}>
-              <Typography variant="body2" gutterBottom>
+            <Box sx={{ marginBottom: '0.75rem' }}>
+              <Typography variant="caption" sx={{ color: 'var(--text-primary)', fontSize: '0.8rem' }}>
                 {downloadProgress.tool_name} - {downloadProgress.status}
               </Typography>
               <LinearProgress
                 variant="determinate"
                 value={downloadProgress.progress}
                 sx={{
-                  height: 8,
-                  borderRadius: 4,
+                  height: 4,
+                  borderRadius: 2,
                   backgroundColor: 'var(--surface-secondary)',
                   '& .MuiLinearProgress-bar': {
                     backgroundColor: 'var(--accent-primary)',
                   }
                 }}
               />
-              <Typography variant="caption" display="block" mt={1}>
+              <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                 {downloadProgress.progress.toFixed(1)}%
               </Typography>
             </Box>
           )}
 
           {(checkResults.ytDlp || checkResults.ffmpeg) && (
-            <Box mb={2}>
+            <Box sx={{ marginBottom: '0.75rem' }}>
               <Alert
                 severity={checkResults.ytDlp && checkResults.ffmpeg ? "success" : "warning"}
+                sx={{
+                  backgroundColor: 'var(--surface-primary)',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.6rem'
+                }}
               >
-                <Typography variant="body2">
-                  yt-dlp: {checkResults.ytDlp ? "✓ 利用可能" : "✗ 利用不可"}
-                  <br />
-                  FFmpeg: {checkResults.ffmpeg ? "✓ 利用可能" : "✗ 利用不可"}
+                <Typography variant="caption" sx={{ fontSize: '0.8rem' }}>
+                  yt-dlp: {checkResults.ytDlp ? "OK" : "NG"} |
+                  FFmpeg: {checkResults.ffmpeg ? "OK" : "NG"}
                 </Typography>
               </Alert>
             </Box>
           )}
 
-          <Alert severity="info" style={{ marginTop: '1rem' }}>
-            <Typography variant="body2">
-              <strong>ヒント:</strong>
-              <br />
-              • バンドル版を使用すると、ツールのインストールやパス設定が不要で簡単に始められます
-              <br />
-              • 上級者向けモードでは、最新バージョンのツールやカスタムビルドを使用できます
-              <br />
-              • ツールが見つからない場合は、公式サイトからダウンロードしてインストールしてください
+          <Alert
+            severity="info"
+            sx={{
+              backgroundColor: 'var(--surface-primary)',
+              border: '1px solid var(--border-primary)',
+              borderRadius: '6px',
+              padding: '0.4rem 0.6rem'
+            }}
+          >
+            <Typography variant="caption" sx={{ fontSize: '0.8rem', lineHeight: 1.4 }}>
+              <strong>ヒント:</strong><br />
+              ・ バンドル版: インストール不要で簡単<br />
+              ・ 上級者向け: 最新ツールを使用可能
             </Typography>
           </Alert>
-        </StyledPaper>
-      </div>
+        </Box>
+      </Container>
     </div>
   );
 }
+
+
+

@@ -7,7 +7,7 @@ const CustomButton = styled(Button)(() => ({
   backgroundColor: "var(--surface-primary)",
   color: "var(--text-primary)",
   borderRadius: "12px",
-  padding: "6px",
+  padding: "6px 16px",
   fontWeight: 600,
   fontSize: "0.875rem",
   textTransform: "none",
@@ -16,6 +16,11 @@ const CustomButton = styled(Button)(() => ({
   position: "relative",
   overflow: "hidden",
   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  minWidth: "120px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
 
   // ホバー効果のための疑似要素
   "&::before": {
@@ -66,15 +71,24 @@ const CustomButton = styled(Button)(() => ({
 
   // 無効状態
   "&:disabled": {
-    backgroundColor: "var(--surface-secondary)",
-    color: "var(--text-tertiary)",
-    border: "1px solid var(--border-secondary)",
-    boxShadow: "none",
-    transform: "none",
-    cursor: "not-allowed",
+    backgroundColor: "var(--surface-disabled) !important",
+    color: "var(--text-disabled) !important",
+    border: "1px solid var(--border-secondary) !important",
+    boxShadow: "none !important",
+    transform: "none !important",
+    cursor: "not-allowed !important",
+    opacity: "0.6 !important",
 
     "&::before, &::after": {
-      opacity: 0,
+      opacity: "0 !important",
+    },
+
+    "&:hover": {
+      backgroundColor: "var(--surface-disabled) !important",
+      color: "var(--text-disabled) !important",
+      border: "1px solid var(--border-secondary) !important",
+      transform: "none !important",
+      boxShadow: "none !important",
     },
   },
 
@@ -82,6 +96,21 @@ const CustomButton = styled(Button)(() => ({
   "& .MuiButton-startIcon, & .MuiButton-endIcon, & .MuiButton-label": {
     position: "relative",
     zIndex: 1,
+  },
+
+  // アイコンとテキストの配置
+  "& .MuiButton-startIcon": {
+    marginLeft: 0,
+    marginRight: 0,
+    display: "inline-flex",
+    alignItems: "center",
+  },
+
+  "& .MuiButton-endIcon": {
+    marginLeft: 0,
+    marginRight: 0,
+    display: "inline-flex",
+    alignItems: "center",
   },
 
   // バリアント: primary

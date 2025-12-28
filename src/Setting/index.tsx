@@ -21,10 +21,17 @@ import {
   FormControlLabel as MuiFormControlLabel,
   Radio,
   CircularProgress,
+  LinearProgress,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import SettingsIcon from "@mui/icons-material/Settings";
+import {
+  Download,
+  CheckCircle,
+  Storage,
+  Build
+} from "@mui/icons-material";
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/api/dialog";
@@ -37,6 +44,7 @@ import { relaunch } from '@tauri-apps/api/process'
 
 import "./index.css";
 
+import CustomButton from "../_components/CustomButton";
 import { toast } from "react-toastify";
 import { dialog } from "@tauri-apps/api";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/api/notification";
@@ -73,6 +81,16 @@ const StyledTextField = styled(TextField)(() => ({
     '&.Mui-focused': {
       color: 'var(--accent-primary)',
     }
+  },
+  '& .MuiInputBase-input': {
+    color: 'var(--text-primary)',
+  },
+  '& .MuiInputBase-input::placeholder': {
+    color: 'var(--text-placeholder)',
+    opacity: 1,
+  },
+  '& .MuiFormHelperText-root': {
+    color: 'var(--text-tertiary)',
   }
 }));
 
@@ -134,6 +152,11 @@ export default function Settings() {
   const [isCheckingTools, setIsCheckingTools] = useState(false);
   const [toolCheckResults, setToolCheckResults] = useState<{ ytDlp: boolean; ffmpeg: boolean }>({ ytDlp: false, ffmpeg: false });
 
+  // ダウンロード機能用
+  const [isDownloadingTools, setIsDownloadingTools] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{tool_name: string; progress: number; status: string} | null>(null);
+  const [downloadedOnce, setDownloadedOnce] = useState(false);
+
   // ツ�備スイッチ
   const StyledSwitch = styled(Switch)(() => ({
     '& .MuiSwitch-switchBase': {
@@ -176,6 +199,20 @@ export default function Settings() {
   }
 
   useEffect(() => {
+    // ダウンロード進捗リスナーを設定
+    let unlistenPromise: Promise<() => void> | null = null;
+
+    const setupListener = async () => {
+      unlistenPromise = listen<{tool_name: string; progress: number; status: string}>('download-progress', (event) => {
+        setDownloadProgress(event.payload);
+      });
+    };
+
+    const getCurrentVersion = async () => {
+      const version = await invoke<string>("get_current_version");
+      setCurrentVersion(version);
+    };
+
     const checkForUpdates = async () => {
       // await emit("tauri://update");
       // const unlisten = await onUpdaterEvent(({ error, status }) => {
@@ -202,14 +239,14 @@ export default function Settings() {
       // unlisten();
     }
     checkForUpdates();
-  }, []);
-
-  useEffect(() => {
-    const getCurrentVersion = async () => {
-      const version = await invoke<string>("get_current_version");
-      setCurrentVersion(version);
-    };
+    setupListener();
     getCurrentVersion();
+
+    return () => {
+      if (unlistenPromise) {
+        unlistenPromise.then(fn => fn());
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -281,18 +318,38 @@ export default function Settings() {
     await invoke("set_ffmpeg_path", { ffmpegPath: temp_ffmpegPath });
   }, 500);
 
+  // ダウンロード関数
+  const downloadBundleTools = async () => {
+    setIsDownloadingTools(true);
+    setDownloadProgress(null);
+
+    try {
+      await invoke<string>("download_bundle_tools");
+      setDownloadedOnce(true);
+      toast.success("ツールのダウンロードが完了しました");
+      // ダウンロード後にツールチェックを実行
+      await checkTools();
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("ツールのダウンロードに失敗しました");
+    } finally {
+      setIsDownloadingTools(false);
+      setDownloadProgress(null);
+    }
+  };
+
   // ツールチェック関数
   const checkTools = async () => {
     setIsCheckingTools(true);
     try {
-      const settings = await invoke<ConfigProps>("get_settings");
-
       let ytDlpPathToUse: string | undefined;
       let ffmpegPathToUse: string | undefined;
 
+      // バンドルモードの場合はバックエンドから実際のバイナリパスを取得
       if (tempUseBundle) {
-        ytDlpPathToUse = settings.yt_dlp_path;
-        ffmpegPathToUse = settings.ffmpeg_path;
+        const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
+        ytDlpPathToUse = ytDlpBundlePath;
+        ffmpegPathToUse = ffmpegBundlePath;
       } else {
         ytDlpPathToUse = tempYtDlpPath || undefined;
         ffmpegPathToUse = tempFfmpegPath || undefined;
@@ -558,12 +615,18 @@ export default function Settings() {
         onClose={() => setShowToolsModal(false)}
         maxWidth="md"
         fullWidth
+        BackdropProps={{
+          sx: {
+            backgroundColor: 'rgba(5, 10, 20, 0.6)',
+          }
+        }}
         PaperProps={{
           sx: {
-            backgroundColor: 'var(--surface-primary)',
+            backgroundColor: 'var(--background-secondary)',
             color: 'var(--text-primary)',
             border: '1px solid var(--border-primary)',
             borderRadius: '12px',
+            backdropFilter: 'none',
           }
         }}
       >
@@ -589,29 +652,35 @@ export default function Settings() {
             >
               <MuiFormControlLabel
                 value="bundle"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={
-                  <Box>
-                    <Typography variant="body1" fontWeight="bold">
-                      バンドル版を使用
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      アプリに内蔵されたツールを自動的に使用します
-                    </Typography>
+                  <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Storage sx={{ fontSize: 20, color: 'var(--accent-primary)' }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight="600" sx={{ color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: 1.2 }}>
+                        バンドル版（初心者向け）
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.75rem', display: 'block', mt: 0.3 }}>
+                        アプリ内蔵ツールを自動で設定・使用
+                      </Typography>
+                    </Box>
                   </Box>
                 }
               />
               <MuiFormControlLabel
                 value="path"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={
-                  <Box>
-                    <Typography variant="body1" fontWeight="bold">
-                      カスタムパスを使用
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      指定したパスのツールを使用します
-                    </Typography>
+                  <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Build sx={{ fontSize: 20, color: 'var(--accent-primary)' }}  />
+                    <Box>
+                      <Typography variant="body2" fontWeight="600" sx={{ color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: 1.2 }}>
+                        カスタムパス（上級者向け）
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.75rem', display: 'block', mt: 0.3 }}>
+                        手動でインストールしたツールを指定
+                      </Typography>
+                    </Box>
                   </Box>
                 }
               />
@@ -650,16 +719,63 @@ export default function Settings() {
             </Box>
           )}
 
-          <Box mb={3}>
-            <Button
-              variant="contained"
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 3 }}>
+            {tempUseBundle && (
+              <CustomButton
+                variant="contained"
+                className="variant-primary"
+                onClick={downloadBundleTools}
+                disabled={isDownloadingTools || isCheckingTools || (downloadedOnce && toolCheckResults.ytDlp && toolCheckResults.ffmpeg)}
+                sx={{
+                  width: '100%',
+                  height: '48px',
+                  fontSize: '0.875rem'
+                }}
+                startIcon={isDownloadingTools ? <CircularProgress size={16} color="inherit" /> : <Download />}
+              >
+                {isDownloadingTools ? "ダウンロード中..." : "ツールを上書きダウンロード"}
+              </CustomButton>
+            )}
+
+            <CustomButton
+              variant="outlined"
+              className="variant-secondary"
               onClick={checkTools}
-              disabled={isCheckingTools || (!tempUseBundle && (tempYtDlpPath.trim() === "" || tempFfmpegPath.trim() === ""))}
-              sx={{ mr: 2 }}
+              disabled={isCheckingTools || isDownloadingTools || (!tempUseBundle && (tempYtDlpPath.trim() === "" || tempFfmpegPath.trim() === "")) || (downloadedOnce && toolCheckResults.ytDlp && toolCheckResults.ffmpeg)}
+              sx={{
+                width: '100%',
+                height: '48px',
+                fontSize: '0.875rem'
+              }}
+              startIcon={isCheckingTools ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
             >
-              {isCheckingTools ? <CircularProgress size={20} /> : "ツールの状態を確認"}
-            </Button>
+              {isCheckingTools ? "確認中..." : "ツールを確認"}
+            </CustomButton>
           </Box>
+
+          {/* ダウンロード進捗表示 */}
+          {downloadProgress && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="caption" sx={{ color: 'var(--text-primary)', fontSize: '0.7rem' }}>
+                {downloadProgress.tool_name} - {downloadProgress.status}
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={downloadProgress.progress}
+                sx={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: 'var(--surface-secondary)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: 'var(--accent-primary)',
+                  }
+                }}
+              />
+              <Typography variant="caption" sx={{ color: 'var(--text-secondary)', fontSize: '0.65rem' }}>
+                {downloadProgress.progress.toFixed(1)}%
+              </Typography>
+            </Box>
+          )}
 
           {(toolCheckResults.ytDlp || toolCheckResults.ffmpeg) && (
             <Box mb={2}>

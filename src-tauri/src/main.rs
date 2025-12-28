@@ -235,7 +235,7 @@ async fn run_command(
     let settings = app_state.settings.lock().await;
 
     let mut manager = command_manager.lock().await;
-    let yt_dlp_path = &settings.yt_dlp_path;
+    let yt_dlp_path = settings.yt_dlp_path.clone();
 
     let url = param.url.unwrap_or("not_set".to_string());
     let codec_id = param.codec_id.unwrap_or("not_set".to_string());
@@ -348,7 +348,7 @@ async fn run_command(
     args.push("ejs:github");
 
     return manager
-        .start_command(command_manager.inner().clone(), args, window, yt_dlp_path)
+        .start_command(command_manager.inner().clone(), args, window, &yt_dlp_path)
         .await;
 }
 
@@ -451,6 +451,65 @@ async fn stop_command(
 ) -> Result<(), String> {
     let mut manager = command_manager.lock().await;
     manager.stop_command(window).await
+}
+
+#[tauri::command]
+fn get_bundle_tool_paths() -> Result<Vec<String>, String> {
+    let mut path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get current exe path: {}", e))?;
+    path.pop(); // exeファイル名を削除
+    let binaries_dir = path.join("binaries");
+
+    if !binaries_dir.exists() {
+        return Ok(vec!["".to_string(), "".to_string()]);
+    }
+
+    // yt-dlpを検索
+    let yt_dlp_path = std::fs::read_dir(&binaries_dir)
+        .map_err(|e| format!("Failed to read binaries directory: {}", e))?
+        .filter_map(|entry| entry.ok())
+        .find(|entry| {
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+            file_name_str.starts_with("yt-dlp") &&
+            (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
+        })
+        .map(|entry| entry.path().to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    // ffmpegを検索（サブディレクトリも含める）
+    let ffmpeg_path = find_ffmpeg_recursive(&binaries_dir)?;
+
+    Ok(vec![yt_dlp_path, ffmpeg_path])
+}
+
+fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
+    if !dir.exists() {
+        return Ok("".to_string());
+    }
+
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let file_name = path.file_name().unwrap_or_default();
+        let file_name_str = file_name.to_string_lossy();
+
+        if path.is_dir() {
+            // サブディレクトリを再帰的に探索
+            if let Ok(found) = find_ffmpeg_recursive(&path) {
+                if !found.is_empty() {
+                    return Ok(found);
+                }
+            }
+        } else if file_name_str.starts_with("ffmpeg") &&
+                 (file_name_str.ends_with(".exe") || !file_name_str.contains('.')) {
+            return Ok(path.to_string_lossy().to_string());
+        }
+    }
+
+    Ok("".to_string())
 }
 
 #[tauri::command]
@@ -964,7 +1023,8 @@ fn main() {
             config::commands::get_settings,
             config::commands::set_use_bundle_tools,
             config::commands::set_yt_dlp_path,
-            config::commands::set_ffmpeg_path
+            config::commands::set_ffmpeg_path,
+            get_bundle_tool_paths
         ])
         .plugin(tauri_plugin_drag::init())
         .run(tauri::generate_context!())
