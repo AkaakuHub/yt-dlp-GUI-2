@@ -235,19 +235,15 @@ async fn run_command(
     let settings = app_state.settings.lock().await;
 
     let mut manager = command_manager.lock().await;
-    let yt_dlp_path = if settings.use_bundle_tools {
-        let paths = get_bundle_tool_paths().map_err(|e| format!("バンドル版ツールの取得に失敗しました: {}", e))?;
-        let path = paths.get(0).cloned().unwrap_or_default();
-        if path.trim().is_empty() {
-            return Err("バンドル版yt-dlpが見つかりません。ツールをダウンロードしてください。".into());
-        }
-        path
-    } else {
-        if settings.yt_dlp_path.trim().is_empty() {
-            return Err("yt-dlpのパスが設定されていません。設定でパスを指定してください。".into());
-        }
-        settings.yt_dlp_path.clone()
-    };
+    let (yt_dlp_path, _ffmpeg_path) = resolve_tool_paths(
+        settings.use_bundle_tools,
+        &settings.yt_dlp_path,
+        &settings.ffmpeg_path,
+    ).map_err(|e| format!("ツールパスの解決に失敗しました: {}", e))?;
+
+    if yt_dlp_path.trim().is_empty() {
+        return Err("yt-dlpが見つかりません。ツールをダウンロードするかパスを設定してください。".into());
+    }
 
     let url = param.url.unwrap_or("not_set".to_string());
     let codec_id = param.codec_id.unwrap_or("not_set".to_string());
@@ -465,36 +461,6 @@ async fn stop_command(
     manager.stop_command(window).await
 }
 
-#[tauri::command]
-fn get_bundle_tool_paths() -> Result<Vec<String>, String> {
-    let mut path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get current exe path: {}", e))?;
-    path.pop(); // exeファイル名を削除
-    let binaries_dir = path.join("binaries");
-
-    if !binaries_dir.exists() {
-        return Ok(vec!["".to_string(), "".to_string()]);
-    }
-
-    // yt-dlpを検索
-    let yt_dlp_path = std::fs::read_dir(&binaries_dir)
-        .map_err(|e| format!("Failed to read binaries directory: {}", e))?
-        .filter_map(|entry| entry.ok())
-        .find(|entry| {
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy();
-            file_name_str.starts_with("yt-dlp") &&
-            (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
-        })
-        .map(|entry| entry.path().to_string_lossy().to_string())
-        .unwrap_or_default();
-
-    // ffmpegを検索（サブディレクトリも含める）
-    let ffmpeg_path = find_ffmpeg_recursive(&binaries_dir)?;
-
-    Ok(vec![yt_dlp_path, ffmpeg_path])
-}
-
 fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
     if !dir.exists() {
         return Ok("".to_string());
@@ -524,29 +490,22 @@ fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
     Ok("".to_string())
 }
 
-#[tauri::command]
-async fn is_program_available(program_name: String, custom_path: Option<String>) -> Result<String, String> {
-    let command_path = if let Some(path) = custom_path {
-        if path.trim().is_empty() {
-            return Err(format!(
-                "{} bundle path is empty. Tools may not be downloaded yet.",
-                program_name
-            ));
-        }
-        path
-    } else {
-        // パスが指定されていない場合はプログラム名をそのまま使用
-        program_name.clone()
-    };
+fn check_program_available(program_name: &str, command_path: &str) -> Result<String, String> {
+    if command_path.trim().is_empty() {
+        return Err(format!(
+            "{} bundle path is empty. Tools may not be downloaded yet.",
+            program_name
+        ));
+    }
 
-    let command_arg = match program_name.as_str() {
+    let command_arg = match program_name {
         "yt-dlp" => "--version",
         "ffmpeg" => "-version",
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
     // ファイルの存在チェック
-    let file_exists = Path::new(&command_path).exists();
+    let file_exists = Path::new(command_path).exists();
     if !file_exists {
         return Err(format!(
             "{} not found at path: {}",
@@ -555,13 +514,13 @@ async fn is_program_available(program_name: String, custom_path: Option<String>)
     }
 
     #[cfg(target_os = "windows")]
-    let output = Command::new(&command_path)
+    let output = Command::new(command_path)
         .arg(command_arg)
         .creation_flags(0x08000000)
         .output();
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
-    let output = Command::new(&command_path)
+    let output = Command::new(command_path)
         .arg(command_arg)
         .env("LC_ALL", "en_US.UTF-8")
         .env("LANG", "en_US.UTF-8")
@@ -583,6 +542,81 @@ async fn is_program_available(program_name: String, custom_path: Option<String>)
             program_name, command_path, err
         )),
     }
+}
+
+fn resolve_tool_paths(use_bundle_tools: bool, yt_dlp_path: &str, ffmpeg_path: &str) -> Result<(String, String), String> {
+    if use_bundle_tools {
+        let mut path = std::env::current_exe()
+            .map_err(|e| format!("Failed to get current exe path: {}", e))?;
+        path.pop(); // exeファイル名を削除
+        let binaries_dir = path.join("binaries");
+
+        if !binaries_dir.exists() {
+            return Ok(("".to_string(), "".to_string()));
+        }
+
+        // yt-dlpを検索
+        let yt = std::fs::read_dir(&binaries_dir)
+            .map_err(|e| format!("Failed to read binaries directory: {}", e))?
+            .filter_map(|entry| entry.ok())
+            .find(|entry| {
+                let file_name = entry.file_name();
+                let file_name_str = file_name.to_string_lossy();
+                file_name_str.starts_with("yt-dlp") &&
+                (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
+            })
+            .map(|entry| entry.path().to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        // ffmpegを検索（サブディレクトリも含める）
+        let ff = find_ffmpeg_recursive(&binaries_dir)?;
+        return Ok((yt, ff));
+    }
+
+    Ok((yt_dlp_path.to_string(), ffmpeg_path.to_string()))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ToolStatus {
+    ok: bool,
+    yt_dlp_path: String,
+    ffmpeg_path: String,
+    yt_dlp_found: bool,
+    ffmpeg_found: bool,
+    yt_dlp_error: Option<String>,
+    ffmpeg_error: Option<String>,
+}
+
+#[tauri::command]
+async fn check_tools_status(
+    app_state: State<'_, AppState>,
+    use_bundle_tools: Option<bool>,
+    yt_dlp_path: Option<String>,
+    ffmpeg_path: Option<String>,
+) -> Result<ToolStatus, String> {
+    let settings = app_state.settings.lock().await;
+    let use_bundle = use_bundle_tools.unwrap_or(settings.use_bundle_tools);
+    let yt_path = yt_dlp_path.unwrap_or_else(|| settings.yt_dlp_path.clone());
+    let ff_path = ffmpeg_path.unwrap_or_else(|| settings.ffmpeg_path.clone());
+    drop(settings);
+
+    let (resolved_yt, resolved_ff) = resolve_tool_paths(use_bundle, &yt_path, &ff_path)?;
+
+    let yt_check = check_program_available("yt-dlp", &resolved_yt);
+    let ff_check = check_program_available("ffmpeg", &resolved_ff);
+
+    let yt_found = yt_check.is_ok();
+    let ff_found = ff_check.is_ok();
+    Ok(ToolStatus {
+        ok: yt_found && ff_found,
+        yt_dlp_path: resolved_yt,
+        ffmpeg_path: resolved_ff,
+        yt_dlp_found: yt_found,
+        ffmpeg_found: ff_found,
+        yt_dlp_error: yt_check.err(),
+        ffmpeg_error: ff_check.err(),
+    })
 }
 
 #[tauri::command]
@@ -1022,7 +1056,6 @@ fn main() {
             run_command,
             stop_command,
             open_directory,
-            is_program_available,
             open_url_and_exit,
             exit_app,
             toggle_server,
@@ -1031,6 +1064,7 @@ fn main() {
             get_current_version,
             get_os_type,
             download_bundle_tools,
+            check_tools_status,
             config::commands::set_save_dir,
             config::commands::set_browser,
             config::commands::set_server_port,
@@ -1041,8 +1075,7 @@ fn main() {
             config::commands::get_settings,
             config::commands::set_use_bundle_tools,
             config::commands::set_yt_dlp_path,
-            config::commands::set_ffmpeg_path,
-            get_bundle_tool_paths
+            config::commands::set_ffmpeg_path
         ])
         .plugin(tauri_plugin_drag::init())
         .run(tauri::generate_context!())

@@ -48,6 +48,7 @@ import CustomButton from "../_components/CustomButton";
 import { toast } from "react-toastify";
 import { dialog } from "@tauri-apps/api";
 import { isPermissionGranted, requestPermission } from "@tauri-apps/api/notification";
+import { checkToolAvailability } from "../_utils/toolAvailability";
 
 // StyledComponents for dark mode support
 const StyledTextField = styled(TextField)(() => ({
@@ -342,45 +343,24 @@ export default function Settings() {
   const checkTools = async () => {
     setIsCheckingTools(true);
     try {
-      let ytDlpPathToUse: string | undefined;
-      let ffmpegPathToUse: string | undefined;
-
-      // バンドルモードの場合はバックエンドから実際のバイナリパスを取得
-      if (tempUseBundle) {
-        const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
-        if (!ytDlpBundlePath || !ffmpegBundlePath) {
-          toast.error("バンドル版ツールが見つかりません。先に「ツールを上書きダウンロード」を実行してください。");
-          setToolCheckResults({ ytDlp: false, ffmpeg: false });
-          return;
-        }
-        ytDlpPathToUse = ytDlpBundlePath;
-        ffmpegPathToUse = ffmpegBundlePath;
-      } else {
-        ytDlpPathToUse = tempYtDlpPath || undefined;
-        ffmpegPathToUse = tempFfmpegPath || undefined;
+      const status = await checkToolAvailability(tempUseBundle, tempYtDlpPath, tempFfmpegPath);
+      if (!status.ok) {
+        toast.error(status.ytDlpError || status.ffmpegError || "ツールが見つかりません。先にダウンロードまたはパス設定を行ってください。");
+        setToolCheckResults({ ytDlp: false, ffmpeg: false });
+        return;
       }
 
-      const ytDlpResult = await invoke<string>("is_program_available", {
-        programName: "yt-dlp",
-        customPath: ytDlpPathToUse,
-      });
-
-      const ffmpegResult = await invoke<string>("is_program_available", {
-        programName: "ffmpeg",
-        customPath: ffmpegPathToUse,
-      });
-
       setToolCheckResults({
-        ytDlp: ytDlpResult.includes("found"),
-        ffmpeg: ffmpegResult.includes("found"),
+        ytDlp: status.ytDlpFound,
+        ffmpeg: status.ffmpegFound,
       });
 
-      if (ytDlpResult.includes("found") && ffmpegResult.includes("found")) {
+      if (status.ok) {
         toast.success("すべてのツールが利用可能です");
       } else {
         const failedTools = [];
-        if (!ytDlpResult.includes("found")) failedTools.push("yt-dlp");
-        if (!ffmpegResult.includes("found")) failedTools.push("FFmpeg");
+        if (!status.ytDlpFound) failedTools.push("yt-dlp");
+        if (!status.ffmpegFound) failedTools.push("FFmpeg");
         toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
       }
     } catch (error) {
@@ -786,8 +766,19 @@ export default function Settings() {
             <Box mb={2}>
               <Alert
                 severity={toolCheckResults.ytDlp && toolCheckResults.ffmpeg ? "success" : "warning"}
+                sx={{
+                  backgroundColor: 'var(--surface-primary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '10px',
+                  '& .MuiAlert-icon': {
+                    color: toolCheckResults.ytDlp && toolCheckResults.ffmpeg
+                      ? 'var(--success)'
+                      : 'var(--warning)',
+                  }
+                }}
               >
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ color: 'var(--text-primary)' }}>
                   yt-dlp: {toolCheckResults.ytDlp ? "✓ 利用可能" : "✗ 利用不可"}
                   <br />
                   FFmpeg: {toolCheckResults.ffmpeg ? "✓ 利用可能" : "✗ 利用不可"}
@@ -797,21 +788,26 @@ export default function Settings() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, borderTop: '1px solid var(--border-primary)' }}>
-          <Button
+          <CustomButton
+            variant="outlined"
+            className="variant-secondary"
             onClick={() => setShowToolsModal(false)}
-            sx={{ color: 'var(--text-secondary)' }}
           >
             キャンセル
-          </Button>
-          <Button
+          </CustomButton>
+          <CustomButton
             onClick={saveToolsSettings}
             variant="contained"
+            className="variant-primary"
             disabled={!toolCheckResults.ytDlp || !toolCheckResults.ffmpeg}
           >
             設定を保存
-          </Button>
+          </CustomButton>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
+
+
+

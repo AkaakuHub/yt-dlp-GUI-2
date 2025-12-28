@@ -5,6 +5,7 @@ import Home from "./Home";
 import Setting from "./Setting";
 import ToolSetup from "./ToolSetup";
 import { ConfigProps } from "./types";
+import { checkToolAvailability } from "./_utils/toolAvailability";
 
 import WindowControls from "./_components/WindowControls";
 import { AppProvider } from "./_components/AppContext";
@@ -47,13 +48,12 @@ const App = () => {
     const checkSetup = async () => {
       try {
         const settings = await invoke<ConfigProps>("get_settings");
-        if (settings?.use_bundle_tools) {
-          const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
-          setShowSetup(!(ytDlpBundlePath && ffmpegBundlePath));
-          return;
-        }
-        const hasPaths = !!(settings?.yt_dlp_path && settings?.ffmpeg_path);
-        setShowSetup(!hasPaths);
+        const status = await checkToolAvailability(
+          settings?.use_bundle_tools ?? true,
+          settings?.yt_dlp_path,
+          settings?.ffmpeg_path
+        );
+        setShowSetup(!status.ok);
       } catch {
         // 設定読み込み失敗時はセットアップを表示
         setShowSetup(true);

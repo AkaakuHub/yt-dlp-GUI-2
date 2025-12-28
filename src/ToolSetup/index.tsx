@@ -27,6 +27,7 @@ import {
   Settings,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
+import { checkToolAvailability } from "../_utils/toolAvailability";
 
 // プロジェクト既存のスタイルを適用
 const StyledTextField = styled(TextField)(() => ({
@@ -143,36 +144,21 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   }, [isSettingLoaded, ytDlpPath, ffmpegPath, useBundleTools]);
 
   const checkInitialSetup = async () => {
-    // バンドル版の場合は実際のバイナリ存在を確認
-    if (useBundleTools) {
-      try {
-        const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
-        if (ytDlpBundlePath && ffmpegBundlePath) {
-          setCheckResults({ ytDlp: true, ffmpeg: true });
-          // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
-          setTimeout(() => {
-            setIsSettingLoaded(true);
-            onComplete();
-          }, 500);
-          return;
-        }
-      } catch {
-        // noop: 失敗時は通常のセットアップ画面を表示
+    try {
+      const status = await checkToolAvailability(useBundleTools, ytDlpPath, ffmpegPath);
+      if (status.ok) {
+        setCheckResults({ ytDlp: true, ffmpeg: true });
+        // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
+        setTimeout(() => {
+          setIsSettingLoaded(true);
+          onComplete();
+        }, 500);
+        return;
       }
-      setIsLoading(false);
-      return;
+    } catch {
+      // noop: 失敗時は通常のセットアップ画面を表示
     }
 
-    // パス版: ツールパスが既に設定されている場合は設定済みとして完了
-    if (ytDlpPath && ytDlpPath !== "" && ffmpegPath && ffmpegPath !== "") {
-      setCheckResults({ ytDlp: true, ffmpeg: true });
-      // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
-      setTimeout(() => {
-        setIsSettingLoaded(true);
-        onComplete();
-      }, 500);
-      return;
-    }
     setIsLoading(false);
   };
 
@@ -217,45 +203,24 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
   const checkTools = async () => {
     setIsChecking(true);
     try {
-      let ytDlpPathToUse: string | undefined;
-      let ffmpegPathToUse: string | undefined;
-
-      // バンドルモードの場合はバックエンドから実際のバイナリパスを取得
-      if (useBundleTools) {
-        const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
-        if (!ytDlpBundlePath || !ffmpegBundlePath) {
-          toast.error("バンドル版ツールが見つかりません。先に「ツールをダウンロード」を実行してください。");
-          setCheckResults({ ytDlp: false, ffmpeg: false });
-          return;
-        }
-        ytDlpPathToUse = ytDlpBundlePath;
-        ffmpegPathToUse = ffmpegBundlePath;
-      } else {
-        ytDlpPathToUse = ytDlpPath || undefined;
-        ffmpegPathToUse = ffmpegPath || undefined;
+      const status = await checkToolAvailability(useBundleTools, ytDlpPath, ffmpegPath);
+      if (!status.ok) {
+        toast.error(status.ytDlpError || status.ffmpegError || "ツールが見つかりません。先にダウンロードまたはパス設定を行ってください。");
+        setCheckResults({ ytDlp: false, ffmpeg: false });
+        return;
       }
 
-      const ytDlpResult = await invoke<string>("is_program_available", {
-        programName: "yt-dlp",
-        customPath: ytDlpPathToUse,
-      });
-
-      const ffmpegResult = await invoke<string>("is_program_available", {
-        programName: "ffmpeg",
-        customPath: ffmpegPathToUse,
-      });
-
       setCheckResults({
-        ytDlp: ytDlpResult.includes("found"),
-        ffmpeg: ffmpegResult.includes("found"),
+        ytDlp: status.ytDlpFound,
+        ffmpeg: status.ffmpegFound,
       });
 
-      if (ytDlpResult.includes("found") && ffmpegResult.includes("found")) {
+      if (status.ok) {
         toast.success("すべてのツールが利用可能です");
       } else {
         const failedTools = [];
-        if (!ytDlpResult.includes("found")) failedTools.push("yt-dlp");
-        if (!ffmpegResult.includes("found")) failedTools.push("FFmpeg");
+        if (!status.ytDlpFound) failedTools.push("yt-dlp");
+        if (!status.ffmpegFound) failedTools.push("FFmpeg");
         toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
       }
     } catch (error) {
