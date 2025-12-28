@@ -44,18 +44,23 @@ const App = () => {
     });
 
     // 設定をチェックして初回起動かどうかを判定
-    invoke<ConfigProps>("get_settings").then((settings) => {
-      // 設定が存在し、ツールパスが設定されている場合のみセットアップをスキップ
-      if (settings && settings.yt_dlp_path && settings.ffmpeg_path &&
-          settings.yt_dlp_path !== "" && settings.ffmpeg_path !== "") {
-        setShowSetup(false);
-      } else {
+    const checkSetup = async () => {
+      try {
+        const settings = await invoke<ConfigProps>("get_settings");
+        if (settings?.use_bundle_tools) {
+          const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
+          setShowSetup(!(ytDlpBundlePath && ffmpegBundlePath));
+          return;
+        }
+        const hasPaths = !!(settings?.yt_dlp_path && settings?.ffmpeg_path);
+        setShowSetup(!hasPaths);
+      } catch {
+        // 設定読み込み失敗時はセットアップを表示
         setShowSetup(true);
       }
-    }).catch(() => {
-      // 設定読み込み失敗時はセットアップを表示
-      setShowSetup(true);
-    });
+    };
+
+    checkSetup();
   }, []);
 
   if (showSetup) {

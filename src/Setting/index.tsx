@@ -348,6 +348,11 @@ export default function Settings() {
       // バンドルモードの場合はバックエンドから実際のバイナリパスを取得
       if (tempUseBundle) {
         const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
+        if (!ytDlpBundlePath || !ffmpegBundlePath) {
+          toast.error("バンドル版ツールが見つかりません。先に「ツールを上書きダウンロード」を実行してください。");
+          setToolCheckResults({ ytDlp: false, ffmpeg: false });
+          return;
+        }
         ytDlpPathToUse = ytDlpBundlePath;
         ffmpegPathToUse = ffmpegBundlePath;
       } else {

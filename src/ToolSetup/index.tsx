@@ -142,8 +142,28 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
     };
   }, [isSettingLoaded, ytDlpPath, ffmpegPath, useBundleTools]);
 
-  const checkInitialSetup = () => {
-    // ツールパスが既に設定されている場合は設定済みとして完了
+  const checkInitialSetup = async () => {
+    // バンドル版の場合は実際のバイナリ存在を確認
+    if (useBundleTools) {
+      try {
+        const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
+        if (ytDlpBundlePath && ffmpegBundlePath) {
+          setCheckResults({ ytDlp: true, ffmpeg: true });
+          // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
+          setTimeout(() => {
+            setIsSettingLoaded(true);
+            onComplete();
+          }, 500);
+          return;
+        }
+      } catch {
+        // noop: 失敗時は通常のセットアップ画面を表示
+      }
+      setIsLoading(false);
+      return;
+    }
+
+    // パス版: ツールパスが既に設定されている場合は設定済みとして完了
     if (ytDlpPath && ytDlpPath !== "" && ffmpegPath && ffmpegPath !== "") {
       setCheckResults({ ytDlp: true, ffmpeg: true });
       // 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
@@ -151,6 +171,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
         setIsSettingLoaded(true);
         onComplete();
       }, 500);
+      return;
     }
     setIsLoading(false);
   };
@@ -202,6 +223,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
       // バンドルモードの場合はバックエンドから実際のバイナリパスを取得
       if (useBundleTools) {
         const [ytDlpBundlePath, ffmpegBundlePath] = await invoke<[string, string]>("get_bundle_tool_paths");
+        if (!ytDlpBundlePath || !ffmpegBundlePath) {
+          toast.error("バンドル版ツールが見つかりません。先に「ツールをダウンロード」を実行してください。");
+          setCheckResults({ ytDlp: false, ffmpeg: false });
+          return;
+        }
         ytDlpPathToUse = ytDlpBundlePath;
         ffmpegPathToUse = ffmpegBundlePath;
       } else {

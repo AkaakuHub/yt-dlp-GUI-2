@@ -235,7 +235,19 @@ async fn run_command(
     let settings = app_state.settings.lock().await;
 
     let mut manager = command_manager.lock().await;
-    let yt_dlp_path = settings.yt_dlp_path.clone();
+    let yt_dlp_path = if settings.use_bundle_tools {
+        let paths = get_bundle_tool_paths().map_err(|e| format!("バンドル版ツールの取得に失敗しました: {}", e))?;
+        let path = paths.get(0).cloned().unwrap_or_default();
+        if path.trim().is_empty() {
+            return Err("バンドル版yt-dlpが見つかりません。ツールをダウンロードしてください。".into());
+        }
+        path
+    } else {
+        if settings.yt_dlp_path.trim().is_empty() {
+            return Err("yt-dlpのパスが設定されていません。設定でパスを指定してください。".into());
+        }
+        settings.yt_dlp_path.clone()
+    };
 
     let url = param.url.unwrap_or("not_set".to_string());
     let codec_id = param.codec_id.unwrap_or("not_set".to_string());
@@ -515,6 +527,12 @@ fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
 #[tauri::command]
 async fn is_program_available(program_name: String, custom_path: Option<String>) -> Result<String, String> {
     let command_path = if let Some(path) = custom_path {
+        if path.trim().is_empty() {
+            return Err(format!(
+                "{} bundle path is empty. Tools may not be downloaded yet.",
+                program_name
+            ));
+        }
         path
     } else {
         // パスが指定されていない場合はプログラム名をそのまま使用

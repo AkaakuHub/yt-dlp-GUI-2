@@ -47,18 +47,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [ffmpegPath, setFfmpegPath] = useState("");
 
   useEffect(() => {
-    invoke<ConfigProps>("get_settings").then((config) => {
-      setSaveDir(config.save_dir);
-      setBrowser(config.browser);
-      setServerPort(config.server_port);
-      setIsSendNotification(config.is_send_notification);
-      setSelectedIndexNumber(config.index);
-      setIsServerEnabled(config.is_server_enabled);
-      setUseBundleTools(config.use_bundle_tools);
-      setYtDlpPath(config.yt_dlp_path);
-      setFfmpegPath(config.ffmpeg_path);
-    });
-    setIsSettingLoaded(true);
+    invoke<ConfigProps>("get_settings")
+      .then((config) => {
+        setSaveDir(config.save_dir);
+        setBrowser(config.browser);
+        setServerPort(config.server_port);
+        setIsSendNotification(config.is_send_notification);
+        setSelectedIndexNumber(config.index);
+        setIsServerEnabled(config.is_server_enabled);
+        setUseBundleTools(config.use_bundle_tools);
+        setYtDlpPath(config.yt_dlp_path);
+        setFfmpegPath(config.ffmpeg_path);
+      })
+      .finally(() => {
+        setIsSettingLoaded(true);
+      });
   }, []);
 
   return (
