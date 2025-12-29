@@ -1181,7 +1181,8 @@ fn main() {
             config::commands::get_settings,
             config::commands::set_use_bundle_tools,
             config::commands::set_yt_dlp_path,
-            config::commands::set_ffmpeg_path
+            config::commands::set_ffmpeg_path,
+            config::commands::set_deno_path
         ])
         .plugin(tauri_plugin_drag::init())
         .run(tauri::generate_context!())

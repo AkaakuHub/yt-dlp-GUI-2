@@ -32,6 +32,7 @@ trait Config {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Settings {
     pub save_dir: String,
     pub browser: String,
@@ -150,11 +151,13 @@ impl Settings {
         self.write_file();
     }
 
-    pub fn set_ffmpeg_path(&mut self, ffmpeg_path: String, deno_path: Option<String>) {
+    pub fn set_ffmpeg_path(&mut self, ffmpeg_path: String) {
         self.ffmpeg_path = ffmpeg_path;
-        if let Some(deno_path) = deno_path {
-            self.deno_path = deno_path;
-        }
+        self.write_file();
+    }
+
+    pub fn set_deno_path(&mut self, deno_path: String) {
+        self.deno_path = deno_path;
         self.write_file();
     }
 }
@@ -272,10 +275,19 @@ pub mod commands {
     pub async fn set_ffmpeg_path(
         state: State<'_, AppState>,
         ffmpeg_path: String,
-        deno_path: Option<String>,
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
-        settings.set_ffmpeg_path(ffmpeg_path, deno_path);
+        settings.set_ffmpeg_path(ffmpeg_path);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_deno_path(
+        state: State<'_, AppState>,
+        deno_path: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_deno_path(deno_path);
         Ok(())
     }
 }

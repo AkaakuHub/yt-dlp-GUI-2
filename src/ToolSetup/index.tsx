@@ -187,7 +187,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 			if (!useBundleTools) {
 				await invoke("set_yt_dlp_path", { ytDlpPath });
-				await invoke("set_ffmpeg_path", { ffmpegPath, denoPath });
+				await invoke("set_ffmpeg_path", { ffmpegPath });
+				await invoke("set_deno_path", { denoPath });
 			}
 
 			// 設定完了後、少し待ってから完了通知（スムーズな体験のため）

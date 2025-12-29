@@ -344,15 +344,13 @@ export default function Settings() {
 		await invoke("set_yt_dlp_path", { ytDlpPath: temp_ytDlpPath });
 	}, 500);
 
-	const saveFfmpegPathChanged = debounce(
-		async (temp_ffmpegPath: string, temp_denoPath: string) => {
-			await invoke("set_ffmpeg_path", {
-				ffmpegPath: temp_ffmpegPath,
-				denoPath: temp_denoPath,
-			});
-		},
-		500,
-	);
+	const saveFfmpegPathChanged = debounce(async (temp_ffmpegPath: string) => {
+		await invoke("set_ffmpeg_path", { ffmpegPath: temp_ffmpegPath });
+	}, 500);
+
+	const saveDenoPathChanged = debounce(async (temp_denoPath: string) => {
+		await invoke("set_deno_path", { denoPath: temp_denoPath });
+	}, 500);
 
 	// ダウンロード関数
 	const downloadBundleTools = async () => {
@@ -446,7 +444,8 @@ export default function Settings() {
 
 			if (!tempUseBundle) {
 				await saveYtDlpPathChanged(tempYtDlpPath);
-				await saveFfmpegPathChanged(tempFfmpegPath, tempDenoPath);
+				await saveFfmpegPathChanged(tempFfmpegPath);
+				await saveDenoPathChanged(tempDenoPath);
 			}
 
 			// 設定を再読み込み
@@ -1010,7 +1009,11 @@ export default function Settings() {
 						onClick={saveToolsSettings}
 						variant="contained"
 						className="variant-primary"
-						disabled={!toolCheckResults.ytDlp || !toolCheckResults.ffmpeg}
+						disabled={
+							!toolCheckResults.ytDlp ||
+							!toolCheckResults.ffmpeg ||
+							!toolCheckResults.deno
+						}
 					>
 						設定を保存
 					</CustomButton>
