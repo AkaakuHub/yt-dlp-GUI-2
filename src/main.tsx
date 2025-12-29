@@ -49,6 +49,7 @@ const App = () => {
 					settings?.use_bundle_tools ?? true,
 					settings?.yt_dlp_path,
 					settings?.ffmpeg_path,
+					settings?.deno_path,
 				);
 				setShowSetup(!status.ok);
 			} catch {

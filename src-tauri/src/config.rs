@@ -43,6 +43,7 @@ pub struct Settings {
     pub use_bundle_tools: bool, // true: バンドル版使用, false: パス版使用
     pub yt_dlp_path: String,    // バンドル版またはカスタムパスのyt-dlp
     pub ffmpeg_path: String,    // バンドル版またはカスタムパスのffmpeg
+    pub deno_path: String,      // バンドル版またはカスタムパスのdeno
     // custom_commands_list: Vec<String>,
 }
 
@@ -59,6 +60,7 @@ impl Default for Settings {
             use_bundle_tools: true, // デフォルトはバンドル版（初心者向け）
             yt_dlp_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             ffmpeg_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
+            deno_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             // custom_commands_list: vec![],
         }
     }
@@ -138,6 +140,7 @@ impl Settings {
         if use_bundle_tools {
             self.yt_dlp_path = "".to_string();
             self.ffmpeg_path = "".to_string();
+            self.deno_path = "".to_string();
         }
         self.write_file();
     }
@@ -147,8 +150,11 @@ impl Settings {
         self.write_file();
     }
 
-    pub fn set_ffmpeg_path(&mut self, ffmpeg_path: String) {
+    pub fn set_ffmpeg_path(&mut self, ffmpeg_path: String, deno_path: Option<String>) {
         self.ffmpeg_path = ffmpeg_path;
+        if let Some(deno_path) = deno_path {
+            self.deno_path = deno_path;
+        }
         self.write_file();
     }
 }
@@ -266,9 +272,10 @@ pub mod commands {
     pub async fn set_ffmpeg_path(
         state: State<'_, AppState>,
         ffmpeg_path: String,
+        deno_path: Option<String>,
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
-        settings.set_ffmpeg_path(ffmpeg_path);
+        settings.set_ffmpeg_path(ffmpeg_path, deno_path);
         Ok(())
     }
 }

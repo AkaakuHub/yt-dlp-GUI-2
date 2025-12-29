@@ -235,10 +235,11 @@ async fn run_command(
     let settings = app_state.settings.lock().await;
 
     let mut manager = command_manager.lock().await;
-    let (yt_dlp_path, _ffmpeg_path) = resolve_tool_paths(
+    let (yt_dlp_path, _ffmpeg_path, _deno_path) = resolve_tool_paths(
         settings.use_bundle_tools,
         &settings.yt_dlp_path,
         &settings.ffmpeg_path,
+        &settings.deno_path,
     ).map_err(|e| format!("ツールパスの解決に失敗しました: {}", e))?;
 
     if yt_dlp_path.trim().is_empty() {
@@ -501,6 +502,7 @@ fn check_program_available(program_name: &str, command_path: &str) -> Result<Str
     let command_arg = match program_name {
         "yt-dlp" => "--version",
         "ffmpeg" => "-version",
+        "deno" => "--version",
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
@@ -544,7 +546,12 @@ fn check_program_available(program_name: &str, command_path: &str) -> Result<Str
     }
 }
 
-fn resolve_tool_paths(use_bundle_tools: bool, yt_dlp_path: &str, ffmpeg_path: &str) -> Result<(String, String), String> {
+fn resolve_tool_paths(
+    use_bundle_tools: bool,
+    yt_dlp_path: &str,
+    ffmpeg_path: &str,
+    deno_path: &str,
+) -> Result<(String, String, String), String> {
     if use_bundle_tools {
         let mut path = std::env::current_exe()
             .map_err(|e| format!("Failed to get current exe path: {}", e))?;
@@ -552,7 +559,7 @@ fn resolve_tool_paths(use_bundle_tools: bool, yt_dlp_path: &str, ffmpeg_path: &s
         let binaries_dir = path.join("binaries");
 
         if !binaries_dir.exists() {
-            return Ok(("".to_string(), "".to_string()));
+            return Ok(("".to_string(), "".to_string(), "".to_string()));
         }
 
         // yt-dlpを検索
@@ -570,10 +577,27 @@ fn resolve_tool_paths(use_bundle_tools: bool, yt_dlp_path: &str, ffmpeg_path: &s
 
         // ffmpegを検索（サブディレクトリも含める）
         let ff = find_ffmpeg_recursive(&binaries_dir)?;
-        return Ok((yt, ff));
+        // denoを検索
+        let deno = std::fs::read_dir(&binaries_dir)
+            .map_err(|e| format!("Failed to read binaries directory: {}", e))?
+            .filter_map(|entry| entry.ok())
+            .find(|entry| {
+                let file_name = entry.file_name();
+                let file_name_str = file_name.to_string_lossy();
+                file_name_str.starts_with("deno") &&
+                (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
+            })
+            .map(|entry| entry.path().to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        return Ok((yt, ff, deno));
     }
 
-    Ok((yt_dlp_path.to_string(), ffmpeg_path.to_string()))
+    Ok((
+        yt_dlp_path.to_string(),
+        ffmpeg_path.to_string(),
+        deno_path.to_string(),
+    ))
 }
 
 #[derive(Serialize)]
@@ -582,10 +606,13 @@ struct ToolStatus {
     ok: bool,
     yt_dlp_path: String,
     ffmpeg_path: String,
+    deno_path: String,
     yt_dlp_found: bool,
     ffmpeg_found: bool,
+    deno_found: bool,
     yt_dlp_error: Option<String>,
     ffmpeg_error: Option<String>,
+    deno_error: Option<String>,
 }
 
 #[tauri::command]
@@ -594,28 +621,36 @@ async fn check_tools_status(
     use_bundle_tools: Option<bool>,
     yt_dlp_path: Option<String>,
     ffmpeg_path: Option<String>,
+    deno_path: Option<String>,
 ) -> Result<ToolStatus, String> {
     let settings = app_state.settings.lock().await;
     let use_bundle = use_bundle_tools.unwrap_or(settings.use_bundle_tools);
     let yt_path = yt_dlp_path.unwrap_or_else(|| settings.yt_dlp_path.clone());
     let ff_path = ffmpeg_path.unwrap_or_else(|| settings.ffmpeg_path.clone());
+    let deno_path = deno_path.unwrap_or_else(|| settings.deno_path.clone());
     drop(settings);
 
-    let (resolved_yt, resolved_ff) = resolve_tool_paths(use_bundle, &yt_path, &ff_path)?;
+    let (resolved_yt, resolved_ff, resolved_deno) =
+        resolve_tool_paths(use_bundle, &yt_path, &ff_path, &deno_path)?;
 
     let yt_check = check_program_available("yt-dlp", &resolved_yt);
     let ff_check = check_program_available("ffmpeg", &resolved_ff);
+    let deno_check = check_program_available("deno", &resolved_deno);
 
     let yt_found = yt_check.is_ok();
     let ff_found = ff_check.is_ok();
+    let deno_found = deno_check.is_ok();
     Ok(ToolStatus {
-        ok: yt_found && ff_found,
+        ok: yt_found && ff_found && deno_found,
         yt_dlp_path: resolved_yt,
         ffmpeg_path: resolved_ff,
+        deno_path: resolved_deno,
         yt_dlp_found: yt_found,
         ffmpeg_found: ff_found,
+        deno_found,
         yt_dlp_error: yt_check.err(),
         ffmpeg_error: ff_check.err(),
+        deno_error: deno_check.err(),
     })
 }
 
@@ -911,6 +946,47 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     // アーカイブファイルを削除
     TokioFs::remove_file(ffmpeg_archive_path).await.ok();
 
+    // Denoのダウンロード
+    window.emit("download-progress", DownloadProgress {
+        tool_name: "deno".to_string(),
+        progress: 0.0,
+        status: "Getting latest version...".to_string(),
+    }).unwrap();
+
+    let deno_url = get_deno_download_url(&os_type, &arch)?;
+    let deno_archive_path = binaries_dir.join(if cfg!(target_os = "windows") {
+        if cfg!(target_arch = "aarch64") {
+            "deno-aarch64-pc-windows-msvc.zip"
+        } else {
+            "deno-x86_64-pc-windows-msvc.zip"
+        }
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            "deno-aarch64-apple-darwin.zip"
+        } else {
+            "deno-x86_64-apple-darwin.zip"
+        }
+    } else if cfg!(target_arch = "aarch64") {
+        "deno-aarch64-unknown-linux-gnu.zip"
+    } else {
+        "deno-x86_64-unknown-linux-gnu.zip"
+    });
+    download_file_with_progress(&deno_url, &deno_archive_path, &window, "deno").await?;
+
+    extract_zip(&deno_archive_path, &binaries_dir)?;
+    TokioFs::remove_file(deno_archive_path).await.ok();
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let deno_path = binaries_dir.join("deno");
+        if deno_path.exists() {
+            let mut perms = std::fs::metadata(&deno_path).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&deno_path, perms).unwrap();
+        }
+    }
+
     Ok("All tools downloaded successfully".to_string())
 }
 
@@ -937,6 +1013,36 @@ fn get_ffmpeg_download_url(os: &str, arch: &str) -> Result<String, String> {
         ("macos", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macos64-gpl.tar.xz".to_string()),
         ("macos", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macosarm64-gpl.tar.xz".to_string()),
         _ => Err(format!("Unsupported platform: {} {}", os, arch))
+    }
+}
+
+fn get_deno_download_url(os: &str, arch: &str) -> Result<String, String> {
+    match (os, arch) {
+        ("windows", "x86_64") => Ok(
+            "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
+                .to_string(),
+        ),
+        ("windows", "aarch64") => Ok(
+            "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-pc-windows-msvc.zip"
+                .to_string(),
+        ),
+        ("linux", "x86_64") => Ok(
+            "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip"
+                .to_string(),
+        ),
+        ("linux", "aarch64") => Ok(
+            "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-unknown-linux-gnu.zip"
+                .to_string(),
+        ),
+        ("macos", "x86_64") => Ok(
+            "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-apple-darwin.zip"
+                .to_string(),
+        ),
+        ("macos", "aarch64") => Ok(
+            "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-apple-darwin.zip"
+                .to_string(),
+        ),
+        _ => Err(format!("Unsupported platform: {} {}", os, arch)),
     }
 }
 

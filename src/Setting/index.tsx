@@ -132,6 +132,7 @@ export default function Settings() {
 	const { useBundleTools, setUseBundleTools } = useAppContext();
 	const { ytDlpPath, setYtDlpPath } = useAppContext();
 	const { ffmpegPath, setFfmpegPath } = useAppContext();
+	const { denoPath, setDenoPath } = useAppContext();
 	const { isSettingLoaded } = useAppContext();
 
 	const [currentVersion, setCurrentVersion] = useState("");
@@ -146,11 +147,13 @@ export default function Settings() {
 	const [tempUseBundle, setTempUseBundle] = useState(useBundleTools);
 	const [tempYtDlpPath, setTempYtDlpPath] = useState(ytDlpPath);
 	const [tempFfmpegPath, setTempFfmpegPath] = useState(ffmpegPath);
+	const [tempDenoPath, setTempDenoPath] = useState(denoPath);
 	const [isCheckingTools, setIsCheckingTools] = useState(false);
 	const [toolCheckResults, setToolCheckResults] = useState<{
 		ytDlp: boolean;
 		ffmpeg: boolean;
-	}>({ ytDlp: false, ffmpeg: false });
+		deno: boolean;
+	}>({ ytDlp: false, ffmpeg: false, deno: false });
 
 	// ダウンロード機能用
 	const [isDownloadingTools, setIsDownloadingTools] = useState(false);
@@ -341,9 +344,15 @@ export default function Settings() {
 		await invoke("set_yt_dlp_path", { ytDlpPath: temp_ytDlpPath });
 	}, 500);
 
-	const saveFfmpegPathChanged = debounce(async (temp_ffmpegPath: string) => {
-		await invoke("set_ffmpeg_path", { ffmpegPath: temp_ffmpegPath });
-	}, 500);
+	const saveFfmpegPathChanged = debounce(
+		async (temp_ffmpegPath: string, temp_denoPath: string) => {
+			await invoke("set_ffmpeg_path", {
+				ffmpegPath: temp_ffmpegPath,
+				denoPath: temp_denoPath,
+			});
+		},
+		500,
+	);
 
 	// ダウンロード関数
 	const downloadBundleTools = async () => {
@@ -373,20 +382,23 @@ export default function Settings() {
 				tempUseBundle,
 				tempYtDlpPath,
 				tempFfmpegPath,
+				tempDenoPath,
 			);
 			if (!status.ok) {
 				toast.error(
 					status.ytDlpError ||
 						status.ffmpegError ||
+						status.denoError ||
 						"ツールが見つかりません。先にダウンロードまたはパス設定を行ってください。",
 				);
-				setToolCheckResults({ ytDlp: false, ffmpeg: false });
+				setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 				return;
 			}
 
 			setToolCheckResults({
 				ytDlp: status.ytDlpFound,
 				ffmpeg: status.ffmpegFound,
+				deno: status.denoFound,
 			});
 
 			if (status.ok) {
@@ -395,6 +407,7 @@ export default function Settings() {
 				const failedTools = [];
 				if (!status.ytDlpFound) failedTools.push("yt-dlp");
 				if (!status.ffmpegFound) failedTools.push("FFmpeg");
+				if (!status.denoFound) failedTools.push("Deno");
 				toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
 			}
 		} catch (error) {
@@ -404,11 +417,13 @@ export default function Settings() {
 				toast.error(`yt-dlpのチェックに失敗しました: ${errorMsg}`);
 			} else if (errorMsg.includes("ffmpeg")) {
 				toast.error(`FFmpegのチェックに失敗しました: ${errorMsg}`);
+			} else if (errorMsg.includes("deno")) {
+				toast.error(`Denoのチェックに失敗しました: ${errorMsg}`);
 			} else {
 				toast.error(`ツールのチェックに失敗しました: ${errorMsg}`);
 			}
 
-			setToolCheckResults({ ytDlp: false, ffmpeg: false });
+			setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 		} finally {
 			setIsCheckingTools(false);
 		}
@@ -419,7 +434,8 @@ export default function Settings() {
 		setTempUseBundle(useBundleTools);
 		setTempYtDlpPath(ytDlpPath);
 		setTempFfmpegPath(ffmpegPath);
-		setToolCheckResults({ ytDlp: false, ffmpeg: false });
+		setTempDenoPath(denoPath);
+		setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 		setShowToolsModal(true);
 	};
 
@@ -430,7 +446,7 @@ export default function Settings() {
 
 			if (!tempUseBundle) {
 				await saveYtDlpPathChanged(tempYtDlpPath);
-				await saveFfmpegPathChanged(tempFfmpegPath);
+				await saveFfmpegPathChanged(tempFfmpegPath, tempDenoPath);
 			}
 
 			// 設定を再読み込み
@@ -438,6 +454,7 @@ export default function Settings() {
 			setUseBundleTools(settings.use_bundle_tools);
 			setYtDlpPath(settings.yt_dlp_path);
 			setFfmpegPath(settings.ffmpeg_path);
+			setDenoPath(settings.deno_path);
 
 			// ツールチェックを実行
 			await checkTools();
@@ -689,7 +706,7 @@ export default function Settings() {
 						variant="body1"
 						sx={{ color: "var(--text-secondary)", mb: 3 }}
 					>
-						yt-dlpとFFmpegの設定を管理します。
+						yt-dlp、FFmpeg、Denoの設定を管理します。
 					</Typography>
 
 					<Box mb={3}>
@@ -824,6 +841,18 @@ export default function Settings() {
 									helperText="FFmpeg実行ファイルへのパスを入力してください"
 								/>
 							</Box>
+
+							<Box mb={2}>
+								<StyledTextField
+									fullWidth
+									label="Deno のパス"
+									placeholder="deno"
+									value={tempDenoPath}
+									onChange={(e) => setTempDenoPath(e.target.value)}
+									margin="normal"
+									helperText="Deno実行ファイルへのパスを入力してください"
+								/>
+							</Box>
 						</Box>
 					)}
 
@@ -840,7 +869,8 @@ export default function Settings() {
 									isCheckingTools ||
 									(downloadedOnce &&
 										toolCheckResults.ytDlp &&
-										toolCheckResults.ffmpeg)
+										toolCheckResults.ffmpeg &&
+										toolCheckResults.deno)
 								}
 								sx={{
 									width: "100%",
@@ -870,10 +900,12 @@ export default function Settings() {
 								isDownloadingTools ||
 								(!tempUseBundle &&
 									(tempYtDlpPath.trim() === "" ||
-										tempFfmpegPath.trim() === "")) ||
+										tempFfmpegPath.trim() === "" ||
+										tempDenoPath.trim() === "")) ||
 								(downloadedOnce &&
 									toolCheckResults.ytDlp &&
-									toolCheckResults.ffmpeg)
+									toolCheckResults.ffmpeg &&
+									toolCheckResults.deno)
 							}
 							sx={{
 								width: "100%",
@@ -922,11 +954,15 @@ export default function Settings() {
 						</Box>
 					)}
 
-					{(toolCheckResults.ytDlp || toolCheckResults.ffmpeg) && (
+					{(toolCheckResults.ytDlp ||
+						toolCheckResults.ffmpeg ||
+						toolCheckResults.deno) && (
 						<Box mb={2}>
 							<Alert
 								severity={
-									toolCheckResults.ytDlp && toolCheckResults.ffmpeg
+									toolCheckResults.ytDlp &&
+									toolCheckResults.ffmpeg &&
+									toolCheckResults.deno
 										? "success"
 										: "warning"
 								}
@@ -937,7 +973,9 @@ export default function Settings() {
 									borderRadius: "10px",
 									"& .MuiAlert-icon": {
 										color:
-											toolCheckResults.ytDlp && toolCheckResults.ffmpeg
+											toolCheckResults.ytDlp &&
+											toolCheckResults.ffmpeg &&
+											toolCheckResults.deno
 												? "var(--success)"
 												: "var(--warning)",
 									},
@@ -951,6 +989,8 @@ export default function Settings() {
 									<br />
 									FFmpeg:{" "}
 									{toolCheckResults.ffmpeg ? "✓ 利用可能" : "✗ 利用不可"}
+									<br />
+									Deno: {toolCheckResults.deno ? "✓ 利用可能" : "✗ 利用不可"}
 								</Typography>
 							</Alert>
 						</Box>

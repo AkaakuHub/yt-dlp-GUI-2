@@ -113,7 +113,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	const [checkResults, setCheckResults] = useState<{
 		ytDlp: boolean;
 		ffmpeg: boolean;
-	}>({ ytDlp: false, ffmpeg: false });
+		deno: boolean;
+	}>({ ytDlp: false, ffmpeg: false, deno: false });
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [downloadProgress, setDownloadProgress] =
 		useState<DownloadProgress | null>(null);
@@ -127,6 +128,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		setYtDlpPath,
 		ffmpegPath,
 		setFfmpegPath,
+		denoPath,
+		setDenoPath,
 		isSettingLoaded,
 		setIsSettingLoaded,
 	} = useAppContext();
@@ -137,9 +140,10 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				useBundleTools,
 				ytDlpPath,
 				ffmpegPath,
+				denoPath,
 			);
 			if (status.ok) {
-				setCheckResults({ ytDlp: true, ffmpeg: true });
+				setCheckResults({ ytDlp: true, ffmpeg: true, deno: true });
 				// 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
 				setTimeout(() => {
 					setIsSettingLoaded(true);
@@ -152,7 +156,14 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		}
 
 		setIsLoading(false);
-	}, [ffmpegPath, onComplete, setIsSettingLoaded, useBundleTools, ytDlpPath]);
+	}, [
+		denoPath,
+		ffmpegPath,
+		onComplete,
+		setIsSettingLoaded,
+		useBundleTools,
+		ytDlpPath,
+	]);
 
 	useEffect(() => {
 		// AppContextの設定が読み込まれたら処理
@@ -176,7 +187,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 			if (!useBundleTools) {
 				await invoke("set_yt_dlp_path", { ytDlpPath });
-				await invoke("set_ffmpeg_path", { ffmpegPath });
+				await invoke("set_ffmpeg_path", { ffmpegPath, denoPath });
 			}
 
 			// 設定完了後、少し待ってから完了通知（スムーズな体験のため）
@@ -215,20 +226,23 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				useBundleTools,
 				ytDlpPath,
 				ffmpegPath,
+				denoPath,
 			);
 			if (!status.ok) {
 				toast.error(
 					status.ytDlpError ||
 						status.ffmpegError ||
+						status.denoError ||
 						"ツールが見つかりません。先にダウンロードまたはパス設定を行ってください。",
 				);
-				setCheckResults({ ytDlp: false, ffmpeg: false });
+				setCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 				return;
 			}
 
 			setCheckResults({
 				ytDlp: status.ytDlpFound,
 				ffmpeg: status.ffmpegFound,
+				deno: status.denoFound,
 			});
 
 			if (status.ok) {
@@ -237,6 +251,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				const failedTools = [];
 				if (!status.ytDlpFound) failedTools.push("yt-dlp");
 				if (!status.ffmpegFound) failedTools.push("FFmpeg");
+				if (!status.denoFound) failedTools.push("Deno");
 				toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
 			}
 		} catch (error) {
@@ -248,11 +263,13 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				toast.error(`yt-dlpのチェックに失敗しました: ${errorMsg}`);
 			} else if (errorMsg.includes("ffmpeg")) {
 				toast.error(`FFmpegのチェックに失敗しました: ${errorMsg}`);
+			} else if (errorMsg.includes("deno")) {
+				toast.error(`Denoのチェックに失敗しました: ${errorMsg}`);
 			} else {
 				toast.error(`ツールのチェックに失敗しました: ${errorMsg}`);
 			}
 
-			setCheckResults({ ytDlp: false, ffmpeg: false });
+			setCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 		} finally {
 			setIsChecking(false);
 		}
@@ -264,7 +281,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 	const isConfigValid = useBundleTools
 		? true
-		: ytDlpPath.trim() !== "" && ffmpegPath.trim() !== "";
+		: ytDlpPath.trim() !== "" &&
+			ffmpegPath.trim() !== "" &&
+			denoPath.trim() !== "";
 
 	// ローディング中はローディング画面を表示
 	if (isLoading) {
@@ -528,6 +547,19 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									helperText="FFmpeg実行ファイルのパス"
 								/>
 							</Box>
+
+							<Box sx={{ marginBottom: "0.5rem" }}>
+								<StyledTextField
+									fullWidth
+									size="small"
+									label="Deno のパス"
+									placeholder="deno"
+									value={denoPath}
+									onChange={(e) => setDenoPath(e.target.value)}
+									margin="dense"
+									helperText="Deno実行ファイルのパス"
+								/>
+							</Box>
 						</Box>
 					)}
 
@@ -547,7 +579,10 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								disabled={
 									isDownloading ||
 									isChecking ||
-									(downloadedOnce && checkResults.ytDlp && checkResults.ffmpeg)
+									(downloadedOnce &&
+										checkResults.ytDlp &&
+										checkResults.ffmpeg &&
+										checkResults.deno)
 								}
 								sx={{
 									width: "100%",
@@ -581,7 +616,10 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									isChecking ||
 									isDownloading ||
 									(!useBundleTools && !isConfigValid) ||
-									(downloadedOnce && checkResults.ytDlp && checkResults.ffmpeg)
+									(downloadedOnce &&
+										checkResults.ytDlp &&
+										checkResults.ffmpeg &&
+										checkResults.deno)
 								}
 								sx={{
 									flex: "1 1 0px",
@@ -604,7 +642,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								variant="contained"
 								className="variant-primary"
 								onClick={saveSettings}
-								disabled={!checkResults.ytDlp || !checkResults.ffmpeg}
+								disabled={
+									!checkResults.ytDlp ||
+									!checkResults.ffmpeg ||
+									!checkResults.deno
+								}
 								sx={{
 									flex: "1 1 0px",
 									height: "48px",
@@ -648,11 +690,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						</Box>
 					)}
 
-					{(checkResults.ytDlp || checkResults.ffmpeg) && (
+					{(checkResults.ytDlp || checkResults.ffmpeg || checkResults.deno) && (
 						<Box sx={{ marginBottom: "0.75rem" }}>
 							<Alert
 								severity={
-									checkResults.ytDlp && checkResults.ffmpeg
+									checkResults.ytDlp && checkResults.ffmpeg && checkResults.deno
 										? "success"
 										: "warning"
 								}
@@ -665,7 +707,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 							>
 								<Typography variant="caption" sx={{ fontSize: "0.8rem" }}>
 									yt-dlp: {checkResults.ytDlp ? "OK" : "NG"} | FFmpeg:{" "}
-									{checkResults.ffmpeg ? "OK" : "NG"}
+									{checkResults.ffmpeg ? "OK" : "NG"} | Deno:{" "}
+									{checkResults.deno ? "OK" : "NG"}
 								</Typography>
 							</Alert>
 						</Box>

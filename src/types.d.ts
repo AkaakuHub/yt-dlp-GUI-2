@@ -9,4 +9,5 @@ export interface ConfigProps {
 	use_bundle_tools: boolean; // true: バンドル版使用, false: パス版使用
 	yt_dlp_path: string; // バンドル版またはカスタムパスのyt-dlp
 	ffmpeg_path: string; // バンドル版またはカスタムパスのffmpeg
+	deno_path: string; // バンドル版またはカスタムパスのdeno
 }

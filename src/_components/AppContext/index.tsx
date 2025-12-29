@@ -33,6 +33,8 @@ interface AppContextProps {
 	setYtDlpPath: React.Dispatch<React.SetStateAction<string>>;
 	ffmpegPath: string;
 	setFfmpegPath: React.Dispatch<React.SetStateAction<string>>;
+	denoPath: string;
+	setDenoPath: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -53,6 +55,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const [useBundleTools, setUseBundleTools] = useState(true);
 	const [ytDlpPath, setYtDlpPath] = useState("");
 	const [ffmpegPath, setFfmpegPath] = useState("");
+	const [denoPath, setDenoPath] = useState("");
 
 	useEffect(() => {
 		invoke<ConfigProps>("get_settings")
@@ -66,6 +69,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setUseBundleTools(config.use_bundle_tools);
 				setYtDlpPath(config.yt_dlp_path);
 				setFfmpegPath(config.ffmpeg_path);
+				setDenoPath(config.deno_path);
 			})
 			.finally(() => {
 				setIsSettingLoaded(true);
@@ -98,6 +102,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					setYtDlpPath,
 					ffmpegPath,
 					setFfmpegPath,
+					denoPath,
+					setDenoPath,
 				}}
 			>
 				{children}
