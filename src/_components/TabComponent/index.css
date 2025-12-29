@@ -1,64 +1,64 @@
 /* ===== TabComponent 2025 Modern Styles ===== */
 .tab-component-wrapper {
-  background: var(--surface-secondary);
-  border-bottom: 1px solid var(--border-color);
+	background: var(--surface-secondary);
+	border-bottom: 1px solid var(--border-color);
 }
 
 .tab-component-buttons {
-  display: flex;
-  width: 100%;
+	display: flex;
+	width: 100%;
 }
 
 .tab-component-button {
-  flex: 1;
-  padding: 16px 24px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all var(--transition-duration) var(--transition-timing);
-  position: relative;
+	flex: 1;
+	padding: 16px 24px;
+	background: transparent;
+	color: var(--text-secondary);
+	border: none;
+	border-bottom: 3px solid transparent;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	transition: all var(--transition-duration) var(--transition-timing);
+	position: relative;
 }
 
 .tab-component-button:hover:not(.active) {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-  border-bottom-color: var(--accent-color-50);
+	background: var(--surface-hover);
+	color: var(--text-primary);
+	border-bottom-color: var(--accent-color-50);
 }
 
 .tab-component-button.active {
-  background: var(--surface-active);
-  color: var(--accent-color);
-  border-bottom-color: var(--accent-color);
-  font-weight: 600;
+	background: var(--surface-active);
+	color: var(--accent-color);
+	border-bottom-color: var(--accent-color);
+	font-weight: 600;
 }
 
 .tab-component-button:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: -2px;
+	outline: 2px solid var(--accent-color);
+	outline-offset: -2px;
 }
 
 /* ===== Responsive Design ===== */
 @media (max-width: 768px) {
-  .tab-component-button {
-    padding: 12px 16px;
-    font-size: 13px;
-  }
+	.tab-component-button {
+		padding: 12px 16px;
+		font-size: 13px;
+	}
 }
 
 @media (max-width: 480px) {
-  .tab-component-button {
-    padding: 10px 12px;
-    font-size: 12px;
-  }
+	.tab-component-button {
+		padding: 10px 12px;
+		font-size: 12px;
+	}
 }
 
 /* ===== Reduced Motion ===== */
 @media (prefers-reduced-motion: reduce) {
-  .tab-component-button {
-    transition: none;
-  }
+	.tab-component-button {
+		transition: none;
+	}
 }

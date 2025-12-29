@@ -1,285 +1,321 @@
 :root,
 html.light {
-  /* カラーパレット */
-  --primary-50: #f0f9ff;
-  --primary-100: #e0f2fe;
-  --primary-200: #bae6fd;
-  --primary-300: #7dd3fc;
-  --primary-400: #38bdf8;
-  --primary-500: #0ea5e9;
-  --primary-600: #0284c7;
-  --primary-700: #0369a1;
-  --primary-800: #075985;
-  --primary-900: #0c4a6e;
+	/* カラーパレット */
+	--primary-50: #f0f9ff;
+	--primary-100: #e0f2fe;
+	--primary-200: #bae6fd;
+	--primary-300: #7dd3fc;
+	--primary-400: #38bdf8;
+	--primary-500: #0ea5e9;
+	--primary-600: #0284c7;
+	--primary-700: #0369a1;
+	--primary-800: #075985;
+	--primary-900: #0c4a6e;
 
-  --accent-50: #faf5ff;
-  --accent-100: #f3e8ff;
-  --accent-200: #e9d5ff;
-  --accent-300: #d8b4fe;
-  --accent-400: #c084fc;
-  --accent-500: #a855f7;
-  --accent-600: #9333ea;
-  --accent-700: #7c3aed;
-  --accent-800: #6b21a8;
-  --accent-900: #581c87;
+	--accent-50: #faf5ff;
+	--accent-100: #f3e8ff;
+	--accent-200: #e9d5ff;
+	--accent-300: #d8b4fe;
+	--accent-400: #c084fc;
+	--accent-500: #a855f7;
+	--accent-600: #9333ea;
+	--accent-700: #7c3aed;
+	--accent-800: #6b21a8;
+	--accent-900: #581c87;
 
-  /* プライマリカラー */
-  --primary-color: #6366f1;
-  --primary-light: rgba(99, 102, 241, 0.1);
-  --primary-dark: #4f46e5;
-  --primary-rgb: 99, 102, 241;
-  --accent-color: #a855f7;
+	/* プライマリカラー */
+	--primary-color: #6366f1;
+	--primary-light: rgba(99, 102, 241, 0.1);
+	--primary-dark: #4f46e5;
+	--primary-rgb: 99, 102, 241;
+	--accent-color: #a855f7;
 
-  /* セマンティックカラー */
-  --background-primary: #ffffff;
-  --background-secondary: #f8fafc;
-  --background-tertiary: #f1f5f9;
-  --background-app: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 50%, #faf5ff 100%);
-  
-  --surface-primary: rgba(255, 255, 255, 0.9);
-  --surface-secondary: rgba(248, 250, 252, 0.8);
-  --surface-tertiary: rgba(241, 245, 249, 0.7);
-  --surface-elevated: rgba(255, 255, 255, 0.95);
-  
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  --text-disabled: #9ca3af;
-  --text-placeholder: #9ca3af;
-  --text-on-accent: #ffffff;
-  
-  --border-primary: rgba(15, 23, 42, 0.1);
-  --border-secondary: rgba(71, 85, 105, 0.08);
-  --border-focus: rgba(14, 165, 233, 0.3);
-  
-  --accent-primary: var(--primary-500);
-  --accent-secondary: var(--accent-500);
-  --accent-gradient: linear-gradient(135deg, var(--primary-500) 0%, var(--accent-500) 100%);
-  
-  /* 影 */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 8px 25px -5px rgba(14, 165, 233, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-active: 0 4px 15px -3px rgba(14, 165, 233, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  
-  /* ガラスモーフィズム */
-  --glass-primary: rgba(255, 255, 255, 0.25);
-  --glass-secondary: rgba(255, 255, 255, 0.1);
-  --backdrop-blur: blur(16px);
-  
-  /* 状態カラー */
-  --success: #10b981;
-  --success-color: #10b981;
-  --success-color-light: #34d399;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #3b82f6;
-  
-  /* フォルダとファイルの色 */
-  --folder-color: #fbbf24;
-  --file-color: #3b82f6;
-  
-  /* インプット */
-  --input-background: rgba(255, 255, 255, 0.8);
-  --input-background-hover: rgba(255, 255, 255, 0.9);
-  --input-background-focus: rgba(255, 255, 255, 1);
-  
-  /* サーフェス状態 */
-  --surface-color: rgba(255, 255, 255, 0.9);
-  --surface-hover: rgba(241, 245, 249, 0.8);
-  --surface-active: rgba(226, 232, 240, 0.9);
-  --surface-disabled: rgba(229, 231, 235, 0.5);
-  --surface-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
-  
-  /* ボーダー */
-  --border-color: rgba(15, 23, 42, 0.1);
-  --border-color-light: rgba(15, 23, 42, 0.05);
-  
-  /* アクセント透明度 */
-  --accent-color: var(--primary-500);
-  --accent-color-10: rgba(14, 165, 233, 0.1);
-  --accent-color-20: rgba(14, 165, 233, 0.2);
-  --accent-color-50: rgba(14, 165, 233, 0.5);
-  
-  /* スクロールバー */
-  --scrollbar-thumb: rgba(15, 23, 42, 0.2);
-  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.3);
-  
-  /* ボーダー半径 */
-  --border-radius-sm: 4px;
-  --border-radius-md: 6px;
-  --border-radius-lg: 8px;
-  --border-radius-xl: 12px;
-  
-  /* トランジション */
-  --transition-duration: 0.2s;
-  --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+	/* セマンティックカラー */
+	--background-primary: #ffffff;
+	--background-secondary: #f8fafc;
+	--background-tertiary: #f1f5f9;
+	--background-app: linear-gradient(
+		135deg,
+		#f0f9ff 0%,
+		#f8fafc 50%,
+		#faf5ff 100%
+	);
+
+	--surface-primary: rgba(255, 255, 255, 0.9);
+	--surface-secondary: rgba(248, 250, 252, 0.8);
+	--surface-tertiary: rgba(241, 245, 249, 0.7);
+	--surface-elevated: rgba(255, 255, 255, 0.95);
+
+	--text-primary: #0f172a;
+	--text-secondary: #475569;
+	--text-tertiary: #64748b;
+	--text-disabled: #9ca3af;
+	--text-placeholder: #9ca3af;
+	--text-on-accent: #ffffff;
+
+	--border-primary: rgba(15, 23, 42, 0.1);
+	--border-secondary: rgba(71, 85, 105, 0.08);
+	--border-focus: rgba(14, 165, 233, 0.3);
+
+	--accent-primary: var(--primary-500);
+	--accent-secondary: var(--accent-500);
+	--accent-gradient: linear-gradient(
+		135deg,
+		var(--primary-500) 0%,
+		var(--accent-500) 100%
+	);
+
+	/* 影 */
+	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	--shadow-md:
+		0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+	--shadow-lg:
+		0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+	--shadow-xl:
+		0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+	--shadow-hover:
+		0 8px 25px -5px rgba(14, 165, 233, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+	--shadow-active:
+		0 4px 15px -3px rgba(14, 165, 233, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+	/* ガラスモーフィズム */
+	--glass-primary: rgba(255, 255, 255, 0.25);
+	--glass-secondary: rgba(255, 255, 255, 0.1);
+	--backdrop-blur: blur(16px);
+
+	/* 状態カラー */
+	--success: #10b981;
+	--success-color: #10b981;
+	--success-color-light: #34d399;
+	--warning: #f59e0b;
+	--error: #ef4444;
+	--info: #3b82f6;
+
+	/* フォルダとファイルの色 */
+	--folder-color: #fbbf24;
+	--file-color: #3b82f6;
+
+	/* インプット */
+	--input-background: rgba(255, 255, 255, 0.8);
+	--input-background-hover: rgba(255, 255, 255, 0.9);
+	--input-background-focus: rgba(255, 255, 255, 1);
+
+	/* サーフェス状態 */
+	--surface-color: rgba(255, 255, 255, 0.9);
+	--surface-hover: rgba(241, 245, 249, 0.8);
+	--surface-active: rgba(226, 232, 240, 0.9);
+	--surface-disabled: rgba(229, 231, 235, 0.5);
+	--surface-gradient: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.9) 0%,
+		rgba(248, 250, 252, 0.8) 100%
+	);
+
+	/* ボーダー */
+	--border-color: rgba(15, 23, 42, 0.1);
+	--border-color-light: rgba(15, 23, 42, 0.05);
+
+	/* アクセント透明度 */
+	--accent-color: var(--primary-500);
+	--accent-color-10: rgba(14, 165, 233, 0.1);
+	--accent-color-20: rgba(14, 165, 233, 0.2);
+	--accent-color-50: rgba(14, 165, 233, 0.5);
+
+	/* スクロールバー */
+	--scrollbar-thumb: rgba(15, 23, 42, 0.2);
+	--scrollbar-thumb-hover: rgba(15, 23, 42, 0.3);
+
+	/* ボーダー半径 */
+	--border-radius-sm: 4px;
+	--border-radius-md: 6px;
+	--border-radius-lg: 8px;
+	--border-radius-xl: 12px;
+
+	/* トランジション */
+	--transition-duration: 0.2s;
+	--transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ダークテーマ */
 html.dark {
-  /* プライマリカラー - ダーク */
-  --primary-color: #6366f1;
-  --primary-light: rgba(99, 102, 241, 0.15);
-  --primary-dark: #4f46e5;
-  --primary-rgb: 99, 102, 241;
-  --accent-color: #a855f7;
-  
-  /* セマンティックカラー - ダーク */
-  --background-primary: #0f172a;
-  --background-secondary: #1e293b;
-  --background-tertiary: #334155;
-  --background-app: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-  
-  --surface-primary: rgba(30, 41, 59, 0.9);
-  --surface-secondary: rgba(51, 65, 85, 0.8);
-  --surface-tertiary: rgba(71, 85, 105, 0.7);
-  --surface-elevated: rgba(30, 41, 59, 0.95);
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-disabled: #9ca3af;
-  --text-placeholder: #9ca3af;
-  --text-on-accent: #ffffff;
-  
-  --border-primary: rgba(248, 250, 252, 0.1);
-  --border-secondary: rgba(203, 213, 225, 0.08);
-  --border-focus: rgba(14, 165, 233, 0.4);
-  
-  --accent-primary: var(--primary-400);
-  --accent-secondary: var(--accent-400);
-  --accent-gradient: linear-gradient(135deg, var(--primary-400) 0%, var(--accent-400) 100%);
-  
-  /* 影 - ダーク */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
-  --shadow-hover: 0 8px 25px -5px rgba(14, 165, 233, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-  --shadow-active: 0 4px 15px -3px rgba(14, 165, 233, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  
-  /* ガラスモーフィズム - ダーク */
-  --glass-primary: rgba(30, 41, 59, 0.4);
-  --glass-secondary: rgba(51, 65, 85, 0.3);
-  --backdrop-blur: blur(20px);
-  
-  /* 状態カラー - ダーク */
-  --success: #10b981;
-  --success-color: #10b981;
-  --success-color-light: #34d399;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #3b82f6;
-  
-  /* フォルダとファイルの色 - ダーク */
-  --folder-color: #fbbf24;
-  --file-color: #60a5fa;
-  
-  /* インプット - ダーク */
-  --input-background: rgba(30, 41, 59, 0.8);
-  --input-background-hover: rgba(30, 41, 59, 0.9);
-  --input-background-focus: rgba(30, 41, 59, 1);
-  
-  /* サーフェス状態 - ダーク */
-  --surface-color: rgba(30, 41, 59, 0.9);
-  --surface-hover: rgba(51, 65, 85, 0.8);
-  --surface-active: rgba(71, 85, 105, 0.9);
-  --surface-disabled: rgba(15, 23, 42, 0.5);
-  --surface-gradient: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.8) 100%);
-  
-  /* ボーダー - ダーク */
-  --border-color: rgba(248, 250, 252, 0.1);
-  --border-color-light: rgba(248, 250, 252, 0.05);
-  
-  /* アクセント透明度 - ダーク */
-  --accent-color: var(--primary-400);
-  --accent-color-10: rgba(56, 189, 248, 0.1);
-  --accent-color-20: rgba(56, 189, 248, 0.2);
-  --accent-color-50: rgba(56, 189, 248, 0.5);
-  
-  /* スクロールバー - ダーク */
-  --scrollbar-thumb: rgba(248, 250, 252, 0.2);
-  --scrollbar-thumb-hover: rgba(248, 250, 252, 0.3);
+	/* プライマリカラー - ダーク */
+	--primary-color: #6366f1;
+	--primary-light: rgba(99, 102, 241, 0.15);
+	--primary-dark: #4f46e5;
+	--primary-rgb: 99, 102, 241;
+	--accent-color: #a855f7;
+
+	/* セマンティックカラー - ダーク */
+	--background-primary: #0f172a;
+	--background-secondary: #1e293b;
+	--background-tertiary: #334155;
+	--background-app: linear-gradient(
+		135deg,
+		#0f172a 0%,
+		#1e293b 50%,
+		#334155 100%
+	);
+
+	--surface-primary: rgba(30, 41, 59, 0.9);
+	--surface-secondary: rgba(51, 65, 85, 0.8);
+	--surface-tertiary: rgba(71, 85, 105, 0.7);
+	--surface-elevated: rgba(30, 41, 59, 0.95);
+
+	--text-primary: #f8fafc;
+	--text-secondary: #cbd5e1;
+	--text-tertiary: #94a3b8;
+	--text-disabled: #9ca3af;
+	--text-placeholder: #9ca3af;
+	--text-on-accent: #ffffff;
+
+	--border-primary: rgba(248, 250, 252, 0.1);
+	--border-secondary: rgba(203, 213, 225, 0.08);
+	--border-focus: rgba(14, 165, 233, 0.4);
+
+	--accent-primary: var(--primary-400);
+	--accent-secondary: var(--accent-400);
+	--accent-gradient: linear-gradient(
+		135deg,
+		var(--primary-400) 0%,
+		var(--accent-400) 100%
+	);
+
+	/* 影 - ダーク */
+	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+	--shadow-md:
+		0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+	--shadow-lg:
+		0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+	--shadow-xl:
+		0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+	--shadow-hover:
+		0 8px 25px -5px rgba(14, 165, 233, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+	--shadow-active:
+		0 4px 15px -3px rgba(14, 165, 233, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+
+	/* ガラスモーフィズム - ダーク */
+	--glass-primary: rgba(30, 41, 59, 0.4);
+	--glass-secondary: rgba(51, 65, 85, 0.3);
+	--backdrop-blur: blur(20px);
+
+	/* 状態カラー - ダーク */
+	--success: #10b981;
+	--success-color: #10b981;
+	--success-color-light: #34d399;
+	--warning: #f59e0b;
+	--error: #ef4444;
+	--info: #3b82f6;
+
+	/* フォルダとファイルの色 - ダーク */
+	--folder-color: #fbbf24;
+	--file-color: #60a5fa;
+
+	/* インプット - ダーク */
+	--input-background: rgba(30, 41, 59, 0.8);
+	--input-background-hover: rgba(30, 41, 59, 0.9);
+	--input-background-focus: rgba(30, 41, 59, 1);
+
+	/* サーフェス状態 - ダーク */
+	--surface-color: rgba(30, 41, 59, 0.9);
+	--surface-hover: rgba(51, 65, 85, 0.8);
+	--surface-active: rgba(71, 85, 105, 0.9);
+	--surface-disabled: rgba(15, 23, 42, 0.5);
+	--surface-gradient: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.9) 0%,
+		rgba(51, 65, 85, 0.8) 100%
+	);
+
+	/* ボーダー - ダーク */
+	--border-color: rgba(248, 250, 252, 0.1);
+	--border-color-light: rgba(248, 250, 252, 0.05);
+
+	/* アクセント透明度 - ダーク */
+	--accent-color: var(--primary-400);
+	--accent-color-10: rgba(56, 189, 248, 0.1);
+	--accent-color-20: rgba(56, 189, 248, 0.2);
+	--accent-color-50: rgba(56, 189, 248, 0.5);
+
+	/* スクロールバー - ダーク */
+	--scrollbar-thumb: rgba(248, 250, 252, 0.2);
+	--scrollbar-thumb-hover: rgba(248, 250, 252, 0.3);
 }
 
 /* グローバルリセット */
 *,
 *::before,
 *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
 }
 
 html {
-  height: 100%;
-  scroll-behavior: smooth;
+	height: 100%;
+	scroll-behavior: smooth;
 }
 
 body {
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  font-size: 14px;
-  color: var(--text-primary);
-  background: var(--background-app);
-  overflow-y: auto;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-y: hidden;
+	height: 100%;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+		"Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+	font-size: 14px;
+	color: var(--text-primary);
+	background: var(--background-app);
+	overflow-y: auto;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	overflow-y: hidden;
 }
 
-.main-app-root{
-  background: var(--background-app);
+.main-app-root {
+	background: var(--background-app);
 }
 
 #root {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
 }
 
 /* 共通ユーティリティ */
 div {
-  user-select: none;
+	user-select: none;
 }
 
 /* Toast通知のスタイル */
 div.Toastify__toast-body > div {
-  white-space: pre-wrap;
+	white-space: pre-wrap;
 }
 
 .Toastify__toast {
-  border-radius: 12px !important;
-  backdrop-filter: var(--backdrop-blur);
-  box-shadow: var(--shadow-lg);
+	border-radius: 12px !important;
+	backdrop-filter: var(--backdrop-blur);
+	box-shadow: var(--shadow-lg);
 }
 
 .Toastify__toast--success {
-  background: var(--glass-primary) !important;
-  border: 1px solid var(--success);
-  color: var(--text-primary) !important;
+	background: var(--glass-primary) !important;
+	border: 1px solid var(--success);
+	color: var(--text-primary) !important;
 }
 
 .Toastify__toast--error {
-  background: var(--glass-primary) !important;
-  border: 1px solid var(--error);
-  color: var(--text-primary) !important;
+	background: var(--glass-primary) !important;
+	border: 1px solid var(--error);
+	color: var(--text-primary) !important;
 }
 
 .Toastify__toast--info {
-  background: var(--glass-primary) !important;
-  border: 1px solid var(--info);
-  color: var(--text-primary) !important;
+	background: var(--glass-primary) !important;
+	border: 1px solid var(--info);
+	color: var(--text-primary) !important;
 }
 
 .Toastify__toast--warning {
-  background: var(--glass-primary) !important;
-  border: 1px solid var(--warning);
-  color: var(--text-primary) !important;
+	background: var(--glass-primary) !important;
+	border: 1px solid var(--warning);
+	color: var(--text-primary) !important;
 }

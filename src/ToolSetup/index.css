@@ -1,64 +1,67 @@
 .tool-setup-root {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--background-app);
-  padding: 2.5rem 2rem;
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--background-app);
+	padding: 2.5rem 2rem;
 }
 
 .tool-setup-container {
-  width: 100%;
-  max-width: 800px;
+	width: 100%;
+	max-width: 800px;
 }
 
 .tool-setup-panel {
-  max-height: calc(100vh - 6rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+	max-height: calc(100vh - 6rem);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
 }
 
 .tool-setup-container .MuiPaper-root {
-  background: var(--surface-primary);
-  color: var(--text-primary);
-  backdrop-filter: var(--backdrop-blur);
+	background: var(--surface-primary);
+	color: var(--text-primary);
+	backdrop-filter: var(--backdrop-blur);
 }
 
 .tool-setup-container .MuiTypography-root {
-  color: var(--text-primary);
+	color: var(--text-primary);
 }
 
 .tool-setup-container .MuiFormControlLabel-root {
-  color: var(--text-primary);
+	color: var(--text-primary);
 }
 
 .tool-setup-container .MuiFormHelperText-root {
-  color: var(--text-tertiary);
+	color: var(--text-tertiary);
 }
 
 .tool-setup-container .MuiRadio-root {
-  color: var(--text-primary);
+	color: var(--text-primary);
 }
 
 .tool-setup-container .MuiRadio-root.Mui-checked {
-  color: var(--accent-primary);
+	color: var(--accent-primary);
 }
 
 .tool-setup-container .MuiTextField-root .MuiInputBase-input {
-  background: var(--input-background);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
+	background: var(--input-background);
+	color: var(--text-primary);
+	border: 1px solid var(--border-primary);
 }
 
 .tool-setup-container .MuiTextField-root .MuiOutlinedInput-root fieldset {
-  border-color: var(--border-primary);
+	border-color: var(--border-primary);
 }
 
 .tool-setup-container .MuiTextField-root .MuiOutlinedInput-root:hover fieldset {
-  border-color: var(--accent-primary);
+	border-color: var(--accent-primary);
 }
 
-.tool-setup-container .MuiTextField-root .MuiOutlinedInput-root.Mui-focused fieldset {
-  border-color: var(--accent-primary);
+.tool-setup-container
+	.MuiTextField-root
+	.MuiOutlinedInput-root.Mui-focused
+	fieldset {
+	border-color: var(--accent-primary);
 }

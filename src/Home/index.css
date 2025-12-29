@@ -1,168 +1,174 @@
 .root-home {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: calc(100vh - 90px);
-  animation: fadeIn 0.4s ease-out;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: calc(100vh - 90px);
+	animation: fadeIn 0.4s ease-out;
 }
 
 .main-row {
-  display: flex;
-  justify-content: space-between;
-  height: 288px;
+	display: flex;
+	justify-content: space-between;
+	height: 288px;
 }
 
 .line-1,
 .line-2 {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  gap: 8px;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	padding: 12px;
+	gap: 8px;
 }
 
 .line-1 {
-  flex-basis: 50%;
-  animation: slideIn 0.4s ease-out;
+	flex-basis: 50%;
+	animation: slideIn 0.4s ease-out;
 }
 
 .line-2 {
-  animation: slideIn 0.4s ease-out 0.1s both;
+	animation: slideIn 0.4s ease-out 0.1s both;
 }
 
 .line-children {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	border-radius: 12px;
+	transition: all 0.2s ease;
 }
 
 .line-2 {
-  flex-basis: 50%;
+	flex-basis: 50%;
 }
 
 .is-running-label-wrapper {
-  height: 37px;
+	height: 37px;
 }
 
 .is-running-label,
 .is-not-running-label {
-  display: inline-block;
-  padding: 8px;
-  border-radius: 8px;
+	display: inline-block;
+	padding: 8px;
+	border-radius: 8px;
 }
 
 .is-running-label {
-  background-color: #f75f5f;
-  color: white;
+	background-color: #f75f5f;
+	color: white;
 }
 
 .arbitrary-code-label {
-  width: 6rem;
+	width: 6rem;
 }
 
 .is-running-inner {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  position: relative;
-  z-index: 1;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	position: relative;
+	z-index: 1;
 }
 
 /* フォーム要素のスタイリング */
 .line-children .MuiTextField-root {
-  flex: 1;
+	flex: 1;
 }
 
 .line-children .MuiTextField-root .MuiOutlinedInput-root {
-  border-radius: 12px;
-  background: var(--surface-elevated);
-  backdrop-filter: var(--backdrop-blur);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	border-radius: 12px;
+	background: var(--surface-elevated);
+	backdrop-filter: var(--backdrop-blur);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .line-children .MuiTextField-root .MuiOutlinedInput-root:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+	box-shadow: var(--shadow-md);
+	transform: translateY(-1px);
 }
 
 .line-children .MuiTextField-root .MuiOutlinedInput-root.Mui-focused {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+	box-shadow: var(--shadow-lg);
+	transform: translateY(-2px);
 }
 
 .line-children .MuiTextField-root .MuiOutlinedInput-notchedOutline {
-  border-color: var(--border-primary);
-  transition: border-color 0.3s ease;
+	border-color: var(--border-primary);
+	transition: border-color 0.3s ease;
 }
 
-.line-children .MuiTextField-root .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: var(--accent-primary);
+.line-children
+	.MuiTextField-root
+	.MuiOutlinedInput-root:hover
+	.MuiOutlinedInput-notchedOutline {
+	border-color: var(--accent-primary);
 }
 
-.line-children .MuiTextField-root .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--accent-primary);
-  border-width: 2px;
+.line-children
+	.MuiTextField-root
+	.MuiOutlinedInput-root.Mui-focused
+	.MuiOutlinedInput-notchedOutline {
+	border-color: var(--accent-primary);
+	border-width: 2px;
 }
 
 .line-children .MuiTextField-root .MuiInputLabel-root {
-  color: var(--text-secondary);
-  font-weight: 500;
+	color: var(--text-secondary);
+	font-weight: 500;
 }
 
 .line-children .MuiTextField-root .MuiInputLabel-root.Mui-focused {
-  color: var(--accent-primary);
+	color: var(--accent-primary);
 }
 
 /* アニメーション */
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.8;
+	}
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
 }
-
 
 /* アクセシビリティ改善 */
 @media (prefers-reduced-motion: reduce) {
-  .line-1,
-  .line-2,
-  .line-children,
-  .is-running-label,
-  .is-not-running-label {
-    animation: none;
-    transition: none;
-  }
-  
-  .line-1:hover,
-  .line-2:hover,
-  .line-children:hover {
-    transform: none;
-  }
+	.line-1,
+	.line-2,
+	.line-children,
+	.is-running-label,
+	.is-not-running-label {
+		animation: none;
+		transition: none;
+	}
+
+	.line-1:hover,
+	.line-2:hover,
+	.line-children:hover {
+		transform: none;
+	}
 }
 
 /* 高コントラスト対応 */
 @media (prefers-contrast: high) {
-  .line-1,
-  .line-2 {
-    border-width: 2px;
-  }
-  
-  .is-running-label,
-  .is-not-running-label {
-    border-width: 2px;
-    font-weight: 700;
-  }
+	.line-1,
+	.line-2 {
+		border-width: 2px;
+	}
+
+	.is-running-label,
+	.is-not-running-label {
+		border-width: 2px;
+		font-weight: 700;
+	}
 }

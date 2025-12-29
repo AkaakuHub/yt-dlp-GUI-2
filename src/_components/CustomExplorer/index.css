@@ -1,303 +1,309 @@
 .explorer-wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 300px;
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-duration) var(--transition-timing);
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 300px;
+	background: var(--surface-color);
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius-lg);
+	overflow: hidden;
+	box-shadow: var(--shadow-md);
+	transition: all var(--transition-duration) var(--transition-timing);
 }
 
 .explorer-wrapper:hover {
-  box-shadow: var(--shadow-lg);
+	box-shadow: var(--shadow-lg);
 }
 
 /* ===== Toolbar Styles ===== */
 .explorer-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 8px;
-  background: var(--surface-secondary);
-  border-bottom: 1px solid var(--border-color);
-  min-height: 56px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 4px 8px;
+	background: var(--surface-secondary);
+	border-bottom: 1px solid var(--border-color);
+	min-height: 56px;
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
 }
 
 .explorer-navigation {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 .explorer-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: var(--border-radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-duration) var(--transition-timing);
-  position: relative;
-  overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border: none;
+	border-radius: var(--border-radius-md);
+	background: transparent;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: all var(--transition-duration) var(--transition-timing);
+	position: relative;
+	overflow: hidden;
 }
 
 .explorer-button:hover:not(:disabled) {
-  background: var(--accent-color-10);
-  color: var(--accent-color);
-  transform: translateY(-1px);
+	background: var(--accent-color-10);
+	color: var(--accent-color);
+	transform: translateY(-1px);
 }
 
 .explorer-button:active:not(:disabled) {
-  transform: translateY(0);
-  background: var(--accent-color-20);
+	transform: translateY(0);
+	background: var(--accent-color-20);
 }
 
 .explorer-button:disabled {
-  color: var(--text-disabled);
-  cursor: not-allowed;
-  opacity: 0.5;
+	color: var(--text-disabled);
+	cursor: not-allowed;
+	opacity: 0.5;
 }
 
 .explorer-button:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
+	outline: 2px solid var(--accent-color);
+	outline-offset: 2px;
 }
 
 /* ===== Path Input Styles ===== */
 .explorer-path-container {
-  flex: 1;
-  position: relative;
+	flex: 1;
+	position: relative;
 }
 
 .explorer-path-input {
-  width: 100%;
-  padding: 10px 16px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-md);
-  background: var(--input-background);
-  color: var(--text-primary);
-  font-size: 14px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  transition: all var(--transition-duration) var(--transition-timing);
+	width: 100%;
+	padding: 10px 16px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius-md);
+	background: var(--input-background);
+	color: var(--text-primary);
+	font-size: 14px;
+	font-family:
+		"SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
+		monospace;
+	transition: all var(--transition-duration) var(--transition-timing);
 }
 
 .explorer-path-input:hover {
-  border-color: var(--accent-color-50);
-  background: var(--input-background-hover);
+	border-color: var(--accent-color-50);
+	background: var(--input-background-hover);
 }
 
 .explorer-path-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  background: var(--input-background-focus);
-  box-shadow: 0 0 0 3px var(--accent-color-10);
+	outline: none;
+	border-color: var(--accent-color);
+	background: var(--input-background-focus);
+	box-shadow: 0 0 0 3px var(--accent-color-10);
 }
 
 .explorer-path-input::placeholder {
-  color: var(--text-placeholder);
+	color: var(--text-placeholder);
 }
 
 /* ===== Header Styles ===== */
 .explorer-header {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 16px;
-  padding: 8px 16px;
-  background: var(--surface-tertiary);
-  border-bottom: 1px solid var(--border-color);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+	display: grid;
+	grid-template-columns: 1fr auto auto;
+	gap: 16px;
+	padding: 8px 16px;
+	background: var(--surface-tertiary);
+	border-bottom: 1px solid var(--border-color);
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
 }
 
 .explorer-header-name {
-  text-align: left;
+	text-align: left;
 }
 
 .explorer-header-size {
-  text-align: right;
-  min-width: 80px;
+	text-align: right;
+	min-width: 80px;
 }
 
 .explorer-header-date {
-  text-align: right;
-  min-width: 140px;
+	text-align: right;
+	min-width: 140px;
 }
 
 /* ===== List Styles ===== */
 .explorer-list {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: var(--surface-color);
-  padding-bottom: 36px;
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	background: var(--surface-color);
+	padding-bottom: 36px;
+	scroll-behavior: smooth;
+	overscroll-behavior: contain;
 }
 
 .explorer-list::-webkit-scrollbar {
-  width: 8px;
+	width: 8px;
 }
 
 .explorer-list::-webkit-scrollbar-track {
-  background: var(--surface-secondary);
+	background: var(--surface-secondary);
 }
 
 .explorer-list::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
-  transition: background var(--transition-duration);
+	background: var(--scrollbar-thumb);
+	border-radius: 4px;
+	transition: background var(--transition-duration);
 }
 
 .explorer-list::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+	background: var(--scrollbar-thumb-hover);
 }
 
 /* ===== Item Styles ===== */
 .explorer-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color-light);
-  cursor: pointer;
-  transition: all var(--transition-duration) var(--transition-timing);
-  position: relative;
-  overflow: hidden;
+	display: grid;
+	grid-template-columns: auto 1fr auto auto;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--border-color-light);
+	cursor: pointer;
+	transition: all var(--transition-duration) var(--transition-timing);
+	position: relative;
+	overflow: hidden;
 }
 
 .explorer-item:hover {
-  background: var(--surface-hover);
-  /* transform: translateX(2px); - 削除してスクロール問題を解決 */
+	background: var(--surface-hover);
+	/* transform: translateX(2px); - 削除してスクロール問題を解決 */
 }
 
 .explorer-item:active {
-  background: var(--surface-active);
-  /* transform: translateX(0); - 削除してスクロール問題を解決 */
+	background: var(--surface-active);
+	/* transform: translateX(0); - 削除してスクロール問題を解決 */
 }
 
 .explorer-item.file {
-  cursor: grab;
+	cursor: grab;
 }
 
 .explorer-item.file:active {
-  cursor: grabbing;
+	cursor: grabbing;
 }
 
 .explorer-item-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--text-secondary);
-  transition: color var(--transition-duration);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	color: var(--text-secondary);
+	transition: color var(--transition-duration);
 }
 
 .explorer-item.directory .explorer-item-icon {
-  color: var(--folder-color, #FFC107);
+	color: var(--folder-color, #ffc107);
 }
 
 .explorer-item.file .explorer-item-icon {
-  color: var(--file-color, #2196F3);
+	color: var(--file-color, #2196f3);
 }
 
 .explorer-item:hover .explorer-item-icon {
-  color: var(--accent-color);
+	color: var(--accent-color);
 }
 
 .explorer-item-name {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+	flex: 1;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
 }
 
 .explorer-item.directory .explorer-item-name {
-  font-weight: 600;
+	font-weight: 600;
 }
 
 .explorer-item-size {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-align: right;
-  min-width: 80px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+	font-size: 12px;
+	color: var(--text-secondary);
+	text-align: right;
+	min-width: 80px;
+	font-family:
+		"SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
+		monospace;
 }
 
 .explorer-item-date {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-align: right;
-  min-width: 140px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+	font-size: 12px;
+	color: var(--text-secondary);
+	text-align: right;
+	min-width: 140px;
+	font-family:
+		"SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
+		monospace;
 }
 
 /* ===== Empty State ===== */
 .explorer-list:empty::before {
-  content: "フォルダが空です";
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: var(--text-disabled);
-  font-size: 14px;
-  font-style: italic;
+	content: "フォルダが空です";
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 200px;
+	color: var(--text-disabled);
+	font-size: 14px;
+	font-style: italic;
 }
 
 /* ===== Focus Management ===== */
 .explorer-item:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: -2px;
-  background: var(--surface-hover);
+	outline: 2px solid var(--accent-color);
+	outline-offset: -2px;
+	background: var(--surface-hover);
 }
 
 /* ===== High Contrast Mode ===== */
 @media (prefers-contrast: high) {
-  .explorer-wrapper {
-    border-width: 2px;
-  }
-  
-  .explorer-button:focus-visible {
-    outline-width: 3px;
-  }
-  
-  .explorer-path-input:focus {
-    box-shadow: 0 0 0 4px var(--accent-color-20);
-  }
+	.explorer-wrapper {
+		border-width: 2px;
+	}
+
+	.explorer-button:focus-visible {
+		outline-width: 3px;
+	}
+
+	.explorer-path-input:focus {
+		box-shadow: 0 0 0 4px var(--accent-color-20);
+	}
 }
 
 /* ===== Reduced Motion ===== */
 @media (prefers-reduced-motion: reduce) {
-  .explorer-wrapper,
-  .explorer-button,
-  .explorer-path-input,
-  .explorer-item,
-  .explorer-item-icon {
-    transition: none;
-  }
-  
-  .explorer-button:hover:not(:disabled) {
-    transform: none;
-  }
-  
-  .explorer-item:hover {
-    transform: none;
-  }
+	.explorer-wrapper,
+	.explorer-button,
+	.explorer-path-input,
+	.explorer-item,
+	.explorer-item-icon {
+		transition: none;
+	}
+
+	.explorer-button:hover:not(:disabled) {
+		transform: none;
+	}
+
+	.explorer-item:hover {
+		transform: none;
+	}
 }

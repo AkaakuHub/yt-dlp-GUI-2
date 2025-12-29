@@ -2,166 +2,166 @@ import { Button } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
 const CustomButton = styled(Button)(() => ({
-  // 基本スタイル
-  border: "1px solid var(--border-primary)",
-  backgroundColor: "var(--surface-primary)",
-  color: "var(--text-primary)",
-  borderRadius: "12px",
-  padding: "6px 16px",
-  fontWeight: 600,
-  fontSize: "0.875rem",
-  textTransform: "none",
-  boxShadow: "var(--shadow-sm)",
-  backdropFilter: "var(--backdrop-blur)",
-  position: "relative",
-  overflow: "hidden",
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-  minWidth: "120px",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
+	// 基本スタイル
+	border: "1px solid var(--border-primary)",
+	backgroundColor: "var(--surface-primary)",
+	color: "var(--text-primary)",
+	borderRadius: "12px",
+	padding: "6px 16px",
+	fontWeight: 600,
+	fontSize: "0.875rem",
+	textTransform: "none",
+	boxShadow: "var(--shadow-sm)",
+	backdropFilter: "var(--backdrop-blur)",
+	position: "relative",
+	overflow: "hidden",
+	transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+	minWidth: "120px",
+	display: "inline-flex",
+	alignItems: "center",
+	justifyContent: "center",
+	gap: "8px",
 
-  // ホバー効果のための疑似要素
-  "&::before": {
-    content: '""',
-    position: "absolute",
-    inset: 0,
-    background: "var(--accent-gradient)",
-    opacity: 0,
-    transition: "opacity 0.3s ease",
-  },
+	// ホバー効果のための疑似要素
+	"&::before": {
+		content: '""',
+		position: "absolute",
+		inset: 0,
+		background: "var(--accent-gradient)",
+		opacity: 0,
+		transition: "opacity 0.3s ease",
+	},
 
-  "&::after": {
-    content: '""',
-    position: "absolute",
-    inset: 0,
-    background: "var(--glass-primary)",
-    opacity: 0,
-    transition: "opacity 0.2s ease",
-  },
+	"&::after": {
+		content: '""',
+		position: "absolute",
+		inset: 0,
+		background: "var(--glass-primary)",
+		opacity: 0,
+		transition: "opacity 0.2s ease",
+	},
 
-  // ホバー状態
-  "&:hover": {
-    border: "1px solid var(--accent-primary)",
-    backgroundColor: "var(--surface-elevated)",
-    boxShadow: "var(--shadow-hover)",
-    transform: "translateY(-2px)",
+	// ホバー状態
+	"&:hover": {
+		border: "1px solid var(--accent-primary)",
+		backgroundColor: "var(--surface-elevated)",
+		boxShadow: "var(--shadow-hover)",
+		transform: "translateY(-2px)",
 
-    "&::before": {
-      opacity: 0.1,
-    },
+		"&::before": {
+			opacity: 0.1,
+		},
 
-    "&::after": {
-      opacity: 0.5,
-    },
-  },
+		"&::after": {
+			opacity: 0.5,
+		},
+	},
 
-  // アクティブ状態
-  "&:active": {
-    transform: "translateY(0)",
-    boxShadow: "var(--shadow-active)",
-  },
+	// アクティブ状態
+	"&:active": {
+		transform: "translateY(0)",
+		boxShadow: "var(--shadow-active)",
+	},
 
-  // フォーカス状態
-  "&:focus-visible": {
-    outline: "2px solid var(--accent-primary)",
-    outlineOffset: "2px",
-  },
+	// フォーカス状態
+	"&:focus-visible": {
+		outline: "2px solid var(--accent-primary)",
+		outlineOffset: "2px",
+	},
 
-  // 無効状態
-  "&:disabled": {
-    backgroundColor: "var(--surface-disabled) !important",
-    color: "var(--text-disabled) !important",
-    border: "1px solid var(--border-secondary) !important",
-    boxShadow: "none !important",
-    transform: "none !important",
-    cursor: "not-allowed !important",
-    opacity: "0.6 !important",
+	// 無効状態
+	"&:disabled": {
+		backgroundColor: "var(--surface-disabled) !important",
+		color: "var(--text-disabled) !important",
+		border: "1px solid var(--border-secondary) !important",
+		boxShadow: "none !important",
+		transform: "none !important",
+		cursor: "not-allowed !important",
+		opacity: "0.6 !important",
 
-    "&::before, &::after": {
-      opacity: "0 !important",
-    },
+		"&::before, &::after": {
+			opacity: "0 !important",
+		},
 
-    "&:hover": {
-      backgroundColor: "var(--surface-disabled) !important",
-      color: "var(--text-disabled) !important",
-      border: "1px solid var(--border-secondary) !important",
-      transform: "none !important",
-      boxShadow: "none !important",
-    },
-  },
+		"&:hover": {
+			backgroundColor: "var(--surface-disabled) !important",
+			color: "var(--text-disabled) !important",
+			border: "1px solid var(--border-secondary) !important",
+			transform: "none !important",
+			boxShadow: "none !important",
+		},
+	},
 
-  // テキストコンテンツを前面に
-  "& .MuiButton-startIcon, & .MuiButton-endIcon, & .MuiButton-label": {
-    position: "relative",
-    zIndex: 1,
-  },
+	// テキストコンテンツを前面に
+	"& .MuiButton-startIcon, & .MuiButton-endIcon, & .MuiButton-label": {
+		position: "relative",
+		zIndex: 1,
+	},
 
-  // アイコンとテキストの配置
-  "& .MuiButton-startIcon": {
-    marginLeft: 0,
-    marginRight: 0,
-    display: "inline-flex",
-    alignItems: "center",
-  },
+	// アイコンとテキストの配置
+	"& .MuiButton-startIcon": {
+		marginLeft: 0,
+		marginRight: 0,
+		display: "inline-flex",
+		alignItems: "center",
+	},
 
-  "& .MuiButton-endIcon": {
-    marginLeft: 0,
-    marginRight: 0,
-    display: "inline-flex",
-    alignItems: "center",
-  },
+	"& .MuiButton-endIcon": {
+		marginLeft: 0,
+		marginRight: 0,
+		display: "inline-flex",
+		alignItems: "center",
+	},
 
-  // バリアント: primary
-  "&.variant-primary": {
-    backgroundColor: "var(--accent-primary)",
-    color: "var(--text-on-accent)",
-    border: "1px solid var(--accent-primary)",
+	// バリアント: primary
+	"&.variant-primary": {
+		backgroundColor: "var(--accent-primary)",
+		color: "var(--text-on-accent)",
+		border: "1px solid var(--accent-primary)",
 
-    "&:hover": {
-      backgroundColor: "var(--accent-secondary)",
-      border: "1px solid var(--accent-secondary)",
-    },
-  },
+		"&:hover": {
+			backgroundColor: "var(--accent-secondary)",
+			border: "1px solid var(--accent-secondary)",
+		},
+	},
 
-  // バリアント: secondary
-  "&.variant-secondary": {
-    backgroundColor: "transparent",
-    color: "var(--accent-primary)",
-    border: "1px solid var(--accent-primary)",
+	// バリアント: secondary
+	"&.variant-secondary": {
+		backgroundColor: "transparent",
+		color: "var(--accent-primary)",
+		border: "1px solid var(--accent-primary)",
 
-    "&:hover": {
-      backgroundColor: "var(--accent-primary)",
-      color: "var(--text-on-accent)",
-    },
-  },
+		"&:hover": {
+			backgroundColor: "var(--accent-primary)",
+			color: "var(--text-on-accent)",
+		},
+	},
 
-  // バリアント: danger
-  "&.variant-danger": {
-    backgroundColor: "var(--error)",
-    color: "var(--text-on-accent)",
-    border: "1px solid var(--error)",
+	// バリアント: danger
+	"&.variant-danger": {
+		backgroundColor: "var(--error)",
+		color: "var(--text-on-accent)",
+		border: "1px solid var(--error)",
 
-    "&:hover": {
-      backgroundColor: "#dc2626",
-      border: "1px solid #dc2626",
-    },
-  },
+		"&:hover": {
+			backgroundColor: "#dc2626",
+			border: "1px solid #dc2626",
+		},
+	},
 
-  // サイズ: small
-  "&.size-small": {
-    padding: "8px 16px",
-    fontSize: "0.75rem",
-    borderRadius: "8px",
-  },
+	// サイズ: small
+	"&.size-small": {
+		padding: "8px 16px",
+		fontSize: "0.75rem",
+		borderRadius: "8px",
+	},
 
-  // サイズ: large
-  "&.size-large": {
-    padding: "16px 32px",
-    fontSize: "1rem",
-    borderRadius: "16px",
-  },
+	// サイズ: large
+	"&.size-large": {
+		padding: "16px 32px",
+		fontSize: "1rem",
+		borderRadius: "16px",
+	},
 }));
 
 export default CustomButton;
