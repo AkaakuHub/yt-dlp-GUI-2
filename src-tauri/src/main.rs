@@ -920,11 +920,8 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
             "ffmpeg-master-latest-win64-gpl.zip"
         }
     } else if cfg!(target_os = "macos") {
-        if cfg!(target_arch = "aarch64") {
-            "ffmpeg-master-latest-macosarm64-gpl.tar.xz"
-        } else {
-            "ffmpeg-master-latest-macos64-gpl.tar.xz"
-        }
+        // Martin Riedl's server always delivers a ZIP (signed/notarized) for macOS
+        "ffmpeg-macos-latest.zip"
     } else {
         if cfg!(target_arch = "aarch64") {
             "ffmpeg-master-latest-linuxarm64-gpl.tar.xz"
@@ -939,6 +936,23 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     // FFmpegを展開（Windowsの場合はzipを展開、Unix系はtar.xzを展開）
     if cfg!(target_os = "windows") {
         extract_zip(&ffmpeg_archive_path, &binaries_dir)?;
+    } else if cfg!(target_os = "macos") {
+        extract_zip(&ffmpeg_archive_path, &binaries_dir)?;
+
+        // zip 解凍後に実行属性が落ちる場合があるため明示的に付与する
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(found) = find_ffmpeg_recursive(&binaries_dir) {
+                if !found.is_empty() {
+                    if let Ok(meta) = std::fs::metadata(&found) {
+                        let mut perms = meta.permissions();
+                        perms.set_mode(0o755);
+                        let _ = std::fs::set_permissions(&found, perms);
+                    }
+                }
+            }
+        }
     } else {
         extract_tar_xz(&ffmpeg_archive_path, &binaries_dir).await?;
     }
@@ -1010,8 +1024,10 @@ fn get_ffmpeg_download_url(os: &str, arch: &str) -> Result<String, String> {
         ("windows", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip".to_string()),
         ("linux", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz".to_string()),
         ("linux", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz".to_string()),
-        ("macos", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macos64-gpl.tar.xz".to_string()),
-        ("macos", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macosarm64-gpl.tar.xz".to_string()),
+        // BtbN は macOS 向けを配布していないため、Martin Riedl 提供の静的ビルドに切替
+        // リダイレクト先はスナップショットごとに変わるが /redirect/latest/... は常に最新へ 307 で転送される
+        ("macos", "x86_64") => Ok("https://ffmpeg.martin-riedl.de/redirect/latest/macos/amd64/snapshot/ffmpeg.zip".to_string()),
+        ("macos", "aarch64") => Ok("https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/snapshot/ffmpeg.zip".to_string()),
         _ => Err(format!("Unsupported platform: {} {}", os, arch))
     }
 }
@@ -1049,6 +1065,14 @@ fn get_deno_download_url(os: &str, arch: &str) -> Result<String, String> {
 async fn download_file_with_progress(url: &str, path: &Path, window: &tauri::Window, tool_name: &str) -> Result<(), String> {
     let response = reqwest::get(url).await
         .map_err(|e| format!("Failed to download {}: {}", tool_name, e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Failed to download {}: HTTP {}",
+            tool_name,
+            response.status()
+        ));
+    }
 
     let total_size = response.content_length().unwrap_or(0);
     let mut downloaded = 0u64;
