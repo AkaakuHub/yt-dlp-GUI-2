@@ -8,10 +8,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::UNIX_EPOCH;
 use tauri::api::shell::open;
 use tauri::Manager;
 use tauri::State;
 use tauri::Window;
+use tokio::fs as TokioFs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader as TokioBufReader;
@@ -22,10 +24,9 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Mutex;
 use tokio::task;
-use tokio::fs as TokioFs;
 
 mod config;
-use config::AppState;
+use config::{AppState, ToolCacheEntry, VerifyCache};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -240,10 +241,13 @@ async fn run_command(
         &settings.yt_dlp_path,
         &settings.ffmpeg_path,
         &settings.deno_path,
-    ).map_err(|e| format!("ツールパスの解決に失敗しました: {}", e))?;
+    )
+    .map_err(|e| format!("ツールパスの解決に失敗しました: {}", e))?;
 
     if yt_dlp_path.trim().is_empty() {
-        return Err("yt-dlpが見つかりません。ツールをダウンロードするかパスを設定してください。".into());
+        return Err(
+            "yt-dlpが見つかりません。ツールをダウンロードするかパスを設定してください。".into(),
+        );
     }
 
     let url = param.url.unwrap_or("not_set".to_string());
@@ -467,8 +471,7 @@ fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
         return Ok("".to_string());
     }
 
-    let entries = std::fs::read_dir(dir)
-        .map_err(|e| format!("Failed to read directory: {}", e))?;
+    let entries = std::fs::read_dir(dir).map_err(|e| format!("Failed to read directory: {}", e))?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -482,8 +485,9 @@ fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
                     return Ok(found);
                 }
             }
-        } else if file_name_str.starts_with("ffmpeg") &&
-                 (file_name_str.ends_with(".exe") || !file_name_str.contains('.')) {
+        } else if file_name_str.starts_with("ffmpeg")
+            && (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
+        {
             return Ok(path.to_string_lossy().to_string());
         }
     }
@@ -535,7 +539,9 @@ fn check_program_available(program_name: &str, command_path: &str) -> Result<Str
             } else {
                 Err(format!(
                     "{} is not working at path: {} (exit code: {})",
-                    program_name, command_path, output.status.code().unwrap_or(-1)
+                    program_name,
+                    command_path,
+                    output.status.code().unwrap_or(-1)
                 ))
             }
         }
@@ -544,6 +550,107 @@ fn check_program_available(program_name: &str, command_path: &str) -> Result<Str
             program_name, command_path, err
         )),
     }
+}
+
+fn file_mtime(path: &str) -> Result<u64, String> {
+    let meta = std::fs::metadata(path)
+        .map_err(|e| format!("{} not found at path: {} ({})", "file", path, e))?;
+    let mtime = meta
+        .modified()
+        .map_err(|e| format!("Failed to get modified time for {}: {}", path, e))?;
+    let duration = mtime
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| format!("Invalid modified time for {}: {}", path, e))?;
+    Ok(duration.as_secs())
+}
+
+async fn check_program_cached(
+    program_name: &str,
+    command_path: &str,
+    cache: &tokio::sync::Mutex<std::collections::HashMap<String, ToolCacheEntry>>,
+    settings: &tokio::sync::Mutex<config::Settings>,
+) -> Result<String, String> {
+    // 空パスは即エラー（キャッシュしない）
+    if command_path.trim().is_empty() {
+        return Err(format!(
+            "{} bundle path is empty. Tools may not be downloaded yet.",
+            program_name
+        ));
+    }
+
+    let mtime = match file_mtime(command_path) {
+        Ok(m) => m,
+        Err(e) => return Err(e),
+    };
+
+    let key = format!("{}:{}", program_name, command_path);
+
+    // メモリキャッシュヒットならそれを返す
+    if let Some(entry) = cache.lock().await.get(&key).cloned() {
+        if entry.mtime == mtime {
+            return if entry.ok {
+                Ok(entry.msg)
+            } else {
+                Err(entry.msg)
+            };
+        }
+    }
+
+    // 設定ファイルキャッシュを確認
+    if let Some(entry) = settings.lock().await.get_verify_cache(program_name) {
+        if entry.path == command_path && entry.mtime == mtime {
+            let msg = if entry.ok {
+                format!("{} cached ok at: {}", program_name, command_path)
+            } else {
+                format!("{} cached ng at: {}", program_name, command_path)
+            };
+
+            // メモリキャッシュにも載せて返す
+            {
+                let mut cache_map = cache.lock().await;
+                cache_map.insert(
+                    key.clone(),
+                    ToolCacheEntry {
+                        mtime,
+                        ok: entry.ok,
+                        msg: msg.clone(),
+                    },
+                );
+            }
+            return if entry.ok { Ok(msg) } else { Err(msg) };
+        }
+    }
+
+    // 実行して検証
+    let result = check_program_available(program_name, command_path);
+
+    // キャッシュへ保存（成功・失敗どちらも保存）
+    {
+        let mut cache_map = cache.lock().await;
+        cache_map.insert(
+            key,
+            ToolCacheEntry {
+                mtime,
+                ok: result.is_ok(),
+                msg: result.clone().unwrap_or_else(|e| e),
+            },
+        );
+    }
+
+    // 設定ファイルにも保存（持続キャッシュ）
+    {
+        let mut s = settings.lock().await;
+        s.set_verify_cache(
+            program_name,
+            VerifyCache {
+                path: command_path.to_string(),
+                mtime,
+                ok: result.is_ok(),
+            },
+        );
+    }
+
+    result
 }
 
 fn resolve_tool_paths(
@@ -569,8 +676,8 @@ fn resolve_tool_paths(
             .find(|entry| {
                 let file_name = entry.file_name();
                 let file_name_str = file_name.to_string_lossy();
-                file_name_str.starts_with("yt-dlp") &&
-                (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
+                file_name_str.starts_with("yt-dlp")
+                    && (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
             })
             .map(|entry| entry.path().to_string_lossy().to_string())
             .unwrap_or_default();
@@ -584,8 +691,8 @@ fn resolve_tool_paths(
             .find(|entry| {
                 let file_name = entry.file_name();
                 let file_name_str = file_name.to_string_lossy();
-                file_name_str.starts_with("deno") &&
-                (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
+                file_name_str.starts_with("deno")
+                    && (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
             })
             .map(|entry| entry.path().to_string_lossy().to_string())
             .unwrap_or_default();
@@ -633,9 +740,13 @@ async fn check_tools_status(
     let (resolved_yt, resolved_ff, resolved_deno) =
         resolve_tool_paths(use_bundle, &yt_path, &ff_path, &deno_path)?;
 
-    let yt_check = check_program_available("yt-dlp", &resolved_yt);
-    let ff_check = check_program_available("ffmpeg", &resolved_ff);
-    let deno_check = check_program_available("deno", &resolved_deno);
+    let cache = &app_state.tool_cache;
+    let settings = &app_state.settings;
+    let (yt_check, ff_check, deno_check) = tokio::join!(
+        check_program_cached("yt-dlp", &resolved_yt, cache, settings),
+        check_program_cached("ffmpeg", &resolved_ff, cache, settings),
+        check_program_cached("deno", &resolved_deno, cache, settings)
+    );
 
     let yt_found = yt_check.is_ok();
     let ff_found = ff_check.is_ok();
@@ -889,28 +1000,43 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     let binaries_dir = exe_path.parent().unwrap().join("binaries");
 
     if !binaries_dir.exists() {
-        TokioFs::create_dir_all(&binaries_dir).await
+        TokioFs::create_dir_all(&binaries_dir)
+            .await
             .map_err(|e| format!("Failed to create binaries directory: {}", e))?;
     }
 
     // yt-dlpのダウンロード
-    window.emit("download-progress", DownloadProgress {
-        tool_name: "yt-dlp".to_string(),
-        progress: 0.0,
-        status: "Getting latest version...".to_string(),
-    }).unwrap();
+    window
+        .emit(
+            "download-progress",
+            DownloadProgress {
+                tool_name: "yt-dlp".to_string(),
+                progress: 0.0,
+                status: "Getting latest version...".to_string(),
+            },
+        )
+        .unwrap();
 
     let yt_dlp_url = get_yt_dlp_download_url(&os_type, &arch)?;
-    let yt_dlp_path = binaries_dir.join(if cfg!(target_os = "windows") { "yt-dlp.exe" } else { "yt-dlp" });
+    let yt_dlp_path = binaries_dir.join(if cfg!(target_os = "windows") {
+        "yt-dlp.exe"
+    } else {
+        "yt-dlp"
+    });
 
     download_file_with_progress(&yt_dlp_url, &yt_dlp_path, &window, "yt-dlp").await?;
 
     // FFmpegのダウンロード
-    window.emit("download-progress", DownloadProgress {
-        tool_name: "ffmpeg".to_string(),
-        progress: 0.0,
-        status: "Getting latest version...".to_string(),
-    }).unwrap();
+    window
+        .emit(
+            "download-progress",
+            DownloadProgress {
+                tool_name: "ffmpeg".to_string(),
+                progress: 0.0,
+                status: "Getting latest version...".to_string(),
+            },
+        )
+        .unwrap();
 
     let ffmpeg_url = get_ffmpeg_download_url(&os_type, &arch)?;
     let ffmpeg_filename = if cfg!(target_os = "windows") {
@@ -961,11 +1087,16 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     TokioFs::remove_file(ffmpeg_archive_path).await.ok();
 
     // Denoのダウンロード
-    window.emit("download-progress", DownloadProgress {
-        tool_name: "deno".to_string(),
-        progress: 0.0,
-        status: "Getting latest version...".to_string(),
-    }).unwrap();
+    window
+        .emit(
+            "download-progress",
+            DownloadProgress {
+                tool_name: "deno".to_string(),
+                progress: 0.0,
+                status: "Getting latest version...".to_string(),
+            },
+        )
+        .unwrap();
 
     let deno_url = get_deno_download_url(&os_type, &arch)?;
     let deno_archive_path = binaries_dir.join(if cfg!(target_os = "windows") {
@@ -1006,15 +1137,34 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
 
 fn get_yt_dlp_download_url(os: &str, arch: &str) -> Result<String, String> {
     match (os, arch) {
-        ("windows", "x86_64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe".to_string()),
-        ("windows", "aarch64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe".to_string()),
-        ("windows", "x86") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe".to_string()),
-        ("linux", "x86_64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux".to_string()),
-        ("linux", "aarch64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64".to_string()),
-        ("linux", "arm") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_armv7l".to_string()),
-        ("macos", "x86_64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string()),
-        ("macos", "aarch64") => Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string()),
-        _ => Err(format!("Unsupported platform: {} {}", os, arch))
+        ("windows", "x86_64") => {
+            Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe".to_string())
+        }
+        ("windows", "aarch64") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe"
+                .to_string(),
+        ),
+        ("windows", "x86") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe".to_string(),
+        ),
+        ("linux", "x86_64") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux".to_string(),
+        ),
+        ("linux", "aarch64") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64"
+                .to_string(),
+        ),
+        ("linux", "arm") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_armv7l"
+                .to_string(),
+        ),
+        ("macos", "x86_64") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string(),
+        ),
+        ("macos", "aarch64") => Ok(
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string(),
+        ),
+        _ => Err(format!("Unsupported platform: {} {}", os, arch)),
     }
 }
 
@@ -1062,8 +1212,14 @@ fn get_deno_download_url(os: &str, arch: &str) -> Result<String, String> {
     }
 }
 
-async fn download_file_with_progress(url: &str, path: &Path, window: &tauri::Window, tool_name: &str) -> Result<(), String> {
-    let response = reqwest::get(url).await
+async fn download_file_with_progress(
+    url: &str,
+    path: &Path,
+    window: &tauri::Window,
+    tool_name: &str,
+) -> Result<(), String> {
+    let response = reqwest::get(url)
+        .await
         .map_err(|e| format!("Failed to download {}: {}", tool_name, e))?;
 
     if !response.status().is_success() {
@@ -1078,14 +1234,16 @@ async fn download_file_with_progress(url: &str, path: &Path, window: &tauri::Win
     let mut downloaded = 0u64;
     let mut stream = response.bytes_stream();
 
-    let mut file = TokioFs::File::create(path).await
+    let mut file = TokioFs::File::create(path)
+        .await
         .map_err(|e| format!("Failed to create file: {}", e))?;
 
     use futures_util::StreamExt;
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
-        file.write_all(&chunk).await
+        file.write_all(&chunk)
+            .await
             .map_err(|e| format!("Failed to write chunk: {}", e))?;
 
         downloaded += chunk.len() as u64;
@@ -1095,11 +1253,16 @@ async fn download_file_with_progress(url: &str, path: &Path, window: &tauri::Win
             0.0
         };
 
-        window.emit("download-progress", DownloadProgress {
-            tool_name: tool_name.to_string(),
-            progress,
-            status: format!("Downloading... {:.1}%", progress),
-        }).unwrap();
+        window
+            .emit(
+                "download-progress",
+                DownloadProgress {
+                    tool_name: tool_name.to_string(),
+                    progress,
+                    status: format!("Downloading... {:.1}%", progress),
+                },
+            )
+            .unwrap();
     }
 
     // ファイルに実行権限を付与（Unix系）
@@ -1117,14 +1280,15 @@ async fn download_file_with_progress(url: &str, path: &Path, window: &tauri::Win
 fn extract_zip(archive_path: &Path, extract_dir: &Path) -> Result<(), String> {
     use zip::ZipArchive;
 
-    let file = std::fs::File::open(archive_path)
-        .map_err(|e| format!("Failed to open zip file: {}", e))?;
+    let file =
+        std::fs::File::open(archive_path).map_err(|e| format!("Failed to open zip file: {}", e))?;
 
-    let mut archive = ZipArchive::new(file)
-        .map_err(|e| format!("Failed to read zip archive: {}", e))?;
+    let mut archive =
+        ZipArchive::new(file).map_err(|e| format!("Failed to read zip archive: {}", e))?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| format!("Failed to get file from zip: {}", e))?;
 
         let outpath = extract_dir.join(file.name());
@@ -1160,7 +1324,10 @@ async fn extract_tar_xz(archive_path: &Path, extract_dir: &Path) -> Result<(), S
         .map_err(|e| format!("Failed to extract tar.xz: {}", e))?;
 
     if !output.status.success() {
-        return Err(format!("tar extraction failed: {}", String::from_utf8_lossy(&output.stderr)));
+        return Err(format!(
+            "tar extraction failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
 
     Ok(())

@@ -1,5 +1,6 @@
 use dirs::video_dir;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::{fs, path::PathBuf};
 use std::{io::Write, mem};
 use tokio::sync::Mutex;
@@ -25,7 +26,6 @@ fn get_default_save_dir() -> String {
         .to_string()
 }
 
-
 trait Config {
     fn write_file(&self) {}
     fn read_file(&mut self) {}
@@ -45,6 +45,9 @@ pub struct Settings {
     pub yt_dlp_path: String,    // バンドル版またはカスタムパスのyt-dlp
     pub ffmpeg_path: String,    // バンドル版またはカスタムパスのffmpeg
     pub deno_path: String,      // バンドル版またはカスタムパスのdeno
+    pub yt_dlp_cache: Option<VerifyCache>,
+    pub ffmpeg_cache: Option<VerifyCache>,
+    pub deno_cache: Option<VerifyCache>,
     // custom_commands_list: Vec<String>,
 }
 
@@ -62,6 +65,9 @@ impl Default for Settings {
             yt_dlp_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             ffmpeg_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             deno_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
+            yt_dlp_cache: None,
+            ffmpeg_cache: None,
+            deno_cache: None,
             // custom_commands_list: vec![],
         }
     }
@@ -99,7 +105,6 @@ impl Settings {
         }
     }
 
-    
     pub fn set_save_dir(&mut self, new_save_dir: String) {
         self.save_dir = new_save_dir;
         self.write_file();
@@ -160,18 +165,53 @@ impl Settings {
         self.deno_path = deno_path;
         self.write_file();
     }
+
+    pub fn set_verify_cache(&mut self, program: &str, cache: VerifyCache) {
+        match program {
+            "yt-dlp" => self.yt_dlp_cache = Some(cache),
+            "ffmpeg" => self.ffmpeg_cache = Some(cache),
+            "deno" => self.deno_cache = Some(cache),
+            _ => {}
+        }
+        self.write_file();
+    }
+
+    pub fn get_verify_cache(&self, program: &str) -> Option<VerifyCache> {
+        match program {
+            "yt-dlp" => self.yt_dlp_cache.clone(),
+            "ffmpeg" => self.ffmpeg_cache.clone(),
+            "deno" => self.deno_cache.clone(),
+            _ => None,
+        }
+    }
 }
 
 pub struct AppState {
     pub settings: Mutex<Settings>,
+    pub tool_cache: Mutex<HashMap<String, ToolCacheEntry>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
             settings: Mutex::from(Settings::new()),
+            tool_cache: Mutex::from(HashMap::new()),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct ToolCacheEntry {
+    pub mtime: u64,
+    pub ok: bool,
+    pub msg: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct VerifyCache {
+    pub path: String,
+    pub mtime: u64,
+    pub ok: bool,
 }
 
 pub mod commands {
