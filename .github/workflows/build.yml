@@ -36,6 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -73,6 +78,12 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate tools-manifest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/gen-tools-manifest.py --output tools-manifest.json --yt-dlp-tag "$(cat yt-dlp-version.txt)"
 
       - name: Generate release notes
         id: release_notes

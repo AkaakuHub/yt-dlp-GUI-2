@@ -1,0 +1,110 @@
+name: watch-tools
+
+on:
+  schedule:
+    - cron: "15 18 * * *" # JST 03:15
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  update-yt-dlp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Fetch latest yt-dlp tag
+        id: latest
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
+          tag=$(curl -sSfL \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" | jq -r ".tag_name")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with current yt-dlp-version.txt
+        id: compare
+        run: |
+          set -euo pipefail
+          current=$(cat yt-dlp-version.txt 2>/dev/null || echo "")
+          latest="${{ steps.latest.outputs.tag }}"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$current" = "$latest" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute next app version
+        if: steps.compare.outputs.changed == 'true'
+        id: next_version
+        run: |
+          set -euo pipefail
+          version=$(python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+          v=data.get("package",{}).get("version","")
+          parts=v.split(".")
+          if len(parts) >= 3 and all(p.isdigit() for p in parts[:3]):
+            parts[2]=str(int(parts[2])+1)
+            print(".".join(parts[:3]))
+          else:
+            print("")
+          PY
+          )
+          if [ -z "$version" ]; then
+            echo "Failed to compute next version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git with PAT
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          PAT_TOKEN: ${{ secrets.REPO_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PAT_TOKEN}" ]; then
+            echo "REPO_PAT is not set"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }}.git"
+
+      - name: Bump app version with update-version.sh
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          bash scripts/update-version.sh "${{ steps.next_version.outputs.version }}"
+
+      - name: Checkout release branch
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          git checkout release
+
+      - name: Update yt-dlp-version.txt on release
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          echo "${{ steps.latest.outputs.tag }}" > yt-dlp-version.txt
+          git add yt-dlp-version.txt
+          git commit -m "chore: update yt-dlp to ${{ steps.latest.outputs.tag }}" || exit 0
+          git push origin release
+
+      - name: Create and push tag
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          version="${{ steps.next_version.outputs.version }}"
+          tag="v${version}"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"
