@@ -5909,6 +5909,7 @@ dependencies = [
  "reqwest 0.12.7",
  "serde",
  "serde_json",
+ "sha2",
  "showfile",
  "tauri",
  "tauri-build",

@@ -212,15 +212,12 @@ struct DownloadProgress {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ToolsManifest {
-    schema_version: u32,
-    generated_at: Option<String>,
     tools: HashMap<String, ToolEntry>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ToolEntry {
-    version: Option<String>,
     artifacts: Vec<ToolArtifact>,
 }
 
@@ -231,7 +228,6 @@ struct ToolArtifact {
     arch: String,
     url: String,
     sha256: String,
-    size_bytes: Option<u64>,
     filename: Option<String>,
 }
 
