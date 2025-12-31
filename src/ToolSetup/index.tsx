@@ -212,8 +212,14 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 			// ダウンロード後にツールチェックを実行
 			await checkTools();
 		} catch (error) {
+			const errorMsg =
+				error instanceof Error
+					? error.message
+					: typeof error === "string"
+						? error
+						: JSON.stringify(error);
 			console.error("Download failed:", error);
-			toast.error("ツールのダウンロードに失敗しました");
+			toast.error(`ツールのダウンロードに失敗しました: ${errorMsg}`);
 		} finally {
 			setIsDownloading(false);
 			setDownloadProgress(null);

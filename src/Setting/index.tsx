@@ -364,7 +364,12 @@ export default function Settings() {
 			// ダウンロード後にツールチェックを実行
 			await checkTools();
 		} catch (error) {
-			const errorMsg = error instanceof Error ? error.message : String(error);
+			const errorMsg =
+				error instanceof Error
+					? error.message
+					: typeof error === "string"
+						? error
+						: JSON.stringify(error);
 			console.error("Download failed:", error);
 			toast.error(`ツールのダウンロードに失敗しました: ${errorMsg}`);
 		} finally {
