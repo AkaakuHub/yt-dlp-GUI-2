@@ -1036,7 +1036,9 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
         .path_resolver()
         .resolve_resource("tools-manifest.json")
     {
-        return Ok(path);
+        if path.exists() {
+            return Ok(path);
+        }
     }
 
     let mut candidates = Vec::new();
@@ -1047,6 +1049,7 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             candidates.push(dir.join("tools-manifest.json"));
+            candidates.push(dir.join("_up_").join("tools-manifest.json"));
         }
     }
 
