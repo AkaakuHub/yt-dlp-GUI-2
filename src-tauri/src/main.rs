@@ -37,6 +37,24 @@ use std::os::windows::process::CommandExt;
 #[cfg(any(windows, target_os = "macos"))]
 use window_shadows::set_shadow;
 
+#[cfg(target_os = "windows")]
+fn get_tools_root() -> Result<PathBuf, String> {
+    let appdata = std::env::var("APPDATA")
+        .map_err(|_| "APPDATA environment variable is not set".to_string())?;
+    Ok(PathBuf::from(appdata).join("yt-dlp-GUI"))
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn get_tools_root() -> Result<PathBuf, String> {
+    let home = std::env::var("HOME")
+        .map_err(|_| "HOME environment variable is not set".to_string())?;
+    Ok(PathBuf::from(home).join(".yt-dlp-GUI"))
+}
+
+fn get_tools_dir() -> Result<PathBuf, String> {
+    Ok(get_tools_root()?.join("binaries"))
+}
+
 pub struct CommandManager {
     command_task: Option<task::JoinHandle<()>>,
     stop_signal: Option<broadcast::Sender<()>>,
@@ -685,10 +703,7 @@ fn resolve_tool_paths(
     deno_path: &str,
 ) -> Result<(String, String, String), String> {
     if use_bundle_tools {
-        let mut path = std::env::current_exe()
-            .map_err(|e| format!("Failed to get current exe path: {}", e))?;
-        path.pop(); // exeファイル名を削除
-        let binaries_dir = path.join("binaries");
+        let binaries_dir = get_tools_dir()?;
 
         if !binaries_dir.exists() {
             return Ok(("".to_string(), "".to_string(), "".to_string()));
@@ -1120,8 +1135,7 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     let arch = std::env::consts::ARCH;
 
     // binariesフォルダを作成
-    let exe_path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-    let binaries_dir = exe_path.parent().unwrap().join("binaries");
+    let binaries_dir = get_tools_dir()?;
 
     if !binaries_dir.exists() {
         TokioFs::create_dir_all(&binaries_dir)
