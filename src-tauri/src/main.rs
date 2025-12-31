@@ -3,7 +3,9 @@
 use encoding_rs;
 use open as openPath;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
@@ -27,6 +29,7 @@ use tokio::task;
 
 mod config;
 use config::{AppState, ToolCacheEntry, VerifyCache};
+use sha2::{Digest, Sha256};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -204,6 +207,28 @@ struct DownloadProgress {
     tool_name: String,
     progress: f64,
     status: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ToolsManifest {
+    tools: HashMap<String, ToolEntry>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ToolEntry {
+    artifacts: Vec<ToolArtifact>,
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ToolArtifact {
+    os: String,
+    arch: String,
+    url: String,
+    sha256: String,
+    filename: Option<String>,
 }
 
 fn get_format_command(kind: i32) -> Result<String, String> {
@@ -990,6 +1015,105 @@ fn get_os_type() -> String {
     std::env::consts::OS.to_string()
 }
 
+fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String> {
+    if let Some(path) = window
+        .app_handle()
+        .path_resolver()
+        .resolve_resource("tools-manifest.json")
+    {
+        return Ok(path);
+    }
+
+    let mut candidates = Vec::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("tools-manifest.json"));
+        candidates.push(cwd.join("..").join("tools-manifest.json"));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("tools-manifest.json"));
+        }
+    }
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+
+    Err("tools-manifest.jsonが見つかりません。リリースに同梱されているか確認してください。".to_string())
+}
+
+fn load_tools_manifest(window: &tauri::Window) -> Result<ToolsManifest, String> {
+    let path = resolve_tools_manifest_path(window)?;
+    let content = std::fs::read_to_string(&path).map_err(|e| {
+        format!(
+            "tools-manifest.jsonの読み込みに失敗しました: {} ({})",
+            path.display(),
+            e
+        )
+    })?;
+    serde_json::from_str::<ToolsManifest>(&content)
+        .map_err(|e| format!("tools-manifest.jsonの形式が不正です: {}", e))
+}
+
+fn find_tool_artifact<'a>(
+    manifest: &'a ToolsManifest,
+    tool_name: &str,
+    os: &str,
+    arch: &str,
+) -> Result<&'a ToolArtifact, String> {
+    let tool = manifest.tools.get(tool_name).ok_or_else(|| {
+        format!(
+            "tools-manifest.jsonに{}の定義がありません",
+            tool_name
+        )
+    })?;
+
+    tool.artifacts
+        .iter()
+        .find(|artifact| artifact.os == os && artifact.arch == arch)
+        .ok_or_else(|| {
+            format!(
+                "tools-manifest.jsonに{}の{} {}向けアーティファクトがありません",
+                tool_name, os, arch
+            )
+        })
+}
+
+fn artifact_filename(artifact: &ToolArtifact) -> Result<String, String> {
+    if let Some(name) = &artifact.filename {
+        return Ok(name.clone());
+    }
+
+    let without_query = artifact.url.split('?').next().unwrap_or(&artifact.url);
+    let name = without_query
+        .rsplit('/')
+        .next()
+        .unwrap_or("download");
+    if name.is_empty() {
+        return Err("アーティファクトのファイル名が取得できません".to_string());
+    }
+    Ok(name.to_string())
+}
+
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file =
+        std::fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 1024 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 #[tauri::command]
 async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> {
     let os_type = std::env::consts::OS;
@@ -1005,6 +1129,8 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
             .map_err(|e| format!("Failed to create binaries directory: {}", e))?;
     }
 
+    let manifest = load_tools_manifest(&window)?;
+
     // yt-dlpのダウンロード
     window
         .emit(
@@ -1017,14 +1143,21 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
         )
         .unwrap();
 
-    let yt_dlp_url = get_yt_dlp_download_url(&os_type, &arch)?;
+    let yt_dlp_artifact = find_tool_artifact(&manifest, "yt-dlp", os_type, arch)?;
     let yt_dlp_path = binaries_dir.join(if cfg!(target_os = "windows") {
         "yt-dlp.exe"
     } else {
         "yt-dlp"
     });
 
-    download_file_with_progress(&yt_dlp_url, &yt_dlp_path, &window, "yt-dlp").await?;
+    download_file_with_progress(
+        &yt_dlp_artifact.url,
+        &yt_dlp_path,
+        &window,
+        "yt-dlp",
+        Some(&yt_dlp_artifact.sha256),
+    )
+    .await?;
 
     // FFmpegのダウンロード
     window
@@ -1038,26 +1171,17 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
         )
         .unwrap();
 
-    let ffmpeg_url = get_ffmpeg_download_url(&os_type, &arch)?;
-    let ffmpeg_filename = if cfg!(target_os = "windows") {
-        if cfg!(target_arch = "aarch64") {
-            "ffmpeg-master-latest-winarm64-gpl.zip"
-        } else {
-            "ffmpeg-master-latest-win64-gpl.zip"
-        }
-    } else if cfg!(target_os = "macos") {
-        // Martin Riedl's server always delivers a ZIP (signed/notarized) for macOS
-        "ffmpeg-macos-latest.zip"
-    } else {
-        if cfg!(target_arch = "aarch64") {
-            "ffmpeg-master-latest-linuxarm64-gpl.tar.xz"
-        } else {
-            "ffmpeg-master-latest-linux64-gpl.tar.xz"
-        }
-    };
-
+    let ffmpeg_artifact = find_tool_artifact(&manifest, "ffmpeg", os_type, arch)?;
+    let ffmpeg_filename = artifact_filename(ffmpeg_artifact)?;
     let ffmpeg_archive_path = binaries_dir.join(ffmpeg_filename);
-    download_file_with_progress(&ffmpeg_url, &ffmpeg_archive_path, &window, "ffmpeg").await?;
+    download_file_with_progress(
+        &ffmpeg_artifact.url,
+        &ffmpeg_archive_path,
+        &window,
+        "ffmpeg",
+        Some(&ffmpeg_artifact.sha256),
+    )
+    .await?;
 
     // FFmpegを展開（Windowsの場合はzipを展開、Unix系はtar.xzを展開）
     if cfg!(target_os = "windows") {
@@ -1098,25 +1222,17 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
         )
         .unwrap();
 
-    let deno_url = get_deno_download_url(&os_type, &arch)?;
-    let deno_archive_path = binaries_dir.join(if cfg!(target_os = "windows") {
-        if cfg!(target_arch = "aarch64") {
-            "deno-aarch64-pc-windows-msvc.zip"
-        } else {
-            "deno-x86_64-pc-windows-msvc.zip"
-        }
-    } else if cfg!(target_os = "macos") {
-        if cfg!(target_arch = "aarch64") {
-            "deno-aarch64-apple-darwin.zip"
-        } else {
-            "deno-x86_64-apple-darwin.zip"
-        }
-    } else if cfg!(target_arch = "aarch64") {
-        "deno-aarch64-unknown-linux-gnu.zip"
-    } else {
-        "deno-x86_64-unknown-linux-gnu.zip"
-    });
-    download_file_with_progress(&deno_url, &deno_archive_path, &window, "deno").await?;
+    let deno_artifact = find_tool_artifact(&manifest, "deno", os_type, arch)?;
+    let deno_filename = artifact_filename(deno_artifact)?;
+    let deno_archive_path = binaries_dir.join(deno_filename);
+    download_file_with_progress(
+        &deno_artifact.url,
+        &deno_archive_path,
+        &window,
+        "deno",
+        Some(&deno_artifact.sha256),
+    )
+    .await?;
 
     extract_zip(&deno_archive_path, &binaries_dir)?;
     TokioFs::remove_file(deno_archive_path).await.ok();
@@ -1135,88 +1251,12 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     Ok("All tools downloaded successfully".to_string())
 }
 
-fn get_yt_dlp_download_url(os: &str, arch: &str) -> Result<String, String> {
-    match (os, arch) {
-        ("windows", "x86_64") => {
-            Ok("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe".to_string())
-        }
-        ("windows", "aarch64") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe"
-                .to_string(),
-        ),
-        ("windows", "x86") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe".to_string(),
-        ),
-        ("linux", "x86_64") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux".to_string(),
-        ),
-        ("linux", "aarch64") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64"
-                .to_string(),
-        ),
-        ("linux", "arm") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_armv7l"
-                .to_string(),
-        ),
-        ("macos", "x86_64") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string(),
-        ),
-        ("macos", "aarch64") => Ok(
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos".to_string(),
-        ),
-        _ => Err(format!("Unsupported platform: {} {}", os, arch)),
-    }
-}
-
-fn get_ffmpeg_download_url(os: &str, arch: &str) -> Result<String, String> {
-    match (os, arch) {
-        ("windows", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip".to_string()),
-        ("windows", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip".to_string()),
-        ("linux", "x86_64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz".to_string()),
-        ("linux", "aarch64") => Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz".to_string()),
-        // BtbN は macOS 向けを配布していないため、Martin Riedl 提供の静的ビルドに切替
-        // リダイレクト先はスナップショットごとに変わるが /redirect/latest/... は常に最新へ 307 で転送される
-        ("macos", "x86_64") => Ok("https://ffmpeg.martin-riedl.de/redirect/latest/macos/amd64/snapshot/ffmpeg.zip".to_string()),
-        ("macos", "aarch64") => Ok("https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/snapshot/ffmpeg.zip".to_string()),
-        _ => Err(format!("Unsupported platform: {} {}", os, arch))
-    }
-}
-
-fn get_deno_download_url(os: &str, arch: &str) -> Result<String, String> {
-    match (os, arch) {
-        ("windows", "x86_64") => Ok(
-            "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
-                .to_string(),
-        ),
-        ("windows", "aarch64") => Ok(
-            "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-pc-windows-msvc.zip"
-                .to_string(),
-        ),
-        ("linux", "x86_64") => Ok(
-            "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip"
-                .to_string(),
-        ),
-        ("linux", "aarch64") => Ok(
-            "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-unknown-linux-gnu.zip"
-                .to_string(),
-        ),
-        ("macos", "x86_64") => Ok(
-            "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-apple-darwin.zip"
-                .to_string(),
-        ),
-        ("macos", "aarch64") => Ok(
-            "https://github.com/denoland/deno/releases/latest/download/deno-aarch64-apple-darwin.zip"
-                .to_string(),
-        ),
-        _ => Err(format!("Unsupported platform: {} {}", os, arch)),
-    }
-}
-
 async fn download_file_with_progress(
     url: &str,
     path: &Path,
     window: &tauri::Window,
     tool_name: &str,
+    expected_sha256: Option<&str>,
 ) -> Result<(), String> {
     let response = reqwest::get(url)
         .await
@@ -1272,6 +1312,28 @@ async fn download_file_with_progress(
         let mut perms = std::fs::metadata(path).unwrap().permissions();
         perms.set_mode(0o755);
         std::fs::set_permissions(path, perms).unwrap();
+    }
+
+    if let Some(expected) = expected_sha256 {
+        window
+            .emit(
+                "download-progress",
+                DownloadProgress {
+                    tool_name: tool_name.to_string(),
+                    progress: 100.0,
+                    status: "Verifying...".to_string(),
+                },
+            )
+            .unwrap();
+
+        let actual = sha256_file(path)?;
+        if actual.to_lowercase() != expected.to_lowercase() {
+            let _ = std::fs::remove_file(path);
+            return Err(format!(
+                "{}のSHA256が一致しません。expected={}, actual={}",
+                tool_name, expected, actual
+            ));
+        }
     }
 
     Ok(())

@@ -703,7 +703,7 @@ export default function Settings() {
 				<DialogContent sx={{ pt: 3 }}>
 					<Typography
 						variant="body1"
-						sx={{ color: "var(--text-secondary)", mb: 3 }}
+						sx={{ color: "var(--text-secondary)", my: 2 }}
 					>
 						yt-dlp、FFmpeg、Denoの設定を管理します。
 					</Typography>
@@ -719,6 +719,9 @@ export default function Settings() {
 						<StyledRadioGroup
 							value={tempUseBundle ? "bundle" : "path"}
 							onChange={(e) => setTempUseBundle(e.target.value === "bundle")}
+							sx={{
+								gap: 2,
+							}}
 						>
 							<MuiFormControlLabel
 								value="bundle"
@@ -756,7 +759,7 @@ export default function Settings() {
 													mt: 0.3,
 												}}
 											>
-												アプリ内蔵ツールを自動で設定・使用
+												ツールを自動で設定・使用
 											</Typography>
 										</Box>
 									</Box>

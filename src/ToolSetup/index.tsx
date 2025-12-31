@@ -420,7 +420,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						<StyledRadioGroup
 							value={useBundleTools ? "bundle" : "path"}
 							onChange={handleModeChange}
-							sx={{ gap: 1, marginTop: 1 }}
+							sx={{ marginY: 1 }}
 						>
 							<StyledFormControlLabel
 								value="bundle"
@@ -458,7 +458,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 													mt: 0.4,
 												}}
 											>
-												アプリ内蔵ツールを自動で設定・使用
+												ツールを自動で設定・使用
 											</Typography>
 										</Box>
 									</Box>

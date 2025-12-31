@@ -1,19 +1,19 @@
-name: 'Build and Release'
+name: build-release
 
 on:
   push:
     tags:
-      - 'v*'
-      - 'v*.*'  
-      - 'v*.*.*'
-    branches:
-      - release
-  create:
-    # This will trigger when tags are created via GitHub Actions
+      - "v*"
   workflow_dispatch:
-    # Allow manual trigger for testing
+    inputs:
+      build-type:
+        description: "manual override of build type"
+        required: false
+        default: "release"
 
-# This workflow will trigger when a version tag is pushed or when pushing to release branch.
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10.22.0"
 
 jobs:
   build-and-release:
@@ -23,91 +23,78 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+          - platform: "macos-latest" # Arm
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest" # Intel
+            args: "--target x86_64-apple-darwin"
+          - platform: "ubuntu-22.04"
+            args: ""
+          - platform: "windows-latest"
+            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract version from tag (if tag triggered)
-        if: startsWith(github.ref, 'refs/tags/')
-        id: extract_version_tag
-        shell: bash
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Triggered by tag: v$VERSION"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
-      - name: Extract version from Cargo.toml (if branch triggered)
-        if: startsWith(github.ref, 'refs/heads/')
-        id: extract_version_branch
-        shell: bash
-        run: |
-          VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Triggered by branch, extracted version: $VERSION"
-
-      - name: Set final version
-        id: extract_version
-        shell: bash
-        run: |
-          if [ "${{ steps.extract_version_tag.outputs.version }}" != "" ]; then
-            VERSION="${{ steps.extract_version_tag.outputs.version }}"
-          else
-            VERSION="${{ steps.extract_version_branch.outputs.version }}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-
-      - name: setup node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: setup pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10   # 2025-11 時点の安定メジャー。10.x 系を自動で拾う
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
-      - name: install Rust stable
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "store_path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.store_path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
-      - name: install frontend dependencies
-        run: pnpm install # change this to npm, pnpm or bun depending on which one you use.
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate tools-manifest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/gen-tools-manifest.py --output tools-manifest.json --yt-dlp-tag "$(cat yt-dlp-version.txt)"
 
       - name: Generate release notes
         id: release_notes
         shell: bash
         run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-          else
-            TAG_NAME="v${{ steps.extract_version.outputs.version }}"
-          fi
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
           COMMIT_MESSAGE=$(git log --format=%B -n 1 ${{ github.sha }})
           RELEASE_NOTES="Release $TAG_NAME
 
-          Version: ${{ steps.extract_version.outputs.version }}
+          Version: $VERSION
           
           Changes:
           $COMMIT_MESSAGE"
@@ -122,7 +109,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.BUILD_SECRET_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.BUILD_PASSWORD }}
         with:
-          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          tagName: v__VERSION__
           releaseName: 'yt-dlp-GUI v__VERSION__'
           releaseBody: ${{ steps.release_notes.outputs.release_notes }}
           releaseDraft: false

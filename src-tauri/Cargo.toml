@@ -27,6 +27,7 @@ tauri-plugin-drag = "0.3.1"
 open = "5.3.0"
 futures-util = "0.3"
 zip = "0.6"
+sha2 = "0.10"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
