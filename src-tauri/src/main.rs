@@ -1067,6 +1067,17 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
         }
     }
 
+    // Linux: AppImage/解凍フォルダ直下と _up_ 配下を探索
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                candidates.push(dir.join("tools-manifest.json"));
+                candidates.push(dir.join("_up_").join("tools-manifest.json"));
+            }
+        }
+    }
+
     for candidate in candidates {
         if candidate.exists() {
             return Ok(candidate);
