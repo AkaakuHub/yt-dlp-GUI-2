@@ -8,6 +8,10 @@ import urllib.request
 from datetime import datetime, timezone
 
 
+def log(msg: str) -> None:
+    print(f"[gen-tools-manifest] {msg}", flush=True)
+
+
 def github_json(url: str) -> dict:
     headers = {"User-Agent": "tools-manifest"}
     token = os.environ.get("GITHUB_TOKEN")
@@ -15,6 +19,7 @@ def github_json(url: str) -> dict:
         headers["Authorization"] = f"Bearer {token}"
         headers["X-GitHub-Api-Version"] = "2022-11-28"
     req = urllib.request.Request(url, headers=headers)
+    log(f"GET {url}")
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode("utf-8"))
 
@@ -30,6 +35,7 @@ def sha256_of_url(url: str) -> tuple[str, int]:
     h = hashlib.sha256()
     size = 0
     req = urllib.request.Request(url, headers={"User-Agent": "tools-manifest"})
+    log(f"Downloading for sha256: {url}")
     with urllib.request.urlopen(req, timeout=180) as r:
         while True:
             chunk = r.read(1024 * 1024)
@@ -56,6 +62,7 @@ def build_artifacts_ytdlp(release: dict) -> list[dict]:
         url = assets.get(filename)
         if not url:
             raise RuntimeError(f"yt-dlp asset not found: {filename}")
+        log(f"yt-dlp {os_name}/{arch} -> {filename}")
         digest, size = sha256_of_url(url)
         artifacts.append(
             {
@@ -87,6 +94,7 @@ def build_artifacts_deno_fixed(release: dict, tag: str) -> list[dict]:
             if required:
                 raise RuntimeError(f"deno asset not found: {filename}")
             continue
+        log(f"deno {os_name}/{arch} -> {filename}")
         digest, size = sha256_of_url(url)
         artifacts.append(
             {
@@ -137,6 +145,7 @@ def build_artifacts_ffmpeg_fixed() -> list[dict]:
 
     artifacts = []
     for os_name, arch, url in targets:
+        log(f"ffmpeg {os_name}/{arch} -> {url}")
         digest, size = sha256_of_url(url)
         filename = url.split("?")[0].rsplit("/", 1)[-1]
         artifacts.append(
@@ -177,10 +186,12 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.yt_dlp_tag:
+        log(f"Resolve yt-dlp tag: {args.yt_dlp_tag}")
         yt_rel = github_json(
             f"https://api.github.com/repos/yt-dlp/yt-dlp/releases/tags/{args.yt_dlp_tag}"
         )
     else:
+        log("Resolve yt-dlp latest tag")
         yt_rel = github_json("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
     yt_tag = yt_rel["tag_name"]
 
@@ -209,10 +220,12 @@ def main() -> int:
         }
     else:
         deno_tag = "v2.6.0"
+        log(f"Resolve deno tag: {deno_tag}")
         deno_rel = github_json(
             f"https://api.github.com/repos/denoland/deno/releases/tags/{deno_tag}"
         )
         ff_tag = "autobuild-2025-03-31-12-55"
+        log(f"Use ffmpeg tag: {ff_tag}")
 
         manifest = {
             "schemaVersion": 1,
