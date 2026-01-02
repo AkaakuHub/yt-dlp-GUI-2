@@ -5,6 +5,7 @@ import { ToastContainer } from "react-toastify";
 import { AppProvider } from "./_components/AppContext";
 import WindowControls from "./_components/WindowControls";
 import { checkToolAvailability } from "./_utils/toolAvailability";
+import { checkUpdate } from "@tauri-apps/api/updater";
 import Home from "./Home";
 import Setting from "./Setting";
 import ToolSetup from "./ToolSetup";
@@ -41,24 +42,47 @@ const App = () => {
 			}
 		});
 
-		// 設定をチェックして初回起動かどうかを判定
-		const checkSetup = async () => {
+		// 1. アップデート確認を最優先
+		// 2. ツールチェックはアップデート確認後に実施
+		const boot = async () => {
 			try {
-				const settings = await invoke<ConfigProps>("get_settings");
-				const status = await checkToolAvailability(
-					settings?.use_bundle_tools ?? true,
-					settings?.yt_dlp_path,
-					settings?.ffmpeg_path,
-					settings?.deno_path,
-				);
-				setShowSetup(!status.ok);
+				const update = await checkUpdate();
+				// アップデート確認が走ったあとにのみツールチェックを行う
+				try {
+					const settings = await invoke<ConfigProps>("get_settings");
+					const status = await checkToolAvailability(
+						settings?.use_bundle_tools ?? true,
+						settings?.yt_dlp_path,
+						settings?.ffmpeg_path,
+						settings?.deno_path,
+					);
+					setShowSetup(!status.ok);
+				} catch {
+					setShowSetup(true);
+				}
+
+				// 更新可能であれば Setting 画面の checkUpdate に任せる（ここでは UI を変えない）
+				if (update.shouldUpdate) {
+					// 後続で Setting の useEffect がダイアログを出す
+				}
 			} catch {
-				// 設定読み込み失敗時はセットアップを表示
-				setShowSetup(true);
+				// アップデート確認に失敗してもツールチェックだけは実行して判定
+				try {
+					const settings = await invoke<ConfigProps>("get_settings");
+					const status = await checkToolAvailability(
+						settings?.use_bundle_tools ?? true,
+						settings?.yt_dlp_path,
+						settings?.ffmpeg_path,
+						settings?.deno_path,
+					);
+					setShowSetup(!status.ok);
+				} catch {
+					setShowSetup(true);
+				}
 			}
 		};
 
-		checkSetup();
+		boot();
 	}, []);
 
 	if (showSetup) {

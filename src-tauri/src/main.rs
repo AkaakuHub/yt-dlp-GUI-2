@@ -1050,6 +1050,16 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
         if let Some(dir) = exe.parent() {
             candidates.push(dir.join("tools-manifest.json"));
             candidates.push(dir.join("_up_").join("tools-manifest.json"));
+
+            // macOS アプリバンドル内 (…/MyApp.app/Contents/MacOS/<exe>) に埋め込まれた
+            // Resources/tools-manifest.json を優先的に探す。
+            #[cfg(target_os = "macos")]
+            {
+                if let Some(app_contents) = dir.parent() {
+                    let resources = app_contents.join("Resources").join("tools-manifest.json");
+                    candidates.push(resources);
+                }
+            }
         }
     }
 
