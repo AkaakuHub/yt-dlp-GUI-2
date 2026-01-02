@@ -1042,23 +1042,27 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
     }
 
     let mut candidates = Vec::new();
-    if let Ok(cwd) = std::env::current_dir() {
-        candidates.push(cwd.join("tools-manifest.json"));
-        candidates.push(cwd.join("..").join("tools-manifest.json"));
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.join("tools-manifest.json"));
-            candidates.push(dir.join("_up_").join("tools-manifest.json"));
 
-            // macOS アプリバンドル内 (…/MyApp.app/Contents/MacOS/<exe>) に埋め込まれた
-            // Resources/tools-manifest.json を優先的に探す。
-            #[cfg(target_os = "macos")]
-            {
+    // macOS: .app バンドル内の Resources のみを探索
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
                 if let Some(app_contents) = dir.parent() {
                     let resources = app_contents.join("Resources").join("tools-manifest.json");
                     candidates.push(resources);
                 }
+            }
+        }
+    }
+
+    // Windows: 実行ファイル直下と _up_ 配下のみ探索
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                candidates.push(dir.join("tools-manifest.json"));
+                candidates.push(dir.join("_up_").join("tools-manifest.json"));
             }
         }
     }

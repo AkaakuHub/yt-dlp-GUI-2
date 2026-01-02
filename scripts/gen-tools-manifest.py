@@ -156,12 +156,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output",
-        default="tools-manifest.json",
+        default="src-tauri/resources/tools-manifest.json",
         help="Output path for tools-manifest.json",
     )
     parser.add_argument(
         "--input",
-        default="tools-manifest.json",
+        default="src-tauri/resources/tools-manifest.json",
         help="Input tools-manifest.json (used for update-only mode)",
     )
     parser.add_argument(

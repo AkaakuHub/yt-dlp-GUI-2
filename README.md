@@ -1,7 +1,7 @@
 <div style="display: flex; gap: 10px">
-<img src="https://shields.io/badge/Windows--9cf?logo=Windows&style=social"> ◎
-<img src="https://shields.io/badge/macOS--9cf?logo=Apple&style=social">◎
-<img src="https://shields.io/badge/Linux--9cf?logo=Linux&style=social">未検証
+<img src="https://shields.io/badge/Windows--9cf?logo=Windows&style=social"> ✅️
+<img src="https://shields.io/badge/macOS--9cf?logo=Apple&style=social"> ✅️
+<img src="https://shields.io/badge/Linux--9cf?logo=Linux&style=social"> 未検証
 </div>
 
 # yt-dlp-GUI
@@ -19,29 +19,12 @@ https://github.com/AkaakuHub/YDG-Helper
 ### Windows
 
 1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)から、
-`yt-dlp-GUI_x.x.x_x64_ja-JP.msi`(推奨)か、
-`yt-dlp-GUI_x.x.x_x64-setup.exe`をダウンロードする。
-
-2.[**ここ**](https://github.com/yt-dlp/yt-dlp/releases)にある最新バージョンのリリース("Latest"と書いてあるもの)から
-`yt-dlp.exe`
-をダウンロードし、それをユーザーディレクトリ(例.Windowsの場合、C:\\Users\\ユーザー名\\
-)に移動する。<br/>
-
-3.[**ここ**](https://github.com/yt-dlp/FFmpeg-Builds/releases/)にある最新バージョンのリリース("Latest"と書いてあるもの)から
-`ffmpeg-master-latest-win64-gpl.zip`
-をダウンロードし、展開してから、
-`ffmpeg.exe`と`ffprobe.exe`
-を2番と同じユーザーディレクトリに移動する。<br/>
-
-4.[**こちら**](#トラブルシューティング)の手順に従い、パスを通す。
-
-5.なんらかの方法で`deno`をインストールする。
+`yt-dlp-GUI_x.x.x_x64_ja-JP.msi`をダウンロードする。
 
 ### Mac
 
 1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)にある最新バージョンのリリース("Latest"と書いてあるもの)から
-`yt-dlp-GUI_x.x.x_aarch64.dmg`
-をダウンロードする。
+`yt-dlp-GUI_x.x.x_aarch64.dmg`をダウンロードする。
 
 2.ダブルクリックすると、このような画面が開くので、右のアイコンを左にドラッグアンドドロップする。
    ![image](https://github.com/user-attachments/assets/5e7805aa-4ad8-49e9-9eba-d154554378fb)
@@ -49,10 +32,6 @@ https://github.com/AkaakuHub/YDG-Helper
 3.`"yt-dlp-GUI.app"は壊れているため開けません。`
 と表示される場合は、ターミナルで`xattr -rc [appファイルのパス]`を実行する。<br/>
 例: `xattr -rc /Applications/yt-dlp-GUI.app`
-
-4.ffmpegとyt-dlpをインストールする。(homebrew推奨)
-
-5.なんらかの方法で`deno`をインストールする。
 
 ### Linux
 
@@ -86,17 +65,3 @@ WIP
 ### Microsoft Defenderに怒られる
 
 個人開発ソフトのため、発行元が不明となってしまうのが原因です。不安で本ソフトを信頼しない場合は、使用しないでください。
-
-### 「yt-dlp/ffmpegがインストールされていないか、パスが通っていません。表示される手順に従ってパスを通してください。」と表示される
-
-まず、インストール手順に従ってダウンロードしているか確認してください。
-
-ユーザーディレクトリにyt-dlpやffmpegなどのexeがあるのにエラーが出る場合は、以下の手順に従って、パスを通してください。
-
-1. Windowsマークを押し、検索欄に「環境変数」と入力し、「環境変数を編集」を実行する。
-
-2. 上半分側で、1列目の変数が「Path」となっている部分をダブルクリックする。
-
-3. 「環境変数名の編集」のウィンドウが開いたら、「新規」をクリックして、以下のように入力する。<br/>例：ユーザー名が「guest」の場合、`C:\Users\guest`
-
-4. 「OK」を2回押してウィンドウを閉じる。
