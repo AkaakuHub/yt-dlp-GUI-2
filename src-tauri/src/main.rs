@@ -1043,14 +1043,14 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
 
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    // macOS: .app バンドル内の Resources のみを探索
+    // macOS: .app バンドル内の Resources のみを探索（固定パス）
     #[cfg(target_os = "macos")]
     {
         if let Ok(exe) = std::env::current_exe() {
             if let Some(dir) = exe.parent() {
                 if let Some(app_contents) = dir.parent() {
-                    let resources = app_contents.join("Resources").join("tools-manifest.json");
-                    candidates.push(resources);
+                    let resources_root = app_contents.join("Resources");
+                    candidates.push(resources_root.join("tools-manifest.json"));
                 }
             }
         }

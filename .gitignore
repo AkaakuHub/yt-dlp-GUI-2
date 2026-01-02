@@ -27,4 +27,4 @@ dist-ssr
 todo.txt
 
 null
-src-tauri/resources/tools-manifest.json
+src-tauri/tools-manifest.json

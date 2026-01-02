@@ -68,7 +68,7 @@
       "targets": "all",
       "identifier": "yt-dlp-GUI",
       "resources": [
-        "resources/tools-manifest.json"
+        "tools-manifest.json"
       ],
       "icon": [
         "icons/32x32.png",
