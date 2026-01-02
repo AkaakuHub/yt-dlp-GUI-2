@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/tauri";
+import { checkUpdate } from "@tauri-apps/api/updater";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
 import { AppProvider } from "./_components/AppContext";
 import WindowControls from "./_components/WindowControls";
 import { checkToolAvailability } from "./_utils/toolAvailability";
-import { checkUpdate } from "@tauri-apps/api/updater";
 import Home from "./Home";
 import Setting from "./Setting";
 import ToolSetup from "./ToolSetup";

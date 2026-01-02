@@ -7,6 +7,7 @@
   "tags": [
     "-lintignore"
   ],
-"ignore": ["src-tauri/**"],
-  "ignoreDependencies": ["@tauri-apps/plugin-updater", "events","react-router-dom", "@types/events"]
+  "ignore": ["src-tauri/**"],
+  "ignoreDependencies": ["@tauri-apps/plugin-updater", "events","react-router-dom", "@types/events"],
+  "ignoreBinaries": ["python3"]
 }

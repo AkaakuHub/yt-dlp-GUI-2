@@ -585,11 +585,7 @@ export default function Settings() {
 							<Box>
 								ダウンロード完了時に通知を受け取る
 								{osType === "macos" && (
-									<Typography
-										variant="caption"
-										display="block"
-										sx={{ color: "text.secondary", fontStyle: "italic" }}
-									>
+									<Typography variant="caption" display="block">
 										macOSでは「通知パネル」設定でバナー通知が表示されます
 									</Typography>
 								)}

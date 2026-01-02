@@ -1341,7 +1341,7 @@ async fn download_file_with_progress(
                 DownloadProgress {
                     tool_name: tool_name.to_string(),
                     progress,
-                    status: format!("Downloading... {:.1}%", progress),
+                    status: "Downloading...".to_string(),
                 },
             )
             .unwrap();
