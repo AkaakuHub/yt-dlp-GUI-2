@@ -84,26 +84,22 @@ jobs:
         if: steps.compare.outputs.changed == 'true'
         run: |
           set -euo pipefail
+          export CI=1
           bash scripts/update-version.sh "${{ steps.next_version.outputs.version }}"
 
-      - name: Checkout release branch
-        if: steps.compare.outputs.changed == 'true'
-        run: |
-          git checkout release
-
-      - name: Update yt-dlp-version.txt on release
+      - name: Update yt-dlp-version.txt on default branch
         if: steps.compare.outputs.changed == 'true'
         run: |
           set -euo pipefail
           echo "${{ steps.latest.outputs.tag }}" > yt-dlp-version.txt
-          git add yt-dlp-version.txt
-          git commit -m "chore: update yt-dlp to ${{ steps.latest.outputs.tag }}" || exit 0
-          git push origin release
+          git add yt-dlp-version.txt src-tauri/Cargo.toml src-tauri/tauri.conf.json package.json
+          git commit -m "chore: update yt-dlp to ${{ steps.latest.outputs.tag }}" || echo "nothing to commit"
 
-      - name: Create and push tag
+      - name: Push changes and tag
         if: steps.compare.outputs.changed == 'true'
         run: |
           set -euo pipefail
+          git push origin HEAD
           version="${{ steps.next_version.outputs.version }}"
           tag="v${version}"
           git tag -a "$tag" -m "$tag"

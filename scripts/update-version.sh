@@ -22,34 +22,37 @@ fi
 
 echo "🚀 Starting automated release process for version $NEW_VERSION..."
 
-# Check if we have uncommitted changes
-if [ -n "$(git status --porcelain)" ]; then
-    echo "❌ Error: You have uncommitted changes. Please commit or stash them first."
-    git status
-    exit 1
-fi
+# NOTE: In CI (CI env var is set), git operations are skipped; the script only updates files.
+if [ -z "$CI" ]; then
+    # Check if we have uncommitted changes
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "❌ Error: You have uncommitted changes. Please commit or stash them first."
+        git status
+        exit 1
+    fi
 
-# Get current branch
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-echo "📍 Current branch: $CURRENT_BRANCH"
+    # Get current branch
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    echo "📍 Current branch: $CURRENT_BRANCH"
 
-# Ensure we have the latest changes
-echo "🔄 Fetching latest changes..."
-git fetch origin
+    # Ensure we have the latest changes
+    echo "🔄 Fetching latest changes..."
+    git fetch origin
 
-# Switch to release branch (create if doesn't exist)
-echo "🔀 Switching to release branch..."
-if git show-ref --verify --quiet refs/heads/release; then
-    git checkout release
-    git pull origin release
-else
-    git checkout -b release
-fi
+    # Switch to release branch (create if doesn't exist)
+    echo "🔀 Switching to release branch..."
+    if git show-ref --verify --quiet refs/heads/release; then
+        git checkout release
+        git pull origin release
+    else
+        git checkout -b release
+    fi
 
-# Merge changes from current branch if not already on release
-if [ "$CURRENT_BRANCH" != "release" ]; then
-    echo "🔀 Merging changes from $CURRENT_BRANCH..."
-    git merge "$CURRENT_BRANCH" --no-edit
+    # Merge changes from current branch if not already on release
+    if [ "$CURRENT_BRANCH" != "release" ]; then
+        echo "🔀 Merging changes from $CURRENT_BRANCH..."
+        git merge "$CURRENT_BRANCH" --no-edit
+    fi
 fi
 
 echo "📝 Updating version files to $NEW_VERSION..."
@@ -72,12 +75,14 @@ echo "  - src-tauri/tauri.conf.json"
 echo "  - package.json"
 
 # Commit and push changes
-echo "📦 Committing changes..."
-git add .
-git commit -m "v$NEW_VERSION"
+if [ -z "$CI" ]; then
+    echo "📦 Committing changes..."
+    git add .
+    git commit -m "v$NEW_VERSION"
 
-echo "🚀 Pushing to release branch..."
-git push origin release
+    echo "🚀 Pushing to release branch..."
+    git push origin release
+fi
 
 echo "✨ Release process initiated!"
 echo ""
@@ -88,8 +93,7 @@ echo "  3. GitHub Release will be created with artifacts"
 echo ""
 echo "🔗 Monitor progress at: https://github.com/$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/]*\).*/\1/' | sed 's/\.git$//')/actions"
 
-# Switch back to original branch
-if [ "$CURRENT_BRANCH" != "release" ]; then
+if [ -z "$CI" ] && [ "$CURRENT_BRANCH" != "release" ]; then
     echo "🔀 Switching back to $CURRENT_BRANCH branch..."
     git checkout "$CURRENT_BRANCH"
 fi
