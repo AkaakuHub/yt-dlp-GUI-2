@@ -1041,7 +1041,7 @@ fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String
         }
     }
 
-    let mut candidates = Vec::new();
+    let mut candidates: Vec<PathBuf> = Vec::new();
 
     // macOS: .app バンドル内の Resources のみを探索
     #[cfg(target_os = "macos")]
