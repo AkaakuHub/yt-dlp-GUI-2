@@ -201,9 +201,9 @@ export default function Settings() {
 		// On macOS and Linux you will need to restart the app manually.
 		// You could use this step to display another confirmation dialog.
 		await dialog.message(
-			"アップデートが完了しました。アプリケーションを終了します。",
+			"アップデートが完了しました。アプリケーションを再起動します。",
 		);
-		await invoke("exit_app");
+		// relaunch() handles quitting the current process and starting the new bundle.
 		await relaunch();
 	}, []);
 
