@@ -32,6 +32,11 @@
         "unminimize": true,
         "startDragging": true
       },
+      "process": {
+        "all": false,
+        "relaunch": true,
+        "exit": true
+      },
       "dialog": {
         "all": true,
         "open": true,
