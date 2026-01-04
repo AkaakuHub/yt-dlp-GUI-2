@@ -8,7 +8,6 @@ import {
 } from "@mui/material";
 import { invoke } from "@tauri-apps/api";
 import { debounce } from "lodash";
-import PropTypes from "prop-types";
 import { useEffect, useMemo } from "react";
 import { useAppContext } from "../AppContext";
 
@@ -150,11 +149,6 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = ({
 			</div>
 		</div>
 	);
-};
-
-DropDownWithArrows.propTypes = {
-	selectedIndexNumber: PropTypes.number.isRequired,
-	setSelectedIndexNumber: PropTypes.func.isRequired,
 };
 
 export default DropDownWithArrows;

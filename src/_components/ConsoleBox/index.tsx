@@ -1,6 +1,5 @@
 import { ArrowDownward } from "@mui/icons-material";
 import { Fab, Tooltip } from "@mui/material";
-import PropTypes from "prop-types";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FixedSizeList, type ListOnScrollProps } from "react-window";
@@ -189,10 +188,6 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 			</Tooltip>
 		</div>
 	);
-};
-
-ConsoleBox.propTypes = {
-	consoleText: PropTypes.string.isRequired,
 };
 
 export default ConsoleBox;

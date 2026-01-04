@@ -12,6 +12,7 @@ export default [
   {
     rules: {
       'react/react-in-jsx-scope': 'off', // ReactをインポートせずにJSXを使用可能にする
+      'react/prop-types': 'off', // TypeScriptで型安全を確保しているため未使用
     },
   },
 ]

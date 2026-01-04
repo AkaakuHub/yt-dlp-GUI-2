@@ -1,6 +1,5 @@
 import { readText } from "@tauri-apps/api/clipboard";
 import clsx from "clsx";
-import PropTypes from "prop-types";
 
 import "./index.css";
 
@@ -46,11 +45,6 @@ const ExecuteButton: React.FC<ExecuteButtonProps> = ({
 			{isRunning ? "実行中..." : "ここをクリックして実行"}
 		</div>
 	);
-};
-
-ExecuteButton.propTypes = {
-	executeButtonOnClick: PropTypes.func.isRequired,
-	isRunning: PropTypes.bool.isRequired,
 };
 
 export default ExecuteButton;
