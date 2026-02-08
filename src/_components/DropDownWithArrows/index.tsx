@@ -47,33 +47,6 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = ({
 	// 有効な選択肢のvalue値を取得
 	const validValues = dropdownOptions.map((option) => option.value);
 
-	const handleNext = () => {
-		setSelectedIndexNumber((prev) => {
-			const currentIndex = validValues.indexOf(prev);
-			if (currentIndex === -1) {
-				// 現在の値が有効でない場合は最初の値を返す
-				return validValues[0];
-			}
-			// 次の値に移動、最後の場合は最初に戻る
-			const nextIndex = (currentIndex + 1) % validValues.length;
-			return validValues[nextIndex];
-		});
-	};
-
-	const handlePrevious = () => {
-		setSelectedIndexNumber((prev) => {
-			const currentIndex = validValues.indexOf(prev);
-			if (currentIndex === -1) {
-				// 現在の値が有効でない場合は最初の値を返す
-				return validValues[0];
-			}
-			// 前の値に移動、最初の場合は最後に移動
-			const prevIndex =
-				currentIndex === 0 ? validValues.length - 1 : currentIndex - 1;
-			return validValues[prevIndex];
-		});
-	};
-
 	const saveDropDownIndex = useMemo(
 		() =>
 			debounce(async (temp: number) => {
@@ -82,12 +55,32 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = ({
 		[],
 	);
 
-	useEffect(() => {
-		if (selectedIndexNumber !== null) {
-			setSelectedIndexNumber(selectedIndexNumber);
-			saveDropDownIndex(selectedIndexNumber);
+	const persistIndex = (next: number) => {
+		if (!isSettingLoaded) return;
+		setSelectedIndexNumber(next);
+		saveDropDownIndex(next);
+	};
+
+	const handleNext = () => {
+		const currentIndex = validValues.indexOf(selectedIndexNumber);
+		if (currentIndex === -1) {
+			persistIndex(validValues[0]);
+			return;
 		}
-	}, [saveDropDownIndex, selectedIndexNumber, setSelectedIndexNumber]);
+		const nextIndex = (currentIndex + 1) % validValues.length;
+		persistIndex(validValues[nextIndex]);
+	};
+
+	const handlePrevious = () => {
+		const currentIndex = validValues.indexOf(selectedIndexNumber);
+		if (currentIndex === -1) {
+			persistIndex(validValues[0]);
+			return;
+		}
+		const prevIndex =
+			currentIndex === 0 ? validValues.length - 1 : currentIndex - 1;
+		persistIndex(validValues[prevIndex]);
+	};
 
 	useEffect(() => {
 		return () => {
@@ -106,7 +99,7 @@ const DropDownWithArrows: React.FC<DropDownWithArrowsProps> = ({
 					label="モード"
 					id="mode-select"
 					value={selectedIndexNumber}
-					onChange={(e) => setSelectedIndexNumber(e.target.value as number)}
+					onChange={(e) => persistIndex(e.target.value as number)}
 					disabled={!isSettingLoaded}
 					className="select-input"
 					MenuProps={{

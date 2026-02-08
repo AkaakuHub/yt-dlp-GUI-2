@@ -236,6 +236,7 @@ struct ToolsManifest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ToolEntry {
+    version: Option<String>,
     artifacts: Vec<ToolArtifact>,
 }
 
@@ -516,22 +517,32 @@ fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
 
     let entries = std::fs::read_dir(dir).map_err(|e| format!("Failed to read directory: {}", e))?;
 
+    let mut dirs: Vec<PathBuf> = Vec::new();
+
+    // Prefer direct ffmpeg binary in this directory first (stable path wins).
     for entry in entries.flatten() {
         let path = entry.path();
         let file_name = path.file_name().unwrap_or_default();
         let file_name_str = file_name.to_string_lossy();
 
         if path.is_dir() {
-            // サブディレクトリを再帰的に探索
-            if let Ok(found) = find_ffmpeg_recursive(&path) {
-                if !found.is_empty() {
-                    return Ok(found);
-                }
-            }
-        } else if file_name_str.starts_with("ffmpeg")
+            dirs.push(path);
+            continue;
+        }
+
+        if file_name_str.starts_with("ffmpeg")
             && (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
         {
             return Ok(path.to_string_lossy().to_string());
+        }
+    }
+
+    // Then search subdirectories.
+    for d in dirs {
+        if let Ok(found) = find_ffmpeg_recursive(&d) {
+            if !found.is_empty() {
+                return Ok(found);
+            }
         }
     }
 
@@ -709,8 +720,28 @@ fn resolve_tool_paths(
             return Ok(("".to_string(), "".to_string(), "".to_string()));
         }
 
+        // Prefer stable filenames first.
+        let yt_stable = binaries_dir.join(if cfg!(target_os = "windows") {
+            "yt-dlp.exe"
+        } else {
+            "yt-dlp"
+        });
+        let deno_stable = binaries_dir.join(if cfg!(target_os = "windows") {
+            "deno.exe"
+        } else {
+            "deno"
+        });
+        let ff_stable = binaries_dir.join(if cfg!(target_os = "windows") {
+            "ffmpeg.exe"
+        } else {
+            "ffmpeg"
+        });
+
         // yt-dlpを検索
-        let yt = std::fs::read_dir(&binaries_dir)
+        let yt = if yt_stable.exists() {
+            yt_stable.to_string_lossy().to_string()
+        } else {
+            std::fs::read_dir(&binaries_dir)
             .map_err(|e| format!("Failed to read binaries directory: {}", e))?
             .filter_map(|entry| entry.ok())
             .find(|entry| {
@@ -720,12 +751,20 @@ fn resolve_tool_paths(
                     && (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
             })
             .map(|entry| entry.path().to_string_lossy().to_string())
-            .unwrap_or_default();
+            .unwrap_or_default()
+        };
 
         // ffmpegを検索（サブディレクトリも含める）
-        let ff = find_ffmpeg_recursive(&binaries_dir)?;
+        let ff = if ff_stable.exists() {
+            ff_stable.to_string_lossy().to_string()
+        } else {
+            find_ffmpeg_recursive(&binaries_dir)?
+        };
         // denoを検索
-        let deno = std::fs::read_dir(&binaries_dir)
+        let deno = if deno_stable.exists() {
+            deno_stable.to_string_lossy().to_string()
+        } else {
+            std::fs::read_dir(&binaries_dir)
             .map_err(|e| format!("Failed to read binaries directory: {}", e))?
             .filter_map(|entry| entry.ok())
             .find(|entry| {
@@ -735,7 +774,8 @@ fn resolve_tool_paths(
                     && (file_name_str.ends_with(".exe") || !file_name_str.contains('.'))
             })
             .map(|entry| entry.path().to_string_lossy().to_string())
-            .unwrap_or_default();
+            .unwrap_or_default()
+        };
 
         return Ok((yt, ff, deno));
     }
@@ -1025,76 +1065,6 @@ fn get_os_type() -> String {
     std::env::consts::OS.to_string()
 }
 
-fn resolve_tools_manifest_path(window: &tauri::Window) -> Result<PathBuf, String> {
-    if let Some(path) = window
-        .app_handle()
-        .path_resolver()
-        .resolve_resource("tools-manifest.json")
-    {
-        if path.exists() {
-            return Ok(path);
-        }
-    }
-
-    let mut candidates: Vec<PathBuf> = Vec::new();
-
-    // macOS: .app バンドル内の Resources のみを探索（固定パス）
-    #[cfg(target_os = "macos")]
-    {
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                if let Some(app_contents) = dir.parent() {
-                    let resources_root = app_contents.join("Resources");
-                    candidates.push(resources_root.join("tools-manifest.json"));
-                }
-            }
-        }
-    }
-
-    // Windows: 実行ファイル直下と _up_ 配下のみ探索
-    #[cfg(target_os = "windows")]
-    {
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                candidates.push(dir.join("tools-manifest.json"));
-                candidates.push(dir.join("_up_").join("tools-manifest.json"));
-            }
-        }
-    }
-
-    // Linux: AppImage/解凍フォルダ直下と _up_ 配下を探索
-    #[cfg(target_os = "linux")]
-    {
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                candidates.push(dir.join("tools-manifest.json"));
-                candidates.push(dir.join("_up_").join("tools-manifest.json"));
-            }
-        }
-    }
-
-    for candidate in candidates {
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-    }
-
-    Err("tools-manifest.jsonが見つかりません。リリースに同梱されているか確認してください。".to_string())
-}
-
-fn load_tools_manifest(window: &tauri::Window) -> Result<ToolsManifest, String> {
-    let path = resolve_tools_manifest_path(window)?;
-    let content = std::fs::read_to_string(&path).map_err(|e| {
-        format!(
-            "tools-manifest.jsonの読み込みに失敗しました: {} ({})",
-            path.display(),
-            e
-        )
-    })?;
-    serde_json::from_str::<ToolsManifest>(&content)
-        .map_err(|e| format!("tools-manifest.jsonの形式が不正です: {}", e))
-}
-
 fn find_tool_artifact<'a>(
     manifest: &'a ToolsManifest,
     tool_name: &str,
@@ -1152,6 +1122,35 @@ fn sha256_file(path: &Path) -> Result<String, String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+fn tools_manifest_download_url(app_version: &str) -> String {
+    format!(
+        "https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/download/v{}/tools-manifest.json",
+        app_version
+    )
+}
+
+async fn load_tools_manifest_from_release(app_version: &str) -> Result<ToolsManifest, String> {
+    let url = tools_manifest_download_url(app_version);
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Failed to download tools-manifest.json: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Failed to download tools-manifest.json: HTTP {}",
+            response.status()
+        ));
+    }
+
+    let content = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read tools-manifest.json: {}", e))?;
+
+    serde_json::from_str::<ToolsManifest>(&content)
+        .map_err(|e| format!("tools-manifest.jsonの形式が不正です: {}", e))
+}
+
 #[tauri::command]
 async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> {
     let os_type = std::env::consts::OS;
@@ -1166,7 +1165,8 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
             .map_err(|e| format!("Failed to create binaries directory: {}", e))?;
     }
 
-    let manifest = load_tools_manifest(&window)?;
+    let app_version = env!("CARGO_PKG_VERSION");
+    let manifest = load_tools_manifest_from_release(app_version).await?;
 
     // yt-dlpのダウンロード
     window
@@ -1286,6 +1286,194 @@ async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> 
     }
 
     Ok("All tools downloaded successfully".to_string())
+}
+
+#[tauri::command]
+async fn ensure_bundle_tools(
+    window: tauri::Window,
+    app_state: State<'_, AppState>,
+) -> Result<String, String> {
+    let use_bundle = {
+        let s = app_state.settings.lock().await;
+        s.use_bundle_tools
+    };
+
+    if !use_bundle {
+        return Ok("skipped".to_string());
+    }
+
+    let app_version = env!("CARGO_PKG_VERSION");
+    let manifest = load_tools_manifest_from_release(app_version).await?;
+
+    let os_type = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let binaries_dir = get_tools_dir()?;
+    if !binaries_dir.exists() {
+        TokioFs::create_dir_all(&binaries_dir)
+            .await
+            .map_err(|e| format!("Failed to create binaries directory: {}", e))?;
+    }
+
+    // Current resolved paths (bundle)
+    let (yt_path, ff_path, deno_path) = resolve_tool_paths(true, "", "", "")?;
+
+    let mut updated_any = false;
+
+    // Helper: run a tool and capture stdout+stderr.
+    fn run_tool_version(path: &str, arg: &str) -> Option<String> {
+        if path.trim().is_empty() {
+            return None;
+        }
+        if !Path::new(path).exists() {
+            return None;
+        }
+        let out = Command::new(path).arg(arg).output().ok()?;
+        let mut s = String::new();
+        s.push_str(&String::from_utf8_lossy(&out.stdout));
+        s.push_str(&String::from_utf8_lossy(&out.stderr));
+        Some(s)
+    }
+
+    // yt-dlp
+    if let Some(tool) = manifest.tools.get("yt-dlp") {
+        let expected = tool.version.as_deref().unwrap_or("").trim();
+        let current = run_tool_version(&yt_path, "--version")
+            .and_then(|s| s.lines().next().map(|l| l.trim().to_string()))
+            .unwrap_or_default();
+        if current != expected {
+            updated_any = true;
+            window
+                .emit(
+                    "download-progress",
+                    DownloadProgress {
+                        tool_name: "yt-dlp".to_string(),
+                        progress: 0.0,
+                        status: "Updating...".to_string(),
+                    },
+                )
+                .ok();
+            let art = find_tool_artifact(&manifest, "yt-dlp", os_type, arch)?;
+            let dst = binaries_dir.join(if cfg!(target_os = "windows") {
+                "yt-dlp.exe"
+            } else {
+                "yt-dlp"
+            });
+            download_file_with_progress(
+                &art.url,
+                &dst,
+                &window,
+                "yt-dlp",
+                Some(&art.sha256),
+            )
+            .await?;
+        }
+    }
+
+    // deno
+    if let Some(tool) = manifest.tools.get("deno") {
+        let expected = tool
+            .version
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .trim_start_matches('v');
+        let current = run_tool_version(&deno_path, "--version")
+            .and_then(|s| s.lines().next().map(|l| l.trim().to_string()))
+            .and_then(|l| l.split_whitespace().nth(1).map(|v| v.to_string()))
+            .unwrap_or_default();
+        if current != expected {
+            updated_any = true;
+            window
+                .emit(
+                    "download-progress",
+                    DownloadProgress {
+                        tool_name: "deno".to_string(),
+                        progress: 0.0,
+                        status: "Updating...".to_string(),
+                    },
+                )
+                .ok();
+            let art = find_tool_artifact(&manifest, "deno", os_type, arch)?;
+            let filename = artifact_filename(art)?;
+            let archive_path = binaries_dir.join(filename);
+            download_file_with_progress(
+                &art.url,
+                &archive_path,
+                &window,
+                "deno",
+                Some(&art.sha256),
+            )
+            .await?;
+            extract_zip(&archive_path, &binaries_dir)?;
+            TokioFs::remove_file(archive_path).await.ok();
+        }
+    }
+
+    // ffmpeg
+    if let Some(tool) = manifest.tools.get("ffmpeg") {
+        let expected = tool.version.as_deref().unwrap_or("").trim();
+        let current_ok = run_tool_version(&ff_path, "-version")
+            .map(|s| s.contains(expected))
+            .unwrap_or(false);
+        if !current_ok {
+            updated_any = true;
+            window
+                .emit(
+                    "download-progress",
+                    DownloadProgress {
+                        tool_name: "ffmpeg".to_string(),
+                        progress: 0.0,
+                        status: "Updating...".to_string(),
+                    },
+                )
+                .ok();
+            let art = find_tool_artifact(&manifest, "ffmpeg", os_type, arch)?;
+            let filename = artifact_filename(art)?;
+            let archive_path = binaries_dir.join(&filename);
+            download_file_with_progress(
+                &art.url,
+                &archive_path,
+                &window,
+                "ffmpeg",
+                Some(&art.sha256),
+            )
+            .await?;
+
+            if cfg!(target_os = "windows") {
+                extract_zip(&archive_path, &binaries_dir)?;
+            } else if cfg!(target_os = "macos") {
+                extract_zip(&archive_path, &binaries_dir)?;
+            } else {
+                extract_tar_xz(&archive_path, &binaries_dir).await?;
+            }
+            TokioFs::remove_file(&archive_path).await.ok();
+
+            // Place a stable ffmpeg binary at binaries/ffmpeg(.exe) so resolution is deterministic.
+            let found = find_ffmpeg_recursive(&binaries_dir)?;
+            if !found.trim().is_empty() {
+                let stable = binaries_dir.join(if cfg!(target_os = "windows") {
+                    "ffmpeg.exe"
+                } else {
+                    "ffmpeg"
+                });
+                let _ = std::fs::copy(&found, &stable);
+                #[cfg(any(target_os = "linux", target_os = "macos"))]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(meta) = std::fs::metadata(&stable) {
+                        let mut perms = meta.permissions();
+                        perms.set_mode(0o755);
+                        let _ = std::fs::set_permissions(&stable, perms);
+                    }
+                }
+            }
+        }
+    }
+
+    if updated_any {
+        return Ok("downloaded".to_string());
+    }
+    Ok("ok".to_string())
 }
 
 async fn download_file_with_progress(
@@ -1459,6 +1647,7 @@ fn main() {
             get_current_version,
             get_os_type,
             download_bundle_tools,
+            ensure_bundle_tools,
             check_tools_status,
             config::commands::set_save_dir,
             config::commands::set_browser,

@@ -42,22 +42,38 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Fetch remote tags
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
       - name: Compute next app version
         if: steps.compare.outputs.changed == 'true'
         id: next_version
         run: |
           set -euo pipefail
-          version=$(python - <<'PY'
-          import json
-          from pathlib import Path
-          data=json.loads(Path("src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
-          v=data.get("package",{}).get("version","")
-          parts=v.split(".")
-          if len(parts) >= 3 and all(p.isdigit() for p in parts[:3]):
-            parts[2]=str(int(parts[2])+1)
-            print(".".join(parts[:3]))
+          version=$(python3 - <<'PY'
+          import re
+          import subprocess
+
+          tags = subprocess.check_output(
+              ["git", "tag", "-l", "v[0-9]*.[0-9]*.[0-9]*"], text=True
+          ).splitlines()
+
+          best = None
+          for t in tags:
+              m = re.match(r"^v(\d+)\.(\d+)\.(\d+)$", t.strip())
+              if not m:
+                  continue
+              v = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+              if best is None or v > best:
+                  best = v
+
+          if best is None:
+              print("0.0.1")
           else:
-            print("")
+              print(f"{best[0]}.{best[1]}.{best[2] + 1}")
           PY
           )
           if [ -z "$version" ]; then

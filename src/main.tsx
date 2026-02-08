@@ -50,6 +50,13 @@ const App = () => {
 				// アップデート確認が走ったあとにのみツールチェックを行う
 				try {
 					const settings = await invoke<ConfigProps>("get_settings");
+					if (settings?.use_bundle_tools ?? true) {
+						try {
+							await invoke("ensure_bundle_tools");
+						} catch {
+							// ensure が失敗しても、そのまま availability チェックへ進む
+						}
+					}
 					const status = await checkToolAvailability(
 						settings?.use_bundle_tools ?? true,
 						settings?.yt_dlp_path,
@@ -69,6 +76,13 @@ const App = () => {
 				// アップデート確認に失敗してもツールチェックだけは実行して判定
 				try {
 					const settings = await invoke<ConfigProps>("get_settings");
+					if (settings?.use_bundle_tools ?? true) {
+						try {
+							await invoke("ensure_bundle_tools");
+						} catch {
+							// ensure が失敗しても、そのまま availability チェックへ進む
+						}
+					}
 					const status = await checkToolAvailability(
 						settings?.use_bundle_tools ?? true,
 						settings?.yt_dlp_path,

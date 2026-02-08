@@ -141,13 +141,10 @@ impl Settings {
     }
 
     pub fn set_use_bundle_tools(&mut self, use_bundle_tools: bool) {
-        self.use_bundle_tools = use_bundle_tools;
-        // バンドルモードに変更した場合は空文字列を設定（セットアップを強制するため）
-        if use_bundle_tools {
-            self.yt_dlp_path = "".to_string();
-            self.ffmpeg_path = "".to_string();
-            self.deno_path = "".to_string();
+        if self.use_bundle_tools == use_bundle_tools {
+            return;
         }
+        self.use_bundle_tools = use_bundle_tools;
         self.write_file();
     }
 
