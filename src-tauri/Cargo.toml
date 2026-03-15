@@ -29,6 +29,9 @@ futures-util = "0.3"
 zip = "0.6"
 sha2 = "0.10"
 
+[patch.crates-io]
+wry = { path = "../patches/wry" }
+
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
