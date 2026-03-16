@@ -1,7 +1,6 @@
 .execute-button {
-	height: 160px;
+	height: 100px;
 	border: 1px solid var(--border-primary);
-	margin: 1rem;
 	border-radius: 16px;
 	display: flex;
 	align-items: center;
