@@ -728,8 +728,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 							sx={{ fontSize: "0.8rem", lineHeight: 1.4 }}
 						>
 							<strong>ヒント:</strong>
-							<br />・ バンドル版: インストール不要で簡単
-							<br />・ 上級者向け: 最新ツールを使用可能
+							<br />・ バンドル版: ツールを自動で設定・使用
+							<br />・ 上級者向け: 手動でインストールしたツールを指定
 						</Typography>
 					</Alert>
 				</Box>
