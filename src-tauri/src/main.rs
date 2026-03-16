@@ -549,13 +549,72 @@ fn find_ffmpeg_recursive(dir: &std::path::Path) -> Result<String, String> {
     Ok("".to_string())
 }
 
-fn check_program_available(program_name: &str, command_path: &str) -> Result<String, String> {
-    if command_path.trim().is_empty() {
-        return Err(format!(
-            "{} bundle path is empty. Tools may not be downloaded yet.",
-            program_name
-        ));
+#[cfg(not(target_os = "windows"))]
+fn command_name_candidates(command_name: &str) -> Vec<String> {
+    vec![command_name.to_string()]
+}
+
+#[cfg(target_os = "windows")]
+fn command_name_candidates(command_name: &str) -> Vec<String> {
+    let mut candidates = vec![command_name.to_string()];
+    let exts = std::env::var_os("PATHEXT")
+        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
+    for ext in exts.to_string_lossy().split(';') {
+        let ext = ext.trim();
+        if ext.is_empty() {
+            continue;
+        }
+        let candidate = format!("{}{}", command_name, ext);
+        if !candidates
+            .iter()
+            .any(|value| value.eq_ignore_ascii_case(&candidate))
+        {
+            candidates.push(candidate);
+        }
     }
+    candidates
+}
+
+fn find_command_in_path(command_name: &str) -> Result<PathBuf, String> {
+    let path_var = std::env::var_os("PATH")
+        .ok_or_else(|| "PATH environment variable is not set".to_string())?;
+
+    for dir in std::env::split_paths(&path_var) {
+        for candidate in command_name_candidates(command_name) {
+            let candidate_path = dir.join(candidate);
+            if candidate_path.is_file() {
+                return Ok(candidate_path);
+            }
+        }
+    }
+
+    Err(format!("{} is not found in PATH", command_name))
+}
+
+fn resolve_command_path(program_name: &str, command_path: &str) -> Result<String, String> {
+    let trimmed_path = command_path.trim();
+    if trimmed_path.is_empty() {
+        return find_command_in_path(program_name).map(|path| path.to_string_lossy().to_string());
+    }
+
+    let provided_path = Path::new(trimmed_path);
+    if provided_path.is_absolute() || trimmed_path.contains('/') || trimmed_path.contains('\\') {
+        if !provided_path.exists() {
+            return Err(format!(
+                "{} is not found at path: {}",
+                program_name, trimmed_path
+            ));
+        }
+        return Ok(trimmed_path.to_string());
+    }
+
+    find_command_in_path(trimmed_path)
+        .map(|path| path.to_string_lossy().to_string())
+        .map_err(|_| format!("{} is not found in PATH: {}", program_name, trimmed_path))
+}
+
+fn check_program_available(program_name: &str, command_path: &str) -> Result<String, String> {
+    let command_path = resolve_command_path(program_name, command_path)?;
 
     let command_arg = match program_name {
         "yt-dlp" => "--version",
@@ -564,23 +623,14 @@ fn check_program_available(program_name: &str, command_path: &str) -> Result<Str
         _ => return Err(format!("Program {} is not supported", program_name)),
     };
 
-    // ファイルの存在チェック
-    let file_exists = Path::new(command_path).exists();
-    if !file_exists {
-        return Err(format!(
-            "{} not found at path: {}",
-            program_name, command_path
-        ));
-    }
-
     #[cfg(target_os = "windows")]
-    let output = Command::new(command_path)
+    let output = Command::new(&command_path)
         .arg(command_arg)
         .creation_flags(0x08000000)
         .output();
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
-    let output = Command::new(command_path)
+    let output = Command::new(&command_path)
         .arg(command_arg)
         .env("LC_ALL", "en_US.UTF-8")
         .env("LANG", "en_US.UTF-8")
@@ -624,14 +674,6 @@ async fn check_program_cached(
     cache: &tokio::sync::Mutex<std::collections::HashMap<String, ToolCacheEntry>>,
     settings: &tokio::sync::Mutex<config::Settings>,
 ) -> Result<String, String> {
-    // 空パスは即エラー（キャッシュしない）
-    if command_path.trim().is_empty() {
-        return Err(format!(
-            "{} bundle path is empty. Tools may not be downloaded yet.",
-            program_name
-        ));
-    }
-
     let mtime = match file_mtime(command_path) {
         Ok(m) => m,
         Err(e) => return Err(e),
@@ -781,9 +823,9 @@ fn resolve_tool_paths(
     }
 
     Ok((
-        yt_dlp_path.to_string(),
-        ffmpeg_path.to_string(),
-        deno_path.to_string(),
+        resolve_command_path("yt-dlp", yt_dlp_path)?,
+        resolve_command_path("ffmpeg", ffmpeg_path)?,
+        resolve_command_path("deno", deno_path)?,
     ))
 }
 

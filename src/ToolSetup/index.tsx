@@ -240,7 +240,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 					status.ytDlpError ||
 						status.ffmpegError ||
 						status.denoError ||
-						"ツールが見つかりません。先にダウンロードまたはパス設定を行ってください。",
+						"ツールが見つかりません。先にダウンロードするか、PATH または実行ファイルパスを確認してください。",
 				);
 				setCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 				return;
@@ -285,12 +285,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		setUseBundleTools(event.target.value === "bundle");
 	};
-
-	const isConfigValid = useBundleTools
-		? true
-		: ytDlpPath.trim() !== "" &&
-			ffmpegPath.trim() !== "" &&
-			denoPath.trim() !== "";
 
 	// ローディング中はローディング画面を表示
 	if (isLoading) {
@@ -538,7 +532,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									value={ytDlpPath}
 									onChange={(e) => setYtDlpPath(e.target.value)}
 									margin="dense"
-									helperText="yt-dlp実行ファイルのパス"
+									helperText="yt-dlp実行ファイルのパス（空欄時は PATH を参照）"
 								/>
 							</Box>
 
@@ -551,7 +545,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									value={ffmpegPath}
 									onChange={(e) => setFfmpegPath(e.target.value)}
 									margin="dense"
-									helperText="FFmpeg実行ファイルのパス"
+									helperText="FFmpeg実行ファイルのパス（空欄時は PATH を参照）"
 								/>
 							</Box>
 
@@ -564,7 +558,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									value={denoPath}
 									onChange={(e) => setDenoPath(e.target.value)}
 									margin="dense"
-									helperText="Deno実行ファイルのパス"
+									helperText="Deno実行ファイルのパス（空欄時は PATH を参照）"
 								/>
 							</Box>
 						</Box>
@@ -622,7 +616,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								disabled={
 									isChecking ||
 									isDownloading ||
-									(!useBundleTools && !isConfigValid) ||
 									(downloadedOnce &&
 										checkResults.ytDlp &&
 										checkResults.ffmpeg &&

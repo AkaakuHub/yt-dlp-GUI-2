@@ -393,7 +393,7 @@ export default function Settings() {
 					status.ytDlpError ||
 						status.ffmpegError ||
 						status.denoError ||
-						"ツールが見つかりません。先にダウンロードまたはパス設定を行ってください。",
+						"ツールが見つかりません。先にダウンロードするか、PATH または実行ファイルパスを確認してください。",
 				);
 				setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
 				return;
@@ -830,7 +830,7 @@ export default function Settings() {
 									value={tempYtDlpPath}
 									onChange={(e) => setTempYtDlpPath(e.target.value)}
 									margin="normal"
-									helperText="yt-dlp実行ファイルへのパスを入力してください"
+									helperText="yt-dlp実行ファイルのパス（空欄時は PATH を参照）"
 								/>
 							</Box>
 
@@ -842,7 +842,7 @@ export default function Settings() {
 									value={tempFfmpegPath}
 									onChange={(e) => setTempFfmpegPath(e.target.value)}
 									margin="normal"
-									helperText="FFmpeg実行ファイルへのパスを入力してください"
+									helperText="FFmpeg実行ファイルのパス（空欄時は PATH を参照）"
 								/>
 							</Box>
 
@@ -854,7 +854,7 @@ export default function Settings() {
 									value={tempDenoPath}
 									onChange={(e) => setTempDenoPath(e.target.value)}
 									margin="normal"
-									helperText="Deno実行ファイルへのパスを入力してください"
+									helperText="Deno実行ファイルのパス（空欄時は PATH を参照）"
 								/>
 							</Box>
 						</Box>
@@ -902,10 +902,6 @@ export default function Settings() {
 							disabled={
 								isCheckingTools ||
 								isDownloadingTools ||
-								(!tempUseBundle &&
-									(tempYtDlpPath.trim() === "" ||
-										tempFfmpegPath.trim() === "" ||
-										tempDenoPath.trim() === "")) ||
 								(downloadedOnce &&
 									toolCheckResults.ytDlp &&
 									toolCheckResults.ffmpeg &&
