@@ -304,7 +304,7 @@ export default function Settings() {
 
 	return (
 		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-3 text-base-content">
-			<div className="mx-auto grid h-full max-w-5xl grid-rows-[auto_auto_auto_auto_auto] gap-3">
+			<div className="mx-auto grid h-full max-w-5xl content-start gap-3">
 				<section className="grid gap-3 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-[minmax(0,1fr)_9rem] md:items-end">
 					<ThemeSelector />
 					<div className="flex h-10 items-end">
@@ -405,7 +405,7 @@ export default function Settings() {
 					<label className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-base-100 px-3">
 						<span className="flex items-center gap-3 text-sm font-semibold">
 							<Server size={18} className="text-primary" />
-							サーバー
+							サーバー機能を有効にする
 						</span>
 						<input
 							className="toggle toggle-primary"

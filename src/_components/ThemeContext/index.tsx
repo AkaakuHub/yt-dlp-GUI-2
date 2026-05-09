@@ -68,7 +68,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 	}, []);
 
 	useEffect(() => {
-		const daisyTheme = actualTheme === "light" ? "winter" : "night";
+		const daisyTheme = actualTheme === "light" ? "ytlight" : "night";
 		document.documentElement.setAttribute("data-theme", daisyTheme);
 		document.documentElement.className = actualTheme;
 	}, [actualTheme]);
