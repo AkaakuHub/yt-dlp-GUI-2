@@ -6,12 +6,12 @@ import {
 	Loader2,
 	Package,
 	Play,
-	RefreshCw,
 	Terminal,
 } from "lucide-react";
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
+import PrimaryCircleButton from "../_components/PrimaryCircleButton";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 
 interface ToolSetupProps {
@@ -109,7 +109,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		setCheckResults(emptyToolResults);
 	};
 
-	const checkTools = async () => {
+	const checkTools = async (): Promise<boolean> => {
 		setIsChecking(true);
 		try {
 			const status = await checkToolAvailability(
@@ -125,7 +125,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 			});
 			if (status.ok) {
 				toast.success("すべてのツールが利用可能です");
-				return;
+				return true;
 			}
 			toast.error(
 				status.ytDlpError ||
@@ -133,9 +133,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 					status.denoError ||
 					"ツールが見つかりません。設定を確認してください。",
 			);
+			return false;
 		} catch (error) {
 			toast.error(`ツールのチェックに失敗しました:${String(error)}`);
 			setCheckResults(emptyToolResults);
+			return false;
 		} finally {
 			setIsChecking(false);
 		}
@@ -168,6 +170,13 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		onComplete();
 	};
 
+	const verifyAndStart = async () => {
+		const isReady = canStart || (await checkTools());
+		if (isReady) {
+			await saveSettings();
+		}
+	};
+
 	if (isLoading) {
 		return (
 			<div className="grid h-screen overflow-hidden bg-base-100 p-3 text-base-content">
@@ -184,7 +193,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 	return (
 		<div className="h-screen overflow-hidden bg-base-100 p-3 text-base-content">
-			<main className="mx-auto grid h-full max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3">
+			<main className="mx-auto grid h-full max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-2">
 				<section className="grid gap-2 rounded-lg bg-base-200 p-2 shadow-sm ring-1 ring-base-300 sm:grid-cols-2">
 					<div className="contents">
 						<label
@@ -250,7 +259,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								/>
 							</label>
 						) : (
-							<div className="grid content-center gap-2 rounded-lg bg-base-100 p-4">
+							<div className="grid h-12 content-center rounded-lg bg-base-100 px-4">
 								<div className="flex items-center gap-2 text-sm font-semibold">
 									<Package size={17} className="text-primary" />
 									バンドル版
@@ -286,30 +295,18 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 					</div>
 
 					<div className="grid content-center justify-items-center gap-2">
-						<button
-							className="btn btn-primary aspect-square h-36 min-h-0 rounded-full text-lg font-bold shadow-lg shadow-primary/30 ring-8 ring-base-100"
-							type="button"
-							disabled={isChecking || isDownloading}
-							onClick={() => void checkTools()}
-						>
-							<span className="grid place-items-center gap-2">
-								{isChecking ? (
+						<PrimaryCircleButton
+							label="開始"
+							icon={
+								isChecking ? (
 									<Loader2 size={30} className="animate-spin" />
 								) : (
-									<RefreshCw size={30} />
-								)}
-								確認
-							</span>
-						</button>
-						<button
-							className="btn btn-ghost btn-sm rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							disabled={!canStart}
-							onClick={() => void saveSettings()}
-						>
-							<Play size={15} />
-							開始
-						</button>
+									<Play size={30} />
+								)
+							}
+							disabled={isChecking || isDownloading}
+							onClick={() => void verifyAndStart()}
+						/>
 					</div>
 
 					<div className="grid min-h-0 content-start gap-2">

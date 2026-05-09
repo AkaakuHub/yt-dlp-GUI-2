@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import Workspace from "../_components/BottomTab";
+import PrimaryCircleButton from "../_components/PrimaryCircleButton";
 import {
 	cleanDownloadUrl,
 	type DownloadParam,
@@ -454,17 +455,12 @@ export default function Home() {
 						</div>
 
 						<div className="z-20 grid place-items-center gap-2 sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
-							<button
-								className="btn btn-primary aspect-square h-32 min-h-0 rounded-full text-lg font-bold shadow-lg shadow-primary/30 ring-8 ring-base-200 transition-transform hover:scale-[1.02] active:scale-95 sm:h-36"
-								type="button"
+							<PrimaryCircleButton
+								label="実行"
+								icon={<Download size={30} />}
 								disabled={isQueueRunning || pid !== null}
 								onClick={() => void executeFromPrimaryInput()}
-							>
-								<span className="grid place-items-center gap-2">
-									<Download size={30} />
-									実行
-								</span>
-							</button>
+							/>
 							{pid !== null ? (
 								<button
 									className="btn btn-error btn-sm rounded-md"
