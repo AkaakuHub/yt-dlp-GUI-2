@@ -20,7 +20,7 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 	const lastScrollOffsetRef = useRef<number>(0);
 
 	useEffect(() => {
-		setConsoleLines(consoleText.split("\n"));
+		setConsoleLines(consoleText === "" ? [] : consoleText.split("\n"));
 	}, [consoleText]);
 
 	useEffect(() => {
@@ -139,7 +139,7 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 					</span>
 					<span
 						id={`console-line-${lineNumber}`}
-						className={`min-w-0 flex-1 truncate px-3 font-mono leading-5 ${isEmpty ? "opacity-60" : ""}`}
+						className={`min-w-0 flex-1 whitespace-pre px-3 font-mono leading-5 ${isEmpty ? "opacity-60" : ""}`}
 					>
 						{text || " "}
 					</span>
@@ -154,33 +154,41 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 			className="relative h-full min-h-0 overflow-hidden bg-base-100"
 			ref={wrapperRef}
 		>
-			<div className="h-full">
-				<FixedSizeList
-					ref={listRef}
-					height={listHeight}
-					width="100%"
-					itemCount={consoleLines.length}
-					itemSize={20}
-					className="scrollbar-thin"
-					onScroll={handleScroll}
-					overscanCount={5}
-				>
-					{Row}
-				</FixedSizeList>
-			</div>
+			{consoleLines.length === 0 ? (
+				<div className="flex h-full items-center justify-center text-sm text-base-content/45">
+					出力待機
+				</div>
+			) : (
+				<>
+					<div className="h-full">
+						<FixedSizeList
+							ref={listRef}
+							height={listHeight}
+							width="100%"
+							itemCount={consoleLines.length}
+							itemSize={20}
+							className="scrollbar-thin"
+							onScroll={handleScroll}
+							overscanCount={5}
+						>
+							{Row}
+						</FixedSizeList>
+					</div>
 
-			<button
-				aria-label={isAtBottom ? "追従中" : "最下部に移動して追従"}
-				className={`absolute right-4 bottom-4 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-lg transition-colors ${
-					isAtBottom
-						? "border-primary bg-primary text-primary-content"
-						: "border-base-300 bg-base-200 text-base-content hover:bg-base-300"
-				}`}
-				type="button"
-				onClick={scrollToBottom}
-			>
-				<ArrowDown size={18} />
-			</button>
+					<button
+						aria-label={isAtBottom ? "追従中" : "最下部に移動して追従"}
+						className={`absolute right-4 bottom-4 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-lg transition-colors ${
+							isAtBottom
+								? "border-primary bg-primary text-primary-content"
+								: "border-base-300 bg-base-200 text-base-content hover:bg-base-300"
+						}`}
+						type="button"
+						onClick={scrollToBottom}
+					>
+						<ArrowDown size={18} />
+					</button>
+				</>
+			)}
 		</div>
 	);
 };

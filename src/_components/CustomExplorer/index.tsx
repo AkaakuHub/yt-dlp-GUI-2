@@ -96,6 +96,8 @@ const CustomExplorer: React.FC = () => {
 	const [currentPath, setCurrentPath] = useState<string>(saveDir);
 	const [history, setHistory] = useState<string[]>([]);
 	const [historyIndex, setHistoryIndex] = useState(-1);
+	const [isLoading, setIsLoading] = useState(false);
+	const [errorText, setErrorText] = useState("");
 
 	const currentPathRef = useRef(currentPath);
 	const historyIndexRef = useRef(historyIndex);
@@ -129,14 +131,19 @@ const CustomExplorer: React.FC = () => {
 		if (!currentPath) {
 			return;
 		}
+		setIsLoading(true);
+		setErrorText("");
 		try {
 			const contents: FileInfo[] = await invoke(
 				"get_sorted_directory_contents",
 				{ path: currentPath },
 			);
 			setFiles(contents);
-		} catch (error) {
-			console.error("Error fetching directory contents:", error);
+		} catch {
+			setFiles([]);
+			setErrorText("読み込み失敗");
+		} finally {
+			setIsLoading(false);
 		}
 	}, [currentPath]);
 
@@ -271,14 +278,31 @@ const CustomExplorer: React.FC = () => {
 				<div className="text-right">更新日時</div>
 			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto">
-				{files.map((file: FileInfo, index: number) => (
-					<Item
-						key={`${file.name}-${index}`}
-						handleClick={handleClick}
-						file={file}
-						fullPath={`${currentPath}/${file.name}`}
-					/>
-				))}
+				{isLoading && (
+					<div className="flex h-full items-center justify-center text-sm text-base-content/45">
+						読み込み中
+					</div>
+				)}
+				{!isLoading && errorText !== "" && (
+					<div className="flex h-full items-center justify-center text-sm text-error">
+						{errorText}
+					</div>
+				)}
+				{!isLoading && errorText === "" && files.length === 0 && (
+					<div className="flex h-full items-center justify-center text-sm text-base-content/45">
+						ファイルなし
+					</div>
+				)}
+				{!isLoading &&
+					errorText === "" &&
+					files.map((file: FileInfo, index: number) => (
+						<Item
+							key={`${file.name}-${index}`}
+							handleClick={handleClick}
+							file={file}
+							fullPath={`${currentPath}/${file.name}`}
+						/>
+					))}
 			</div>
 		</div>
 	);

@@ -29,9 +29,6 @@ importers:
       '@tauri-apps/api':
         specifier: ^1
         version: 1.6.0
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       daisyui:
         specifier: ^5.5.19
         version: 5.5.19

@@ -8,7 +8,6 @@ import {
 	Download,
 	FolderOpen,
 	ListPlus,
-	Square,
 	Terminal,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -364,16 +363,12 @@ export default function Home() {
 	const usesArbitraryCode = selectedIndexNumber === 13;
 
 	return (
-		<div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-base-100 p-3 text-base-content">
-			<section className="overflow-hidden rounded-lg border border-base-300 bg-base-200 shadow-sm">
-				<div className="grid h-[318px] min-h-0 grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] gap-3 p-3">
-					<div className="grid min-h-0 grid-rows-[auto_auto_auto_auto_auto] gap-2">
-						<div className="flex items-start justify-between gap-3">
-							<div>
-								<h2 className="text-sm font-semibold leading-5 text-base-content">
-									ダウンロード
-								</h2>
-							</div>
+		<div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-hidden bg-base-100 p-3 text-base-content">
+			<section className="grid min-h-0 grid-cols-[minmax(0,1fr)_260px] gap-3 rounded-lg border border-base-300 bg-base-200 p-3 shadow-sm">
+				<div className="grid min-w-0 gap-3">
+					<div className="flex items-center justify-between gap-3">
+						<div className="flex min-w-0 items-center gap-3">
+							<h2 className="shrink-0 text-sm font-semibold">ダウンロード</h2>
 							{pid !== null ? (
 								<div className="flex items-center gap-2">
 									<span className="badge badge-error badge-outline">
@@ -396,89 +391,16 @@ export default function Home() {
 								</span>
 							)}
 						</div>
-
-						<button
-							className="btn btn-primary h-11 min-h-11 rounded-md text-sm font-bold shadow-sm"
-							type="button"
-							disabled={isQueueRunning || pid !== null}
-							onClick={() => {
-								void executeFromPrimaryInput();
-							}}
-						>
-							<Download size={18} />
-							クリップボードから実行
-						</button>
-
-						<label className="grid gap-1">
-							<span className="text-xs font-semibold text-base-content/60">
-								手入力URL
-							</span>
-							<input
-								className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm placeholder:text-base-content/35 focus:outline-primary"
-								value={urlInput}
-								onChange={(event) => setUrlInput(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter") {
-										void executeFromPrimaryInput();
-									}
-								}}
-								placeholder="https://www.youtube.com/watch?v=..."
-								type="url"
-							/>
-						</label>
-
-						<div className="grid grid-cols-[minmax(0,320px)_auto] gap-2">
-							<label className="grid gap-1">
-								<span className="text-xs font-semibold text-base-content/60">
-									モード
-								</span>
-								<select
-									className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-100 text-sm focus:outline-primary"
-									disabled={!isSettingLoaded}
-									value={selectedIndexNumber}
-									onChange={(event) => {
-										void persistDownloadMode(Number(event.target.value));
-									}}
-								>
-									{downloadModes.map((mode) => (
-										<option key={mode.value} value={mode.value}>
-											{mode.label}
-										</option>
-									))}
-								</select>
-							</label>
-							<div className="flex items-end gap-2 self-end">
-								<button
-									aria-label="前のモード"
-									className="btn btn-outline h-10 min-h-10 w-10 rounded-md"
-									disabled={!isSettingLoaded}
-									type="button"
-									onClick={() => moveDownloadMode(-1)}
-								>
-									<ChevronLeft size={18} />
-								</button>
-								<button
-									aria-label="次のモード"
-									className="btn btn-outline h-10 min-h-10 w-10 rounded-md"
-									disabled={!isSettingLoaded}
-									type="button"
-									onClick={() => moveDownloadMode(1)}
-								>
-									<ChevronRight size={18} />
-								</button>
-							</div>
-						</div>
-
-						<div className="flex flex-wrap items-center gap-2">
+						<div className="flex shrink-0 items-center gap-2">
 							<button
 								className="btn btn-outline btn-sm h-8 min-h-8 rounded-md"
 								type="button"
 								onClick={openDirectory}
 							>
 								<FolderOpen size={16} />
-								保存先を開く
+								保存先
 							</button>
-							<label className="flex h-8 items-center gap-2 rounded-md border border-base-300 bg-base-100 px-3 text-sm text-base-content">
+							<label className="flex h-8 items-center gap-2 rounded-md border border-base-300 bg-base-100 px-3 text-sm">
 								<input
 									className="toggle toggle-primary toggle-sm"
 									checked={param.is_cookie}
@@ -488,142 +410,187 @@ export default function Home() {
 									}
 								/>
 								<Cookie size={15} />
-								クッキーを使う
+								クッキー
 							</label>
 						</div>
 					</div>
+					<div className="grid grid-cols-[minmax(0,1fr)_minmax(240px,320px)_auto] gap-2">
+						<input
+							className="input input-bordered h-11 w-full rounded-md bg-base-100 text-sm placeholder:text-base-content/35 focus:outline-primary"
+							value={urlInput}
+							onChange={(event) => setUrlInput(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") {
+									void executeFromPrimaryInput();
+								}
+							}}
+							placeholder="https://www.youtube.com/watch?v=..."
+							type="url"
+						/>
+						<select
+							className="select select-bordered h-11 min-h-11 w-full rounded-md bg-base-100 text-sm focus:outline-primary"
+							disabled={!isSettingLoaded}
+							value={selectedIndexNumber}
+							onChange={(event) => {
+								void persistDownloadMode(Number(event.target.value));
+							}}
+						>
+							{downloadModes.map((mode) => (
+								<option key={mode.value} value={mode.value}>
+									{mode.label}
+								</option>
+							))}
+						</select>
+						<div className="flex gap-2">
+							<button
+								aria-label="前のモード"
+								className="btn btn-outline h-11 min-h-11 w-11 rounded-md"
+								disabled={!isSettingLoaded}
+								type="button"
+								onClick={() => moveDownloadMode(-1)}
+							>
+								<ChevronLeft size={18} />
+							</button>
+							<button
+								aria-label="次のモード"
+								className="btn btn-outline h-11 min-h-11 w-11 rounded-md"
+								disabled={!isSettingLoaded}
+								type="button"
+								onClick={() => moveDownloadMode(1)}
+							>
+								<ChevronRight size={18} />
+							</button>
+						</div>
+					</div>
+				</div>
+				<button
+					className="btn btn-primary h-full min-h-24 rounded-md text-base font-bold shadow-sm"
+					type="button"
+					disabled={isQueueRunning || pid !== null}
+					onClick={() => {
+						void executeFromPrimaryInput();
+					}}
+				>
+					<Download size={20} />
+					<span className="whitespace-nowrap">クリップボードから実行</span>
+				</button>
+			</section>
 
-					<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+			<section className="grid h-[190px] min-h-0 grid-cols-[minmax(320px,0.75fr)_minmax(560px,1.25fr)] gap-3">
+				<label className="grid min-h-0 gap-2 rounded-lg border border-base-300 bg-base-200 p-3 shadow-sm">
+					<span className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
+						<ListPlus size={14} />
+						一括URLリスト
+					</span>
+					<textarea
+						className="textarea textarea-bordered h-full min-h-0 w-full resize-none rounded-md bg-base-100 text-sm leading-5 placeholder:text-base-content/35 focus:outline-primary"
+						value={urlQueueText}
+						onChange={(event) => setUrlQueueText(event.target.value)}
+						placeholder="改行またはカンマ区切り"
+					/>
+				</label>
+
+				<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 rounded-lg border border-base-300 bg-base-200 p-3 shadow-sm">
+					<div className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
+						<Terminal size={14} />
+						詳細設定
+					</div>
+					<div className="grid min-h-0 grid-cols-4 gap-2">
 						<label className="grid gap-1">
-							<span className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
-								<ListPlus size={14} />
-								一括URLリスト
+							<span className="text-xs text-base-content/60">開始</span>
+							<input
+								className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm placeholder:text-base-content/35 focus:outline-primary"
+								value={param.start_time || ""}
+								onChange={(event) => {
+									const value = event.target.value;
+									setParam((prev) => ({ ...prev, start_time: value }));
+									validateTimestamp("start_time", value);
+								}}
+								placeholder="00:00:00"
+								type="text"
+							/>
+						</label>
+						<label className="grid gap-1">
+							<span className="text-xs text-base-content/60">終了</span>
+							<input
+								className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm placeholder:text-base-content/35 focus:outline-primary"
+								value={param.end_time || ""}
+								onChange={(event) => {
+									const value = event.target.value;
+									setParam((prev) => ({ ...prev, end_time: value }));
+									validateTimestamp("end_time", value);
+								}}
+								placeholder="00:00:00"
+								type="text"
+							/>
+						</label>
+						<label className="col-span-2 grid gap-1">
+							<span className="text-xs text-base-content/60">
+								出力ファイル名
 							</span>
-							<textarea
-								className="textarea textarea-bordered h-20 min-h-20 w-full resize-none rounded-md bg-base-100 text-sm leading-5 placeholder:text-base-content/35 focus:outline-primary"
-								value={urlQueueText}
-								onChange={(event) => setUrlQueueText(event.target.value)}
-								placeholder="改行またはカンマ区切り"
+							<input
+								className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm placeholder:text-base-content/35 focus:outline-primary"
+								value={param.output_name || ""}
+								onChange={(event) =>
+									setParam((prev) => ({
+										...prev,
+										output_name: event.target.value,
+									}))
+								}
+								placeholder="{i}で連番"
+								type="text"
 							/>
 						</label>
 
-						<div className="grid min-h-0 gap-2 rounded-md border border-base-300 bg-base-100 p-3">
-							<div className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
-								<Terminal size={14} />
-								詳細設定
-							</div>
-							<div className="grid gap-2 sm:grid-cols-2">
-								<label className="grid gap-1">
-									<span className="text-xs text-base-content/60">開始</span>
-									<input
-										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm placeholder:text-base-content/35 focus:outline-primary"
-										value={param.start_time || ""}
-										onChange={(event) => {
-											const value = event.target.value;
-											setParam((prev) => ({ ...prev, start_time: value }));
-											validateTimestamp("start_time", value);
-										}}
-										placeholder="00:00:00"
-										type="text"
-									/>
-								</label>
-								<label className="grid gap-1">
-									<span className="text-xs text-base-content/60">終了</span>
-									<input
-										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm placeholder:text-base-content/35 focus:outline-primary"
-										value={param.end_time || ""}
-										onChange={(event) => {
-											const value = event.target.value;
-											setParam((prev) => ({ ...prev, end_time: value }));
-											validateTimestamp("end_time", value);
-										}}
-										placeholder="00:00:00"
-										type="text"
-									/>
-								</label>
-							</div>
+						{usesCodecId && (
+							<label className="col-span-2 grid gap-1">
+								<span className="text-xs text-base-content/60">
+									コーデックID
+								</span>
+								<input
+									className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm focus:outline-primary"
+									value={param.codec_id || ""}
+									onChange={(event) =>
+										setParam({ ...param, codec_id: event.target.value })
+									}
+									type="text"
+								/>
+							</label>
+						)}
 
-							<div className="grid gap-2 sm:grid-cols-2">
-								<label className="grid gap-1">
-									<span className="text-xs text-base-content/60">
-										出力ファイル名
-									</span>
-									<input
-										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm placeholder:text-base-content/35 focus:outline-primary"
-										value={param.output_name || ""}
-										onChange={(event) =>
-											setParam((prev) => ({
-												...prev,
-												output_name: event.target.value,
-											}))
+						{usesSubtitleLang && (
+							<label className="col-span-2 grid gap-1">
+								<span className="text-xs text-base-content/60">字幕言語</span>
+								<input
+									className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm focus:outline-primary"
+									value={param.subtitle_lang || ""}
+									onChange={(event) =>
+										setParam({
+											...param,
+											subtitle_lang: event.target.value,
+										})
+									}
+									type="text"
+								/>
+							</label>
+						)}
+
+						{usesArbitraryCode && (
+							<label className="col-span-4 grid gap-1">
+								<span className="text-xs text-base-content/60">任意コード</span>
+								<input
+									className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm focus:outline-primary"
+									value={arbitraryCode}
+									onChange={(event) => setArbitraryCode(event.target.value)}
+									onKeyDown={(event) => {
+										if (event.key === "Enter") {
+											void executeButtonOnClick("");
 										}
-										placeholder="{i}で連番"
-										type="text"
-									/>
-								</label>
-
-								{usesCodecId && (
-									<label className="grid gap-1">
-										<span className="text-xs text-base-content/60">
-											コーデックID
-										</span>
-										<input
-											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm focus:outline-primary"
-											value={param.codec_id || ""}
-											onChange={(event) =>
-												setParam({ ...param, codec_id: event.target.value })
-											}
-											type="text"
-										/>
-									</label>
-								)}
-
-								{usesSubtitleLang && (
-									<label className="grid gap-1">
-										<span className="text-xs text-base-content/60">
-											字幕言語
-										</span>
-										<input
-											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm focus:outline-primary"
-											value={param.subtitle_lang || ""}
-											onChange={(event) =>
-												setParam({
-													...param,
-													subtitle_lang: event.target.value,
-												})
-											}
-											type="text"
-										/>
-									</label>
-								)}
-
-								{usesArbitraryCode && (
-									<label className="grid gap-1 sm:col-span-2">
-										<span className="text-xs text-base-content/60">
-											任意コード
-										</span>
-										<input
-											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm focus:outline-primary"
-											value={arbitraryCode}
-											onChange={(event) => setArbitraryCode(event.target.value)}
-											onKeyDown={(event) => {
-												if (event.key === "Enter") {
-													void executeButtonOnClick("");
-												}
-											}}
-											type="text"
-										/>
-									</label>
-								)}
-
-								{!usesCodecId && !usesSubtitleLang && !usesArbitraryCode && (
-									<div className="flex items-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-xs text-base-content/50">
-										<Square size={12} />
-										このモードの追加入力はありません
-									</div>
-								)}
-							</div>
-						</div>
+									}}
+									type="text"
+								/>
+							</label>
+						)}
 					</div>
 				</div>
 			</section>

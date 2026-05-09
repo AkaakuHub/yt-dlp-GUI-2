@@ -22,7 +22,6 @@
     "@mui/material": "^5.16.7",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/api": "^1",
-    "clsx": "^2.1.1",
     "daisyui": "^5.5.19",
     "events": "^3.3.0",
     "lodash": "^4.17.21",
