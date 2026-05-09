@@ -363,7 +363,7 @@ export default function Home() {
 			<section className="rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm">
 				<div className="grid gap-2">
 					<div className="relative grid gap-2 sm:min-h-40">
-						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-3 sm:absolute sm:top-2 sm:bottom-2 sm:left-2 sm:right-1/2 sm:pr-28">
+						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-3 sm:absolute sm:top-0 sm:bottom-0 sm:left-0 sm:right-1/2 sm:pr-28">
 							<div className="flex min-w-0 items-center gap-2">
 								{pid === null ? (
 									<span className="badge badge-ghost border-base-300 text-base-content/60">
@@ -425,7 +425,7 @@ export default function Home() {
 							</div>
 						</div>
 
-						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg bg-base-100 p-3 sm:absolute sm:top-2 sm:right-2 sm:left-1/2 sm:pl-28">
+						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg bg-base-100 p-3 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">
 							<button
 								className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
 								type="button"
@@ -448,7 +448,7 @@ export default function Home() {
 							</label>
 						</div>
 
-						<div className="z-30 sm:absolute sm:right-2 sm:bottom-2 sm:left-1/2 sm:pl-28">
+						<div className="z-30 sm:absolute sm:right-0 sm:bottom-0 sm:left-1/2 sm:pl-28">
 							<button
 								className="flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 text-left text-xs font-semibold text-base-content/65 hover:bg-base-300"
 								type="button"
