@@ -11,7 +11,6 @@ import {
 	FolderOpen,
 	ListPlus,
 	Settings2,
-	ShieldCheck,
 	Terminal,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -343,11 +342,11 @@ export default function Home() {
 
 	return (
 		<div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-base-100 p-2 text-base-content">
-			<section className="rounded-lg border border-base-300 bg-base-200 p-3 shadow-sm">
-				<div className="grid gap-3">
-					<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)] lg:items-center">
-						<div className="grid gap-2">
-							<div className="flex min-w-0 flex-wrap items-center gap-2">
+			<section className="rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm">
+				<div className="grid gap-2">
+					<div className="relative grid gap-2 sm:min-h-40">
+						<div className="z-10 grid gap-2 rounded-lg border border-base-300 bg-base-100 p-2 sm:absolute sm:top-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
+							<div className="flex min-w-0 items-center gap-2">
 								{pid === null ? (
 									<span className="badge badge-ghost border-base-300 text-base-content/60">
 										待機中
@@ -360,7 +359,7 @@ export default function Home() {
 								)}
 							</div>
 							<input
-								className="input input-bordered h-11 min-h-11 w-full rounded-md bg-base-100 text-sm"
+								className="input input-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm"
 								value={urlInput}
 								onChange={(event) => setUrlInput(event.target.value)}
 								onKeyDown={(event) => {
@@ -371,45 +370,82 @@ export default function Home() {
 								placeholder="URL"
 								type="url"
 							/>
-							<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-								<select
-									className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-100 text-sm"
-									disabled={!isSettingLoaded}
-									value={selectedIndexNumber}
-									onChange={(event) => {
-										void persistDownloadMode(Number(event.target.value));
-									}}
-								>
-									{downloadModes.map((mode) => (
-										<option key={mode.value} value={mode.value}>
-											{mode.label}
-										</option>
-									))}
-								</select>
-								<button
-									aria-label="前のモード"
-									className="btn btn-outline h-10 min-h-10 w-10 rounded-md p-0"
-									disabled={!isSettingLoaded}
-									type="button"
-									onClick={() => moveDownloadMode(-1)}
-								>
-									<ChevronLeft size={18} />
-								</button>
-								<button
-									aria-label="次のモード"
-									className="btn btn-outline h-10 min-h-10 w-10 rounded-md p-0"
-									disabled={!isSettingLoaded}
-									type="button"
-									onClick={() => moveDownloadMode(1)}
-								>
-									<ChevronRight size={18} />
-								</button>
-							</div>
 						</div>
 
-						<div className="grid place-items-center gap-2">
+						<div className="z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-lg border border-base-300 bg-base-100 p-2 sm:absolute sm:bottom-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
+							<select
+								className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm"
+								disabled={!isSettingLoaded}
+								value={selectedIndexNumber}
+								onChange={(event) => {
+									void persistDownloadMode(Number(event.target.value));
+								}}
+							>
+								{downloadModes.map((mode) => (
+									<option key={mode.value} value={mode.value}>
+										{mode.label}
+									</option>
+								))}
+							</select>
 							<button
-								className="btn btn-primary aspect-square h-36 min-h-0 rounded-full text-lg font-bold shadow-lg shadow-primary/25 ring-8 ring-primary/10 transition-transform hover:scale-[1.02] active:scale-95 lg:h-40"
+								aria-label="前のモード"
+								className="btn btn-outline h-10 min-h-10 w-10 rounded-md p-0"
+								disabled={!isSettingLoaded}
+								type="button"
+								onClick={() => moveDownloadMode(-1)}
+							>
+								<ChevronLeft size={18} />
+							</button>
+							<button
+								aria-label="次のモード"
+								className="btn btn-outline h-10 min-h-10 w-10 rounded-md p-0"
+								disabled={!isSettingLoaded}
+								type="button"
+								onClick={() => moveDownloadMode(1)}
+							>
+								<ChevronRight size={18} />
+							</button>
+						</div>
+
+						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg border border-base-300 bg-base-100 p-2 sm:absolute sm:top-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
+							<button
+								className="btn btn-outline h-10 min-h-10 rounded-md"
+								type="button"
+								onClick={openDirectory}
+							>
+								<FolderOpen size={16} />
+								<span className="hidden lg:inline">保存先</span>
+							</button>
+							<label className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
+								<input
+									className="toggle toggle-primary toggle-sm"
+									checked={param.is_cookie}
+									type="checkbox"
+									onChange={(event) =>
+										setParam({ ...param, is_cookie: event.target.checked })
+									}
+								/>
+								<Cookie size={15} />
+								<span className="hidden lg:inline">クッキー</span>
+							</label>
+						</div>
+
+						<details className="z-10 rounded-lg border border-base-300 bg-base-100 p-3 sm:absolute sm:bottom-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
+							<summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-base-content/65">
+								<ListPlus size={14} />
+								一括URLリスト
+							</summary>
+							<textarea
+								className="textarea textarea-bordered mt-2 h-20 min-h-20 w-full resize-none rounded-md bg-base-200 text-sm"
+								value={urlQueueText}
+								onChange={(event) => setUrlQueueText(event.target.value)}
+								placeholder="改行またはカンマ区切り"
+							/>
+						</details>
+
+						<div className="z-20 grid place-items-center gap-2 sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+							<button
+								className="btn btn-primary aspect-square h-32 min-h-0 rounded-full text-lg font-bold shadow-lg shadow-primary/30 ring-8 ring-base-200 transition-transform hover:scale-[1.02] active:scale-95 sm:h-36"
 								type="button"
 								disabled={isQueueRunning || pid !== null}
 								onClick={() => void executeFromPrimaryInput()}
@@ -427,50 +463,7 @@ export default function Home() {
 								>
 									中止
 								</button>
-							) : (
-								<div className="flex items-center gap-2 text-xs text-base-content/50">
-									<ShieldCheck size={14} />
-									空欄ならクリップボード
-								</div>
-							)}
-						</div>
-
-						<div className="grid gap-2">
-							<div className="grid grid-cols-2 gap-2">
-								<button
-									className="btn btn-outline h-10 min-h-10 rounded-md"
-									type="button"
-									onClick={openDirectory}
-								>
-									<FolderOpen size={16} />
-									保存先
-								</button>
-								<label className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-100 px-3 text-sm">
-									<input
-										className="toggle toggle-primary toggle-sm"
-										checked={param.is_cookie}
-										type="checkbox"
-										onChange={(event) =>
-											setParam({ ...param, is_cookie: event.target.checked })
-										}
-									/>
-									<Cookie size={15} />
-									クッキー
-								</label>
-							</div>
-
-							<details className="rounded-md border border-base-300 bg-base-100 p-3">
-								<summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-base-content/65">
-									<ListPlus size={14} />
-									一括URLリスト
-								</summary>
-								<textarea
-									className="textarea textarea-bordered mt-2 h-20 min-h-20 w-full resize-none rounded-md bg-base-200 text-sm"
-									value={urlQueueText}
-									onChange={(event) => setUrlQueueText(event.target.value)}
-									placeholder="改行またはカンマ区切り"
-								/>
-							</details>
+							) : null}
 						</div>
 					</div>
 
