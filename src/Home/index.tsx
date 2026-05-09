@@ -345,7 +345,7 @@ export default function Home() {
 			<section className="rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm">
 				<div className="grid gap-2">
 					<div className="relative grid gap-2 sm:min-h-40">
-						<div className="z-10 grid gap-2 rounded-lg border border-base-300 bg-base-100 p-2 sm:absolute sm:top-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
+						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
 							<div className="flex min-w-0 items-center gap-2">
 								{pid === null ? (
 									<span className="badge badge-ghost border-base-300 text-base-content/60">
@@ -372,7 +372,7 @@ export default function Home() {
 							/>
 						</div>
 
-						<div className="z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-lg border border-base-300 bg-base-100 p-2 sm:absolute sm:bottom-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
+						<div className="z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:bottom-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
 							<select
 								className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm"
 								disabled={!isSettingLoaded}
@@ -389,7 +389,7 @@ export default function Home() {
 							</select>
 							<button
 								aria-label="前のモード"
-								className="btn btn-outline h-10 min-h-10 w-10 rounded-md p-0"
+								className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300"
 								disabled={!isSettingLoaded}
 								type="button"
 								onClick={() => moveDownloadMode(-1)}
@@ -398,7 +398,7 @@ export default function Home() {
 							</button>
 							<button
 								aria-label="次のモード"
-								className="btn btn-outline h-10 min-h-10 w-10 rounded-md p-0"
+								className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300"
 								disabled={!isSettingLoaded}
 								type="button"
 								onClick={() => moveDownloadMode(1)}
@@ -407,16 +407,16 @@ export default function Home() {
 							</button>
 						</div>
 
-						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg border border-base-300 bg-base-100 p-2 sm:absolute sm:top-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
+						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
 							<button
-								className="btn btn-outline h-10 min-h-10 rounded-md"
+								className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
 								type="button"
 								onClick={openDirectory}
 							>
 								<FolderOpen size={16} />
 								<span className="hidden lg:inline">保存先</span>
 							</button>
-							<label className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
+							<label className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-md bg-base-200 px-3 text-sm">
 								<input
 									className="toggle toggle-primary toggle-sm"
 									checked={param.is_cookie}
@@ -430,7 +430,7 @@ export default function Home() {
 							</label>
 						</div>
 
-						<details className="z-10 rounded-lg border border-base-300 bg-base-100 p-3 sm:absolute sm:bottom-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
+						<details className="z-10 rounded-lg bg-base-100 p-3 sm:absolute sm:bottom-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
 							<summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-base-content/65">
 								<ListPlus size={14} />
 								一括URLリスト
