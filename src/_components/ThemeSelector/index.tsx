@@ -22,7 +22,7 @@ const ThemeSelector: React.FC = () => {
 						className={`btn h-10 min-h-10 rounded-md text-sm ${
 							themeMode === theme.mode
 								? "btn-primary"
-								: "btn-outline border-base-300 text-base-content hover:bg-base-200"
+								: "btn-ghost bg-base-100 text-base-content hover:bg-base-300"
 						}`}
 						onClick={() => setThemeMode(theme.mode)}
 						type="button"

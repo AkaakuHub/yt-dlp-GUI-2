@@ -311,7 +311,7 @@ export default function Settings() {
 				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
 					<div className="flex justify-end">
 						<button
-							className="btn btn-outline btn-sm rounded-md"
+							className="btn btn-ghost btn-sm rounded-md bg-base-100 hover:bg-base-300"
 							type="button"
 							onClick={openToolsModal}
 						>
@@ -335,7 +335,7 @@ export default function Settings() {
 							placeholder="/Users/name/Movies/yt-dlp-data"
 						/>
 						<button
-							className="btn btn-outline h-11 min-h-11 rounded-md"
+							className="btn btn-ghost h-11 min-h-11 rounded-md bg-base-100 hover:bg-base-300"
 							type="button"
 							onClick={() => void chooseSaveDirectory()}
 							aria-label="保存先を選択"
@@ -471,8 +471,10 @@ export default function Settings() {
 							<div className="grid gap-3">
 								<div className="grid gap-2 sm:grid-cols-2">
 									<button
-										className={`btn h-auto min-h-20 justify-start rounded-md border p-3 ${
-											tempUseBundle ? "btn-primary" : "btn-outline"
+										className={`btn h-auto min-h-20 justify-start rounded-md p-3 ${
+											tempUseBundle
+												? "btn-primary"
+												: "btn-ghost bg-base-200 hover:bg-base-300"
 										}`}
 										type="button"
 										onClick={() => setTempUseBundle(true)}
@@ -486,8 +488,10 @@ export default function Settings() {
 										</span>
 									</button>
 									<button
-										className={`btn h-auto min-h-20 justify-start rounded-md border p-3 ${
-											tempUseBundle ? "btn-outline" : "btn-primary"
+										className={`btn h-auto min-h-20 justify-start rounded-md p-3 ${
+											tempUseBundle
+												? "btn-ghost bg-base-200 hover:bg-base-300"
+												: "btn-primary"
 										}`}
 										type="button"
 										onClick={() => setTempUseBundle(false)}
@@ -588,7 +592,7 @@ export default function Settings() {
 						<footer className="grid gap-2 border-t border-base-300 p-4 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
 							{tempUseBundle ? (
 								<button
-									className="btn btn-outline rounded-md"
+									className="btn btn-ghost rounded-md bg-base-200 hover:bg-base-300"
 									type="button"
 									disabled={isDownloadingTools || isCheckingTools}
 									onClick={() => void downloadBundleTools()}
@@ -604,7 +608,7 @@ export default function Settings() {
 								<span />
 							)}
 							<button
-								className="btn btn-outline rounded-md"
+								className="btn btn-ghost rounded-md bg-base-200 hover:bg-base-300"
 								type="button"
 								disabled={isDownloadingTools || isCheckingTools}
 								onClick={() => void checkTools()}

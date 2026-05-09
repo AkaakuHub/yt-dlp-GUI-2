@@ -319,7 +319,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 					<footer className="grid gap-2 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
 						{useBundleTools ? (
 							<button
-								className="btn btn-outline rounded-md"
+								className="btn btn-ghost rounded-md bg-base-100 hover:bg-base-300"
 								type="button"
 								disabled={isDownloading || isChecking}
 								onClick={() => void downloadBundleTools()}
@@ -335,7 +335,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 							<span />
 						)}
 						<button
-							className="btn btn-outline rounded-md"
+							className="btn btn-ghost rounded-md bg-base-100 hover:bg-base-300"
 							type="button"
 							disabled={isChecking || isDownloading}
 							onClick={() => void checkTools()}
