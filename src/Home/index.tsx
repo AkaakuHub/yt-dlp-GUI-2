@@ -63,6 +63,8 @@ export default function Home() {
 	const [urlInput, setUrlInput] = useState("");
 	const [arbitraryCode, setArbitraryCode] = useState("");
 	const [urlQueueText, setUrlQueueText] = useState("");
+	const [showQueuePanel, setShowQueuePanel] = useState(false);
+	const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
 	const [queueProgress, setQueueProgress] = useState({ current: 0, total: 0 });
 	const [param, setParam] = useState<DownloadParam>({
 		codec_id: undefined,
@@ -430,18 +432,26 @@ export default function Home() {
 							</label>
 						</div>
 
-						<details className="z-10 rounded-lg bg-base-100 p-3 sm:absolute sm:bottom-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
-							<summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-base-content/65">
+						<div className="z-10 sm:absolute sm:bottom-2 sm:left-[calc(50%-48px)] sm:right-2">
+							<button
+								className="flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 pl-3 text-left text-xs font-semibold text-base-content/65 hover:bg-base-300 sm:pl-32"
+								type="button"
+								onClick={() => setShowQueuePanel((prev) => !prev)}
+							>
 								<ListPlus size={14} />
 								一括URLリスト
-							</summary>
-							<textarea
-								className="textarea textarea-bordered mt-2 h-20 min-h-20 w-full resize-none rounded-md bg-base-200 text-sm"
-								value={urlQueueText}
-								onChange={(event) => setUrlQueueText(event.target.value)}
-								placeholder="改行またはカンマ区切り"
-							/>
-						</details>
+							</button>
+							{showQueuePanel ? (
+								<div className="absolute right-0 bottom-14 left-0 z-30 rounded-lg bg-base-100 p-3 shadow-xl ring-1 ring-base-300 sm:left-24">
+									<textarea
+										className="textarea textarea-bordered h-24 min-h-24 w-full resize-none rounded-md bg-base-200 text-sm"
+										value={urlQueueText}
+										onChange={(event) => setUrlQueueText(event.target.value)}
+										placeholder="改行またはカンマ区切り"
+									/>
+								</div>
+							) : null}
+						</div>
 
 						<div className="z-20 grid place-items-center gap-2 sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 							<button
@@ -467,116 +477,124 @@ export default function Home() {
 						</div>
 					</div>
 
-					<details className="rounded-md border border-base-300 bg-base-100 p-3">
-						<summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-base-content/65">
+					<div className="relative">
+						<button
+							className="flex h-10 w-full items-center gap-2 rounded-md bg-base-100 px-3 text-left text-xs font-semibold text-base-content/65 hover:bg-base-300"
+							type="button"
+							onClick={() => setShowAdvancedPanel((prev) => !prev)}
+						>
 							<Settings2 size={14} />
 							詳細設定
-						</summary>
-						<div className="mt-2 grid gap-2 md:grid-cols-4">
-							<label className="grid gap-1">
-								<span className="flex items-center gap-1 text-xs text-base-content/60">
-									<Clock size={13} />
-									開始
-								</span>
-								<input
-									className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
-									value={param.start_time || ""}
-									onChange={(event) => {
-										const value = event.target.value;
-										setParam((prev) => ({ ...prev, start_time: value }));
-										validateTimestamp("start_time", value);
-									}}
-									placeholder="00:00:00"
-									type="text"
-								/>
-							</label>
-							<label className="grid gap-1">
-								<span className="flex items-center gap-1 text-xs text-base-content/60">
-									<Clock size={13} />
-									終了
-								</span>
-								<input
-									className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
-									value={param.end_time || ""}
-									onChange={(event) => {
-										const value = event.target.value;
-										setParam((prev) => ({ ...prev, end_time: value }));
-										validateTimestamp("end_time", value);
-									}}
-									placeholder="00:00:00"
-									type="text"
-								/>
-							</label>
-							<label className="grid gap-1 md:col-span-2">
-								<span className="flex items-center gap-1 text-xs text-base-content/60">
-									<FileText size={13} />
-									出力ファイル名
-								</span>
-								<input
-									className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
-									value={param.output_name || ""}
-									onChange={(event) =>
-										setParam((prev) => ({
-											...prev,
-											output_name: event.target.value,
-										}))
-									}
-									placeholder="{i}で連番"
-									type="text"
-								/>
-							</label>
-							{usesCodecId ? (
-								<label className="grid gap-1 md:col-span-2">
-									<span className="text-xs text-base-content/60">
-										コーデックID
-									</span>
-									<input
-										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
-										value={param.codec_id || ""}
-										onChange={(event) =>
-											setParam({ ...param, codec_id: event.target.value })
-										}
-										type="text"
-									/>
-								</label>
-							) : null}
-							{usesSubtitleLang ? (
-								<label className="grid gap-1 md:col-span-2">
-									<span className="text-xs text-base-content/60">字幕言語</span>
-									<input
-										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
-										value={param.subtitle_lang || ""}
-										onChange={(event) =>
-											setParam({
-												...param,
-												subtitle_lang: event.target.value,
-											})
-										}
-										type="text"
-									/>
-								</label>
-							) : null}
-							{usesArbitraryCode ? (
-								<label className="grid gap-1 md:col-span-4">
+						</button>
+						{showAdvancedPanel ? (
+							<div className="absolute top-12 right-0 left-0 z-30 grid gap-2 rounded-lg bg-base-100 p-3 shadow-xl ring-1 ring-base-300 md:grid-cols-4">
+								<label className="grid gap-1">
 									<span className="flex items-center gap-1 text-xs text-base-content/60">
-										<Terminal size={13} />
-										任意コード
+										<Clock size={13} />
+										開始
 									</span>
 									<input
 										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
-										value={arbitraryCode}
-										onChange={(event) => setArbitraryCode(event.target.value)}
-										onKeyDown={(event) => {
-											if (event.key === "Enter") {
-												void executeButtonOnClick("");
-											}
+										value={param.start_time || ""}
+										onChange={(event) => {
+											const value = event.target.value;
+											setParam((prev) => ({ ...prev, start_time: value }));
+											validateTimestamp("start_time", value);
 										}}
+										placeholder="00:00:00"
 										type="text"
 									/>
 								</label>
-							) : null}
-						</div>
-					</details>
+								<label className="grid gap-1">
+									<span className="flex items-center gap-1 text-xs text-base-content/60">
+										<Clock size={13} />
+										終了
+									</span>
+									<input
+										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+										value={param.end_time || ""}
+										onChange={(event) => {
+											const value = event.target.value;
+											setParam((prev) => ({ ...prev, end_time: value }));
+											validateTimestamp("end_time", value);
+										}}
+										placeholder="00:00:00"
+										type="text"
+									/>
+								</label>
+								<label className="grid gap-1 md:col-span-2">
+									<span className="flex items-center gap-1 text-xs text-base-content/60">
+										<FileText size={13} />
+										出力ファイル名
+									</span>
+									<input
+										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+										value={param.output_name || ""}
+										onChange={(event) =>
+											setParam((prev) => ({
+												...prev,
+												output_name: event.target.value,
+											}))
+										}
+										placeholder="{i}で連番"
+										type="text"
+									/>
+								</label>
+								{usesCodecId ? (
+									<label className="grid gap-1 md:col-span-2">
+										<span className="text-xs text-base-content/60">
+											コーデックID
+										</span>
+										<input
+											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+											value={param.codec_id || ""}
+											onChange={(event) =>
+												setParam({ ...param, codec_id: event.target.value })
+											}
+											type="text"
+										/>
+									</label>
+								) : null}
+								{usesSubtitleLang ? (
+									<label className="grid gap-1 md:col-span-2">
+										<span className="text-xs text-base-content/60">
+											字幕言語
+										</span>
+										<input
+											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+											value={param.subtitle_lang || ""}
+											onChange={(event) =>
+												setParam({
+													...param,
+													subtitle_lang: event.target.value,
+												})
+											}
+											type="text"
+										/>
+									</label>
+								) : null}
+								{usesArbitraryCode ? (
+									<label className="grid gap-1 md:col-span-4">
+										<span className="flex items-center gap-1 text-xs text-base-content/60">
+											<Terminal size={13} />
+											任意コード
+										</span>
+										<input
+											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+											value={arbitraryCode}
+											onChange={(event) => setArbitraryCode(event.target.value)}
+											onKeyDown={(event) => {
+												if (event.key === "Enter") {
+													void executeButtonOnClick("");
+												}
+											}}
+											type="text"
+										/>
+									</label>
+								) : null}
+							</div>
+						) : null}
+					</div>
 				</div>
 			</section>
 
