@@ -4,7 +4,7 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 pub(crate) struct RunCommandParam {
     pub url: Option<String>,
-    pub kind: i32,
+    pub kind: DownloadMode,
     pub codec_id: Option<String>,
     pub subtitle_lang: Option<String>,
     pub output_name: Option<String>,
@@ -12,6 +12,47 @@ pub(crate) struct RunCommandParam {
     pub end_time: Option<String>,
     pub is_cookie: bool,
     pub arbitrary_code: Option<String>,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(try_from = "i32")]
+pub(crate) enum DownloadMode {
+    Normal,
+    AudioOnly,
+    Video1080p,
+    Video720p,
+    Video480p,
+    Video360p,
+    ListFormats,
+    CodecId,
+    LiveFromStart,
+    LiveFromNow,
+    Thumbnail,
+    Subtitle,
+    ArbitraryCode,
+}
+
+impl TryFrom<i32> for DownloadMode {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::Normal),
+            2 => Ok(Self::AudioOnly),
+            3 => Ok(Self::Video1080p),
+            4 => Ok(Self::Video720p),
+            5 => Ok(Self::Video480p),
+            6 => Ok(Self::Video360p),
+            7 => Ok(Self::ListFormats),
+            8 => Ok(Self::CodecId),
+            9 => Ok(Self::LiveFromStart),
+            10 => Ok(Self::LiveFromNow),
+            11 => Ok(Self::Thumbnail),
+            12 => Ok(Self::Subtitle),
+            13 => Ok(Self::ArbitraryCode),
+            _ => Err("不正な種類です".into()),
+        }
+    }
 }
 
 pub(crate) fn build_yt_dlp_args(
@@ -58,7 +99,7 @@ pub(crate) fn build_yt_dlp_args(
 }
 
 fn args_for_mode(
-    kind: i32,
+    kind: DownloadMode,
     url: &str,
     save_path: &str,
     codec_id: &str,
@@ -66,8 +107,8 @@ fn args_for_mode(
     arbitrary_code: &str,
 ) -> Result<Vec<String>, String> {
     match kind {
-        1 => video_download_args(url, save_path),
-        2 => Ok(vec![
+        DownloadMode::Normal => video_download_args(url, save_path),
+        DownloadMode::AudioOnly => Ok(vec![
             url.to_string(),
             "-o".to_string(),
             save_path.to_string(),
@@ -75,7 +116,10 @@ fn args_for_mode(
             "bestaudio[ext=m4a]".to_string(),
             "--no-mtime".to_string(),
         ]),
-        3..=6 => Ok(vec![
+        DownloadMode::Video1080p
+        | DownloadMode::Video720p
+        | DownloadMode::Video480p
+        | DownloadMode::Video360p => Ok(vec![
             url.to_string(),
             "-o".to_string(),
             save_path.to_string(),
@@ -83,12 +127,12 @@ fn args_for_mode(
             format_command(kind),
             "--no-mtime".to_string(),
         ]),
-        7 => Ok(vec![
+        DownloadMode::ListFormats => Ok(vec![
             url.to_string(),
             "--list-formats".to_string(),
             "--skip-download".to_string(),
         ]),
-        8 => {
+        DownloadMode::CodecId => {
             if codec_id.trim().is_empty() {
                 return Err("コーデックIDが指定されていません".into());
             }
@@ -101,7 +145,7 @@ fn args_for_mode(
                 "--no-mtime".to_string(),
             ])
         }
-        9 => {
+        DownloadMode::LiveFromStart => {
             let mut args = vec![
                 url.to_string(),
                 "-o".to_string(),
@@ -111,8 +155,8 @@ fn args_for_mode(
             args.extend(video_format_args());
             Ok(args)
         }
-        10 => video_download_args(url, save_path),
-        11 => Ok(vec![
+        DownloadMode::LiveFromNow => video_download_args(url, save_path),
+        DownloadMode::Thumbnail => Ok(vec![
             url.to_string(),
             "-o".to_string(),
             save_path.to_string(),
@@ -120,7 +164,7 @@ fn args_for_mode(
             "--skip-download".to_string(),
             "--no-mtime".to_string(),
         ]),
-        12 => {
+        DownloadMode::Subtitle => {
             if subtitle_lang.trim().is_empty() {
                 return Err("字幕言語が指定されていません".into());
             }
@@ -134,13 +178,12 @@ fn args_for_mode(
                 "--skip-download".to_string(),
             ])
         }
-        13 => {
+        DownloadMode::ArbitraryCode => {
             if arbitrary_code.trim().is_empty() {
                 return Err("任意のコードが指定されていません".into());
             }
             Ok(vec![arbitrary_code.to_string()])
         }
-        _ => Err("不正な種類です".into()),
     }
 }
 
@@ -158,12 +201,12 @@ fn video_format_args() -> Vec<String> {
     ]
 }
 
-fn format_command(kind: i32) -> String {
+fn format_command(kind: DownloadMode) -> String {
     let video_ids = match kind {
-        3 => ["616", "270", "137", "614", "248", "399"],
-        4 => ["232", "609", "247", "136", "398", ""],
-        5 => ["231", "606", "244", "135", "397", ""],
-        6 => ["230", "605", "243", "134", "396", ""],
+        DownloadMode::Video1080p => ["616", "270", "137", "614", "248", "399"],
+        DownloadMode::Video720p => ["232", "609", "247", "136", "398", ""],
+        DownloadMode::Video480p => ["231", "606", "244", "135", "397", ""],
+        DownloadMode::Video360p => ["230", "605", "243", "134", "396", ""],
         _ => ["", "", "", "", "", ""],
     };
 
@@ -208,7 +251,7 @@ mod tests {
         let args = build_yt_dlp_args(
             RunCommandParam {
                 url: Some("https://example.com/video".to_string()),
-                kind: 1,
+                kind: DownloadMode::Normal,
                 codec_id: None,
                 subtitle_lang: None,
                 output_name: None,
@@ -233,7 +276,7 @@ mod tests {
         let result = build_yt_dlp_args(
             RunCommandParam {
                 url: Some("https://example.com/video".to_string()),
-                kind: 8,
+                kind: DownloadMode::CodecId,
                 codec_id: Some("".to_string()),
                 subtitle_lang: None,
                 output_name: None,
@@ -253,7 +296,7 @@ mod tests {
         let args = build_yt_dlp_args(
             RunCommandParam {
                 url: Some("https://example.com/video".to_string()),
-                kind: 2,
+                kind: DownloadMode::AudioOnly,
                 codec_id: None,
                 subtitle_lang: None,
                 output_name: Some("audio.m4a".to_string()),

@@ -21,9 +21,11 @@ import PrimaryCircleButton from "../_components/PrimaryCircleButton";
 import {
 	cleanDownloadUrl,
 	type DownloadParam,
+	isDownloadModeValue,
 	isValidTimestamp,
 	normalizeTimestamp,
 	parseQueueItems,
+	type RunCommandParam,
 	resolveOutputName,
 	shortenText,
 	type TimestampField,
@@ -130,6 +132,10 @@ export default function Home() {
 
 	const runArbitraryCommand = useCallback(async () => {
 		const currentSelectedIndex = selectedIndexRef.current;
+		if (!isDownloadModeValue(currentSelectedIndex)) {
+			toast.error("不正なモードです。");
+			return;
+		}
 		if (hasInvalidTimestamp()) {
 			return;
 		}
@@ -143,22 +149,25 @@ export default function Home() {
 			toast.error("開始時間/終了時間の形式が不正です。");
 			return;
 		}
-		const processId = await invoke<number>("run_command", {
-			param: {
-				is_cookie: param.is_cookie,
-				output_name: param.output_name,
-				start_time: startTime,
-				end_time: endTime,
-				arbitrary_code: arbitraryCode,
-				kind: currentSelectedIndex,
-			},
-		});
+		const runParam: RunCommandParam = {
+			is_cookie: param.is_cookie,
+			output_name: param.output_name,
+			start_time: startTime,
+			end_time: endTime,
+			arbitrary_code: arbitraryCode,
+			kind: currentSelectedIndex,
+		};
+		const processId = await invoke<number>("run_command", { param: runParam });
 		setPid(processId);
 	}, [arbitraryCode, hasInvalidTimestamp, param]);
 
 	const runCommandFromUrl = useCallback(
 		async (targetUrl: string, queueIndex?: number) => {
 			const currentSelectedIndex = selectedIndexRef.current;
+			if (!isDownloadModeValue(currentSelectedIndex)) {
+				toast.error("不正なモードです。");
+				throw new Error("invalid_mode");
+			}
 			const startTime = normalizeTimestamp(param.start_time || "");
 			const endTime = normalizeTimestamp(param.end_time || "");
 			if (startTime === null || endTime === null) {
@@ -176,15 +185,16 @@ export default function Home() {
 				);
 				throw new Error("invalid_url");
 			}
+			const runParam: RunCommandParam = {
+				...param,
+				output_name: resolveOutputName(param.output_name || "", queueIndex),
+				start_time: startTime,
+				end_time: endTime,
+				url,
+				kind: currentSelectedIndex,
+			};
 			const processId = await invoke<number>("run_command", {
-				param: {
-					...param,
-					output_name: resolveOutputName(param.output_name || "", queueIndex),
-					start_time: startTime,
-					end_time: endTime,
-					url,
-					kind: currentSelectedIndex,
-				},
+				param: runParam,
 			});
 			setPid(processId);
 		},
@@ -194,6 +204,10 @@ export default function Home() {
 	const executeButtonOnClick = useCallback(
 		async (targetUrl: string) => {
 			const currentSelectedIndex = selectedIndexRef.current;
+			if (!isDownloadModeValue(currentSelectedIndex)) {
+				toast.error("不正なモードです。");
+				return;
+			}
 			if (hasInvalidTimestamp()) {
 				return;
 			}

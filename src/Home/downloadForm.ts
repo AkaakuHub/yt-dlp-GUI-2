@@ -7,7 +7,36 @@ export interface DownloadParam {
 	is_cookie: boolean;
 }
 
+export type DownloadModeValue =
+	| 1
+	| 2
+	| 3
+	| 4
+	| 5
+	| 6
+	| 7
+	| 8
+	| 9
+	| 10
+	| 11
+	| 12
+	| 13;
+
+export interface RunCommandParam extends DownloadParam {
+	kind: DownloadModeValue;
+	url?: string;
+	arbitrary_code?: string;
+}
+
 export type TimestampField = "start_time" | "end_time";
+
+const downloadModeValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] as const;
+
+export const isDownloadModeValue = (
+	value: number,
+): value is DownloadModeValue => {
+	return downloadModeValues.some((modeValue) => modeValue === value);
+};
 
 export const parseQueueItems = (value: string): string[] => {
 	return value
