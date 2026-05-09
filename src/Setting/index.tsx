@@ -89,7 +89,6 @@ export default function Settings() {
 	const [notificationPermission, setNotificationPermission] = useState<
 		boolean | null
 	>(null);
-	const [osType, setOsType] = useState("");
 	const [showToolsModal, setShowToolsModal] = useState(false);
 	const [tempUseBundle, setTempUseBundle] = useState(useBundleTools);
 	const [tempYtDlpPath, setTempYtDlpPath] = useState(ytDlpPath);
@@ -148,14 +147,12 @@ export default function Settings() {
 		};
 
 		const loadSettingsMetadata = async () => {
-			const [version, os, granted, update] = await Promise.all([
+			const [version, granted, update] = await Promise.all([
 				invoke<string>("get_current_version"),
-				invoke<string>("get_os_type"),
 				isPermissionGranted().catch(() => false),
 				checkUpdate().catch(() => ({ shouldUpdate: false })),
 			]);
 			setCurrentVersion(version);
-			setOsType(os);
 			setNotificationPermission(granted);
 			setIsUpdateAvailable(update.shouldUpdate);
 		};
@@ -306,10 +303,11 @@ export default function Settings() {
 	};
 
 	return (
-		<div className="h-full min-h-0 overflow-auto bg-base-100 p-4 text-base-content">
-			<div className="mx-auto grid max-w-5xl gap-4">
-				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
-					<div className="flex justify-end">
+		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-3 text-base-content">
+			<div className="mx-auto grid h-full max-w-5xl grid-rows-[auto_auto_auto_auto_auto] gap-3">
+				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+					<ThemeSelector />
+					<div className="flex md:justify-end">
 						<button
 							className="btn btn-ghost btn-sm rounded-md bg-base-100 hover:bg-base-300"
 							type="button"
@@ -319,10 +317,9 @@ export default function Settings() {
 							ツールを管理
 						</button>
 					</div>
-					<ThemeSelector />
 				</section>
 
-				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
+				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300">
 					<div className="flex items-center gap-2 text-sm font-semibold">
 						<HardDrive size={16} className="text-primary" />
 						保存先
@@ -345,8 +342,8 @@ export default function Settings() {
 					</div>
 				</section>
 
-				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
-					<div className="grid gap-3 md:grid-cols-2">
+				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300">
+					<div className="grid gap-2 md:grid-cols-2">
 						<label className="grid gap-1">
 							<span className="label pb-1 text-xs font-semibold text-base-content/65">
 								Cookie取得元のブラウザ
@@ -373,19 +370,12 @@ export default function Settings() {
 					</div>
 				</section>
 
-				<section className="grid gap-2 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
-					<label className="flex min-h-14 items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-3">
+				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-2">
+					<label className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-base-100 px-3">
 						<span className="flex min-w-0 items-center gap-3">
 							<Bell size={18} className="shrink-0 text-primary" />
-							<span className="min-w-0">
-								<span className="block text-sm font-semibold">
-									ダウンロード完了時に通知を受け取る
-								</span>
-								{osType === "macos" ? (
-									<span className="block truncate text-xs text-base-content/55">
-										macOSでは通知設定でバナー通知が表示されます
-									</span>
-								) : null}
+							<span className="min-w-0 text-sm font-semibold">
+								ダウンロード完了通知
 							</span>
 						</span>
 						<input
@@ -399,7 +389,7 @@ export default function Settings() {
 					</label>
 
 					{isSendNotification && notificationPermission === false ? (
-						<div className="alert border-warning/35 bg-warning/10 py-2 text-sm">
+						<div className="alert border-warning/35 bg-warning/10 py-2 text-sm md:col-span-2">
 							<Bell size={16} />
 							<span>通知権限が許可されていません。</span>
 							<button
@@ -412,10 +402,10 @@ export default function Settings() {
 						</div>
 					) : null}
 
-					<label className="flex min-h-14 items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-3">
+					<label className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-base-100 px-3">
 						<span className="flex items-center gap-3 text-sm font-semibold">
 							<Server size={18} className="text-primary" />
-							ポート{serverPort}でサーバーを起動する
+							サーバー
 						</span>
 						<input
 							className="toggle toggle-primary"
@@ -428,7 +418,7 @@ export default function Settings() {
 					</label>
 				</section>
 
-				<footer className="flex flex-wrap items-center justify-center gap-2 pb-3 text-sm text-base-content/60">
+				<footer className="flex h-8 items-center justify-center gap-2 text-sm text-base-content/60">
 					<a
 						className="link link-primary inline-flex items-center gap-1"
 						href="https://github.com/AkaakuHub/yt-dlp-GUI-2"

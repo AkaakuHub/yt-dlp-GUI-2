@@ -170,10 +170,10 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 	if (isLoading) {
 		return (
-			<div className="grid h-screen place-items-center bg-base-100 p-4 text-base-content">
-				<section className="grid w-full max-w-sm gap-3 rounded-lg border border-base-300 bg-base-200 p-6 text-center shadow-sm">
+			<div className="grid h-screen overflow-hidden bg-base-100 p-3 text-base-content">
+				<section className="m-auto grid w-full max-w-sm gap-3 rounded-lg bg-base-200 p-5 text-center shadow-sm ring-1 ring-base-300">
 					<Loader2 className="mx-auto animate-spin text-primary" size={28} />
-					<h1 className="text-lg font-bold">ツールを確認中</h1>
+					<h1 className="text-lg font-bold">ツール確認中</h1>
 				</section>
 			</div>
 		);
@@ -183,15 +183,15 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		checkResults.ytDlp && checkResults.ffmpeg && checkResults.deno;
 
 	return (
-		<div className="h-screen overflow-auto bg-base-100 p-4 text-base-content">
-			<main className="mx-auto grid min-h-full max-w-3xl place-items-center">
-				<section className="grid w-full gap-4 rounded-lg border border-base-300 bg-base-200 p-5 shadow-sm">
-					<div className="grid gap-2 sm:grid-cols-2">
+		<div className="h-screen overflow-hidden bg-base-100 p-3 text-base-content">
+			<main className="mx-auto grid h-full max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3">
+				<section className="grid gap-2 rounded-lg bg-base-200 p-2 shadow-sm ring-1 ring-base-300 sm:grid-cols-2">
+					<div className="contents">
 						<label
-							className={`flex cursor-pointer gap-3 rounded-md border p-4 ${
+							className={`flex h-14 cursor-pointer items-center gap-3 rounded-md px-3 ${
 								useBundleTools
-									? "border-primary bg-primary text-primary-content"
-									: "border-base-300 bg-base-100"
+									? "bg-primary text-primary-content"
+									: "bg-base-100 hover:bg-base-300"
 							}`}
 						>
 							<input
@@ -211,10 +211,10 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						</label>
 
 						<label
-							className={`flex cursor-pointer gap-3 rounded-md border p-4 ${
+							className={`flex h-14 cursor-pointer items-center gap-3 rounded-md px-3 ${
 								useBundleTools
-									? "border-base-300 bg-base-100"
-									: "border-primary bg-primary text-primary-content"
+									? "bg-base-100 hover:bg-base-300"
+									: "bg-primary text-primary-content"
 							}`}
 						>
 							<input
@@ -233,9 +233,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 							</span>
 						</label>
 					</div>
+				</section>
 
-					{!useBundleTools ? (
-						<div className="grid gap-3 rounded-md border border-base-300 bg-base-100 p-3">
+				<section className="relative grid min-h-0 gap-3 overflow-hidden rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-[minmax(0,1fr)_10rem_minmax(0,1fr)]">
+					<div className="grid min-h-0 content-start gap-2">
+						{!useBundleTools ? (
 							<label className="grid gap-1">
 								<span className="label pb-1 text-xs font-semibold text-base-content/65">
 									yt-dlpのパス
@@ -247,118 +249,133 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									placeholder="yt-dlp"
 								/>
 							</label>
-							<label className="grid gap-1">
-								<span className="label pb-1 text-xs font-semibold text-base-content/65">
-									FFmpegのパス
-								</span>
-								<input
-									className="input input-bordered h-10 min-h-10 rounded-md"
-									value={ffmpegPath}
-									onChange={(event) => setFfmpegPath(event.target.value)}
-									placeholder="ffmpeg"
-								/>
-							</label>
-							<label className="grid gap-1">
-								<span className="label pb-1 text-xs font-semibold text-base-content/65">
-									Denoのパス
-								</span>
-								<input
-									className="input input-bordered h-10 min-h-10 rounded-md"
-									value={denoPath}
-									onChange={(event) => setDenoPath(event.target.value)}
-									placeholder="deno"
-								/>
-							</label>
-						</div>
-					) : null}
-
-					{downloadProgress ? (
-						<div className="rounded-md border border-base-300 bg-base-100 p-3">
-							<div className="flex justify-between gap-3 text-sm">
-								<span>{downloadProgress.tool_name}</span>
-								<span>{downloadProgress.progress.toFixed(1)}%</span>
+						) : (
+							<div className="grid content-center gap-2 rounded-lg bg-base-100 p-4">
+								<div className="flex items-center gap-2 text-sm font-semibold">
+									<Package size={17} className="text-primary" />
+									バンドル版
+								</div>
 							</div>
-							<progress
-								className="progress progress-primary mt-2 w-full"
-								value={downloadProgress.progress}
-								max={100}
-							/>
-							<p className="mt-1 text-xs text-base-content/55">
-								{downloadProgress.status}
-							</p>
-						</div>
-					) : null}
-
-					<div className="grid gap-2 sm:grid-cols-3">
-						{toolLabels.map(([label, key]) => (
-							<div
-								key={key}
-								className="flex items-center justify-between rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm"
-							>
-								<span>{label}</span>
-								<span
-									className={
-										checkResults[key]
-											? "inline-flex items-center gap-1 text-success"
-											: "text-base-content/45"
-									}
-								>
-									{checkResults[key] ? (
-										<>
-											<CheckCircle2 size={14} />
-											OK
-										</>
-									) : (
-										"未確認"
-									)}
-								</span>
-							</div>
-						))}
+						)}
+						{!useBundleTools ? (
+							<>
+								<label className="grid gap-1">
+									<span className="label pb-1 text-xs font-semibold text-base-content/65">
+										FFmpegのパス
+									</span>
+									<input
+										className="input input-bordered h-10 min-h-10 rounded-md"
+										value={ffmpegPath}
+										onChange={(event) => setFfmpegPath(event.target.value)}
+										placeholder="ffmpeg"
+									/>
+								</label>
+								<label className="grid gap-1">
+									<span className="label pb-1 text-xs font-semibold text-base-content/65">
+										Denoのパス
+									</span>
+									<input
+										className="input input-bordered h-10 min-h-10 rounded-md"
+										value={denoPath}
+										onChange={(event) => setDenoPath(event.target.value)}
+										placeholder="deno"
+									/>
+								</label>
+							</>
+						) : null}
 					</div>
 
-					<footer className="grid gap-2 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
-						{useBundleTools ? (
-							<button
-								className="btn btn-ghost rounded-md bg-base-100 hover:bg-base-300"
-								type="button"
-								disabled={isDownloading || isChecking}
-								onClick={() => void downloadBundleTools()}
-							>
-								{isDownloading ? (
-									<Loader2 size={16} className="animate-spin" />
-								) : (
-									<Download size={16} />
-								)}
-								ダウンロード
-							</button>
-						) : (
-							<span />
-						)}
+					<div className="grid content-center justify-items-center gap-2">
 						<button
-							className="btn btn-ghost rounded-md bg-base-100 hover:bg-base-300"
+							className="btn btn-primary aspect-square h-36 min-h-0 rounded-full text-lg font-bold shadow-lg shadow-primary/30 ring-8 ring-base-100"
 							type="button"
 							disabled={isChecking || isDownloading}
 							onClick={() => void checkTools()}
 						>
-							{isChecking ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								<RefreshCw size={16} />
-							)}
-							確認
+							<span className="grid place-items-center gap-2">
+								{isChecking ? (
+									<Loader2 size={30} className="animate-spin" />
+								) : (
+									<RefreshCw size={30} />
+								)}
+								確認
+							</span>
 						</button>
-						<span />
 						<button
-							className="btn btn-primary rounded-md"
+							className="btn btn-ghost btn-sm rounded-md bg-base-100 hover:bg-base-300"
 							type="button"
 							disabled={!canStart}
 							onClick={() => void saveSettings()}
 						>
-							<Play size={16} />
+							<Play size={15} />
 							開始
 						</button>
-					</footer>
+					</div>
+
+					<div className="grid min-h-0 content-start gap-2">
+						<div className="grid gap-2">
+							{toolLabels.map(([label, key]) => (
+								<div
+									key={key}
+									className="flex h-11 items-center justify-between rounded-md bg-base-100 px-3 text-sm"
+								>
+									<span>{label}</span>
+									<span
+										className={
+											checkResults[key]
+												? "inline-flex items-center gap-1 text-success"
+												: "text-base-content/45"
+										}
+									>
+										{checkResults[key] ? (
+											<>
+												<CheckCircle2 size={14} />
+												OK
+											</>
+										) : (
+											"未確認"
+										)}
+									</span>
+								</div>
+							))}
+						</div>
+
+						{downloadProgress ? (
+							<div className="rounded-md bg-base-100 p-3">
+								<div className="flex justify-between gap-3 text-sm">
+									<span>{downloadProgress.tool_name}</span>
+									<span>{downloadProgress.progress.toFixed(1)}%</span>
+								</div>
+								<progress
+									className="progress progress-primary mt-2 w-full"
+									value={downloadProgress.progress}
+									max={100}
+								/>
+								<p className="mt-1 truncate text-xs text-base-content/55">
+									{downloadProgress.status}
+								</p>
+							</div>
+						) : null}
+					</div>
 				</section>
+
+				{useBundleTools ? (
+					<footer className="grid gap-2 rounded-lg bg-base-200 p-2 shadow-sm ring-1 ring-base-300 sm:grid-cols-[auto_minmax(0,1fr)]">
+						<button
+							className="btn btn-ghost rounded-md bg-base-100 hover:bg-base-300"
+							type="button"
+							disabled={isDownloading || isChecking}
+							onClick={() => void downloadBundleTools()}
+						>
+							{isDownloading ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : (
+								<Download size={16} />
+							)}
+							ダウンロード
+						</button>
+					</footer>
+				) : null}
 			</main>
 		</div>
 	);
