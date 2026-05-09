@@ -1,124 +1,48 @@
-import {
-	CheckCircle,
-	Download,
-	PlayArrow,
-	Settings,
-	Storage,
-} from "@mui/icons-material";
-import {
-	Alert,
-	Box,
-	CircularProgress,
-	Container,
-	FormControlLabel,
-	LinearProgress,
-	Radio,
-	RadioGroup,
-	TextField,
-	Typography,
-} from "@mui/material";
-import { styled } from "@mui/material/styles";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/tauri";
-import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import {
+	CheckCircle2,
+	Download,
+	Loader2,
+	Package,
+	Play,
+	RefreshCw,
+	Terminal,
+} from "lucide-react";
+import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
-import CustomButton from "../_components/CustomButton";
 import { checkToolAvailability } from "../_utils/toolAvailability";
-
-// プロジェクト既存のスタイルを適用
-const StyledTextField = styled(TextField)(() => ({
-	"& .MuiInputBase-root": {
-		borderRadius: "12px",
-	},
-	"& .MuiOutlinedInput-root": {
-		backgroundColor: "var(--input-background)",
-		color: "var(--text-primary)",
-		transition: "all 0.2s ease-in-out",
-		"&:hover": {
-			backgroundColor: "var(--input-background-hover)",
-			"& .MuiOutlinedInput-notchedOutline": {
-				borderColor: "var(--accent-primary)",
-			},
-		},
-		"&.Mui-focused": {
-			backgroundColor: "var(--input-background-focus)",
-			"& .MuiOutlinedInput-notchedOutline": {
-				borderColor: "var(--accent-primary)",
-				borderWidth: "2px",
-			},
-		},
-		"& .MuiOutlinedInput-notchedOutline": {
-			borderColor: "var(--border-primary)",
-			transition: "all 0.2s ease-in-out",
-		},
-	},
-	"& .MuiInputLabel-root": {
-		color: "var(--text-secondary)",
-		"&.Mui-focused": {
-			color: "var(--accent-primary)",
-		},
-	},
-	"& .MuiInputBase-input": {
-		color: "var(--text-primary)",
-	},
-}));
-
-const StyledFormControlLabel = styled(FormControlLabel)(() => ({
-	margin: "8px 0",
-	padding: "14px 16px",
-	borderRadius: "12px",
-	border: "1px solid var(--border-primary)",
-	backgroundColor: "var(--surface-primary)",
-	transition: "all 0.2s ease-in-out",
-	"&:hover": {
-		backgroundColor: "var(--surface-hover)",
-		borderColor: "var(--accent-primary)",
-		transform: "translateY(-1px)",
-		boxShadow: "var(--shadow-md)",
-	},
-	"& .MuiFormControlLabel-label": {
-		color: "var(--text-primary)",
-		fontWeight: 500,
-	},
-}));
-
-const StyledRadioGroup = styled(RadioGroup)(() => ({
-	"& .MuiFormControlLabel-root": {
-		color: "var(--text-primary)",
-	},
-	"& .MuiRadio-root": {
-		color: "var(--text-primary)",
-		"&.Mui-checked": {
-			color: "var(--accent-primary)",
-		},
-	},
-}));
 
 interface ToolSetupProps {
 	onComplete: () => void;
 }
 
-interface DownloadProgress {
+type ToolCheckResults = {
+	ytDlp: boolean;
+	ffmpeg: boolean;
+	deno: boolean;
+};
+
+type DownloadProgress = {
 	tool_name: string;
 	progress: number;
 	status: string;
-}
+};
+
+const emptyToolResults: ToolCheckResults = {
+	ytDlp: false,
+	ffmpeg: false,
+	deno: false,
+};
+
+const toolLabels = [
+	["yt-dlp", "ytDlp"],
+	["FFmpeg", "ffmpeg"],
+	["Deno", "deno"],
+] as const;
 
 export default function ToolSetup({ onComplete }: ToolSetupProps) {
-	const [isChecking, setIsChecking] = useState(false);
-	const [checkResults, setCheckResults] = useState<{
-		ytDlp: boolean;
-		ffmpeg: boolean;
-		deno: boolean;
-	}>({ ytDlp: false, ffmpeg: false, deno: false });
-	const [isDownloading, setIsDownloading] = useState(false);
-	const [downloadProgress, setDownloadProgress] =
-		useState<DownloadProgress | null>(null);
-	const [downloadedOnce, setDownloadedOnce] = useState(false);
-	const [isLoading, setIsLoading] = useState(true);
-
 	const {
 		useBundleTools,
 		setUseBundleTools,
@@ -132,27 +56,27 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		setIsSettingLoaded,
 	} = useAppContext();
 
-	const checkInitialSetup = useCallback(async () => {
-		try {
-			const status = await checkToolAvailability(
-				useBundleTools,
-				ytDlpPath,
-				ffmpegPath,
-				denoPath,
-			);
-			if (status.ok) {
-				setCheckResults({ ytDlp: true, ffmpeg: true, deno: true });
-				// 少し待ってから完了通知を送信（ローディング画面との遷移をスムーズにするため）
-				setTimeout(() => {
-					setIsSettingLoaded(true);
-					onComplete();
-				}, 500);
-				return;
-			}
-		} catch {
-			// noop: 失敗時は通常のセットアップ画面を表示
-		}
+	const [isChecking, setIsChecking] = useState(false);
+	const [checkResults, setCheckResults] =
+		useState<ToolCheckResults>(emptyToolResults);
+	const [isDownloading, setIsDownloading] = useState(false);
+	const [downloadProgress, setDownloadProgress] =
+		useState<DownloadProgress | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
 
+	const checkInitialSetup = useCallback(async () => {
+		const status = await checkToolAvailability(
+			useBundleTools,
+			ytDlpPath,
+			ffmpegPath,
+			denoPath,
+		);
+		if (status.ok) {
+			setCheckResults({ ytDlp: true, ffmpeg: true, deno: true });
+			setIsSettingLoaded(true);
+			onComplete();
+			return;
+		}
 		setIsLoading(false);
 	}, [
 		denoPath,
@@ -164,64 +88,25 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	]);
 
 	useEffect(() => {
-		// AppContextの設定が読み込まれたら処理
 		if (isSettingLoaded) {
-			checkInitialSetup();
+			void checkInitialSetup();
 		}
 
-		// ダウンロード進捗リスナーを設定
-		const unlisten = listen<DownloadProgress>("download-progress", (event) => {
-			setDownloadProgress(event.payload);
-		});
+		const unlistenPromise = listen<DownloadProgress>(
+			"download-progress",
+			(event) => {
+				setDownloadProgress(event.payload);
+			},
+		);
 
 		return () => {
-			unlisten.then((fn) => fn());
+			unlistenPromise.then((unlisten) => unlisten());
 		};
 	}, [checkInitialSetup, isSettingLoaded]);
 
-	const saveSettings = async () => {
-		try {
-			await invoke("set_use_bundle_tools", { useBundleTools: useBundleTools });
-
-			if (!useBundleTools) {
-				await invoke("set_yt_dlp_path", { ytDlpPath });
-				await invoke("set_ffmpeg_path", { ffmpegPath });
-				await invoke("set_deno_path", { denoPath });
-			}
-
-			// 設定完了後、少し待ってから完了通知（スムーズな体験のため）
-			setTimeout(() => {
-				onComplete();
-			}, 1000);
-		} catch (error) {
-			console.error("Failed to save settings:", error);
-			toast.error("設定の保存に失敗しました");
-		}
-	};
-
-	const downloadBundleTools = async () => {
-		setIsDownloading(true);
-		setDownloadProgress(null);
-
-		try {
-			await invoke<string>("download_bundle_tools");
-			setDownloadedOnce(true);
-			toast.success("ツールのダウンロードが完了しました");
-			// ダウンロード後にツールチェックを実行
-			await checkTools();
-		} catch (error) {
-			const errorMsg =
-				error instanceof Error
-					? error.message
-					: typeof error === "string"
-						? error
-						: JSON.stringify(error);
-			console.error("Download failed:", error);
-			toast.error(`ツールのダウンロードに失敗しました: ${errorMsg}`);
-		} finally {
-			setIsDownloading(false);
-			setDownloadProgress(null);
-		}
+	const changeMode = (event: ChangeEvent<HTMLInputElement>) => {
+		setUseBundleTools(event.target.value === "bundle");
+		setCheckResults(emptyToolResults);
 	};
 
 	const checkTools = async () => {
@@ -233,505 +118,267 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				ffmpegPath,
 				denoPath,
 			);
-			if (!status.ok) {
-				toast.error(
-					status.ytDlpError ||
-						status.ffmpegError ||
-						status.denoError ||
-						"ツールが見つかりません。先にダウンロードするか、PATH または実行ファイルパスを確認してください。",
-				);
-				setCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
-				return;
-			}
-
 			setCheckResults({
 				ytDlp: status.ytDlpFound,
 				ffmpeg: status.ffmpegFound,
 				deno: status.denoFound,
 			});
-
 			if (status.ok) {
 				toast.success("すべてのツールが利用可能です");
-			} else {
-				const failedTools = [];
-				if (!status.ytDlpFound) failedTools.push("yt-dlp");
-				if (!status.ffmpegFound) failedTools.push("FFmpeg");
-				if (!status.denoFound) failedTools.push("Deno");
-				toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
+				return;
 			}
+			toast.error(
+				status.ytDlpError ||
+					status.ffmpegError ||
+					status.denoError ||
+					"ツールが見つかりません。設定を確認してください。",
+			);
 		} catch (error) {
-			console.error("Tool check failed:", error);
-			const errorMsg = error instanceof Error ? error.message : String(error);
-
-			// エラーメッセージからどのツールが失敗したかを特定
-			if (errorMsg.includes("yt-dlp")) {
-				toast.error(`yt-dlpのチェックに失敗しました: ${errorMsg}`);
-			} else if (errorMsg.includes("ffmpeg")) {
-				toast.error(`FFmpegのチェックに失敗しました: ${errorMsg}`);
-			} else if (errorMsg.includes("deno")) {
-				toast.error(`Denoのチェックに失敗しました: ${errorMsg}`);
-			} else {
-				toast.error(`ツールのチェックに失敗しました: ${errorMsg}`);
-			}
-
-			setCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
+			toast.error(`ツールのチェックに失敗しました:${String(error)}`);
+			setCheckResults(emptyToolResults);
 		} finally {
 			setIsChecking(false);
 		}
 	};
 
-	const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		setUseBundleTools(event.target.value === "bundle");
+	const downloadBundleTools = async () => {
+		setIsDownloading(true);
+		setDownloadProgress(null);
+		try {
+			await invoke<string>("download_bundle_tools");
+			toast.success("ツールのダウンロードが完了しました");
+			await checkTools();
+		} catch (error) {
+			toast.error(`ツールのダウンロードに失敗しました:${String(error)}`);
+		} finally {
+			setIsDownloading(false);
+			setDownloadProgress(null);
+		}
 	};
 
-	// ローディング中はローディング画面を表示
+	const saveSettings = async () => {
+		await invoke("set_use_bundle_tools", { useBundleTools });
+		if (!useBundleTools) {
+			await Promise.all([
+				invoke("set_yt_dlp_path", { ytDlpPath }),
+				invoke("set_ffmpeg_path", { ffmpegPath }),
+				invoke("set_deno_path", { denoPath }),
+			]);
+		}
+		onComplete();
+	};
+
 	if (isLoading) {
 		return (
-			<div className="tool-setup-root">
-				<Container
-					maxWidth="sm"
-					sx={{
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						justifyContent: "center",
-						minHeight: "100vh",
-						gap: 3,
-					}}
-				>
-					<Box
-						sx={{
-							display: "flex",
-							flexDirection: "column",
-							alignItems: "center",
-							justifyContent: "center",
-							padding: "3rem",
-							backgroundColor: "var(--surface-primary)",
-							border: "1px solid var(--border-primary)",
-							borderRadius: "12px",
-							boxShadow: "var(--shadow-lg)",
-							backdropFilter: "var(--backdrop-blur)",
-							textAlign: "center",
-						}}
-					>
-						<CircularProgress
-							size={60}
-							sx={{
-								color: "var(--accent-primary)",
-								marginBottom: "1rem",
-							}}
-						/>
-						<Typography
-							variant="h6"
-							component="h2"
-							sx={{
-								color: "var(--text-primary)",
-								marginBottom: "0.5rem",
-								fontWeight: 600,
-							}}
-						>
-							設定を読み込み中...
-						</Typography>
-						<Typography
-							variant="body2"
-							sx={{
-								color: "var(--text-secondary)",
-							}}
-						>
-							ツールの状態を確認しています
-						</Typography>
-					</Box>
-				</Container>
+			<div className="grid h-screen place-items-center bg-base-100 p-4 text-base-content">
+				<section className="grid w-full max-w-sm gap-3 rounded-lg border border-base-300 bg-base-200 p-6 text-center shadow-sm">
+					<Loader2 className="mx-auto animate-spin text-primary" size={28} />
+					<h1 className="text-lg font-bold">ツールを確認中</h1>
+					<p className="text-sm text-base-content/60">
+						yt-dlp、FFmpeg、Denoの状態を読み込んでいます。
+					</p>
+				</section>
 			</div>
 		);
 	}
 
+	const canStart =
+		checkResults.ytDlp && checkResults.ffmpeg && checkResults.deno;
+
 	return (
-		<div className="tool-setup-root">
-			<Container
-				maxWidth="md"
-				className="tool-setup-container"
-				sx={{ py: 4, px: { xs: 2, sm: 3 } }}
-			>
-				<Box
-					className="tool-setup-panel"
-					sx={{
-						padding: { xs: "1.25rem", sm: "1.75rem" },
-						backgroundColor: "var(--surface-primary)",
-						border: "1px solid var(--border-primary)",
-						borderRadius: "12px",
-						boxShadow: "var(--shadow-lg)",
-						backdropFilter: "var(--backdrop-blur)",
-					}}
-				>
-					<Typography
-						variant="h4"
-						component="h1"
-						sx={{
-							color: "var(--text-primary)",
-							marginBottom: "0.35rem",
-							fontWeight: 700,
-							textAlign: "center",
-							fontSize: { xs: "1.35rem", sm: "1.6rem" },
-						}}
-					>
-						初期設定
-					</Typography>
+		<div className="h-screen overflow-auto bg-base-100 p-4 text-base-content">
+			<main className="mx-auto grid min-h-full max-w-3xl place-items-center">
+				<section className="grid w-full gap-4 rounded-lg border border-base-300 bg-base-200 p-5 shadow-sm">
+					<header className="grid gap-1 text-center">
+						<p className="text-xs font-semibold uppercase tracking-wide text-primary">
+							Setup
+						</p>
+						<h1 className="text-2xl font-bold">初期設定</h1>
+						<p className="text-sm text-base-content/60">
+							動画処理に使うツールを選択します。
+						</p>
+					</header>
 
-					<Typography
-						variant="h6"
-						sx={{
-							color: "var(--accent-primary)",
-							marginBottom: "0.75rem",
-							textAlign: "center",
-							fontWeight: 500,
-							fontSize: { xs: "0.95rem", sm: "1rem" },
-						}}
-					>
-						ツール設定
-					</Typography>
-
-					<Typography
-						variant="body2"
-						sx={{
-							color: "var(--text-secondary)",
-							marginBottom: "1rem",
-							textAlign: "center",
-							fontSize: { xs: "0.9rem", sm: "0.95rem" },
-							lineHeight: 1.5,
-						}}
-					>
-						必要なツールを設定
-					</Typography>
-
-					<Box>
-						<Typography
-							variant="subtitle1"
-							sx={{
-								color: "var(--text-primary)",
-								fontWeight: 600,
-								fontSize: { xs: "0.95rem", sm: "1rem" },
-							}}
+					<div className="grid gap-2 sm:grid-cols-2">
+						<label
+							className={`flex cursor-pointer gap-3 rounded-md border p-4 ${
+								useBundleTools
+									? "border-primary bg-primary text-primary-content"
+									: "border-base-300 bg-base-100"
+							}`}
 						>
-							ツールの使用方法
-						</Typography>
-						<StyledRadioGroup
-							value={useBundleTools ? "bundle" : "path"}
-							onChange={handleModeChange}
-							sx={{ marginY: 1 }}
-						>
-							<StyledFormControlLabel
+							<input
+								className="radio radio-sm"
+								type="radio"
+								name="tool-mode"
 								value="bundle"
-								control={<Radio size="small" />}
-								label={
-									<Box
-										sx={{
-											ml: 1,
-											display: "flex",
-											alignItems: "center",
-											gap: 1,
-										}}
-									>
-										<Storage
-											sx={{ fontSize: 20, color: "var(--accent-primary)" }}
-										/>
-										<Box>
-											<Typography
-												variant="body2"
-												fontWeight="600"
-												sx={{
-													color: "var(--text-primary)",
-													fontSize: { xs: "0.95rem", sm: "1rem" },
-													lineHeight: 1.3,
-												}}
-											>
-												バンドル版（初心者向け）
-											</Typography>
-											<Typography
-												variant="caption"
-												sx={{
-													color: "var(--text-secondary)",
-													fontSize: "0.85rem",
-													display: "block",
-													mt: 0.4,
-												}}
-											>
-												ツールを自動で設定・使用
-											</Typography>
-										</Box>
-									</Box>
-								}
+								checked={useBundleTools}
+								onChange={changeMode}
 							/>
-							<StyledFormControlLabel
+							<span className="grid gap-1">
+								<span className="flex items-center gap-2 font-semibold">
+									<Package size={18} />
+									バンドル版
+								</span>
+								<span className="text-sm opacity-75">
+									内蔵ツールを使用します。
+								</span>
+							</span>
+						</label>
+
+						<label
+							className={`flex cursor-pointer gap-3 rounded-md border p-4 ${
+								useBundleTools
+									? "border-base-300 bg-base-100"
+									: "border-primary bg-primary text-primary-content"
+							}`}
+						>
+							<input
+								className="radio radio-sm"
+								type="radio"
+								name="tool-mode"
 								value="path"
-								control={<Radio size="small" />}
-								label={
-									<Box
-										sx={{
-											ml: 1,
-											display: "flex",
-											alignItems: "center",
-											gap: 1,
-										}}
-									>
-										<Settings
-											sx={{ fontSize: 20, color: "var(--accent-primary)" }}
-										/>
-										<Box>
-											<Typography
-												variant="body2"
-												fontWeight="600"
-												sx={{
-													color: "var(--text-primary)",
-													fontSize: { xs: "0.95rem", sm: "1rem" },
-													lineHeight: 1.3,
-												}}
-											>
-												カスタムパス（上級者向け）
-											</Typography>
-											<Typography
-												variant="caption"
-												sx={{
-													color: "var(--text-secondary)",
-													fontSize: "0.85rem",
-													display: "block",
-													mt: 0.4,
-												}}
-											>
-												手動でインストールしたツールを指定
-											</Typography>
-										</Box>
-									</Box>
-								}
+								checked={!useBundleTools}
+								onChange={changeMode}
 							/>
-						</StyledRadioGroup>
-					</Box>
+							<span className="grid gap-1">
+								<span className="flex items-center gap-2 font-semibold">
+									<Terminal size={18} />
+									カスタムパス
+								</span>
+								<span className="text-sm opacity-75">
+									実行ファイルを直接指定します。
+								</span>
+							</span>
+						</label>
+					</div>
 
-					{!useBundleTools && (
-						<Box sx={{ marginBottom: "1.5rem", marginTop: 1.25 }}>
-							<Typography
-								variant="subtitle1"
-								sx={{
-									color: "var(--text-primary)",
-									fontWeight: 600,
-									marginBottom: "0.5rem",
-									fontSize: { xs: "0.95rem", sm: "1rem" },
-								}}
-							>
-								ツールパス設定
-							</Typography>
-
-							<Box sx={{ marginBottom: "0.5rem" }}>
-								<StyledTextField
-									fullWidth
-									size="small"
-									label="yt-dlp のパス"
-									placeholder="yt-dlp"
+					{!useBundleTools ? (
+						<div className="grid gap-3 rounded-md border border-base-300 bg-base-100 p-3">
+							<label className="grid gap-1">
+								<span className="label pb-1 text-xs font-semibold text-base-content/65">
+									yt-dlpのパス
+								</span>
+								<input
+									className="input input-bordered h-10 min-h-10 rounded-md"
 									value={ytDlpPath}
-									onChange={(e) => setYtDlpPath(e.target.value)}
-									margin="dense"
-									helperText="yt-dlp実行ファイルのパス（空欄時は PATH を参照）"
+									onChange={(event) => setYtDlpPath(event.target.value)}
+									placeholder="yt-dlp"
 								/>
-							</Box>
-
-							<Box sx={{ marginBottom: "0.5rem" }}>
-								<StyledTextField
-									fullWidth
-									size="small"
-									label="FFmpeg のパス"
-									placeholder="ffmpeg"
+							</label>
+							<label className="grid gap-1">
+								<span className="label pb-1 text-xs font-semibold text-base-content/65">
+									FFmpegのパス
+								</span>
+								<input
+									className="input input-bordered h-10 min-h-10 rounded-md"
 									value={ffmpegPath}
-									onChange={(e) => setFfmpegPath(e.target.value)}
-									margin="dense"
-									helperText="FFmpeg実行ファイルのパス（空欄時は PATH を参照）"
+									onChange={(event) => setFfmpegPath(event.target.value)}
+									placeholder="ffmpeg"
 								/>
-							</Box>
-
-							<Box sx={{ marginBottom: "0.5rem" }}>
-								<StyledTextField
-									fullWidth
-									size="small"
-									label="Deno のパス"
-									placeholder="deno"
+							</label>
+							<label className="grid gap-1">
+								<span className="label pb-1 text-xs font-semibold text-base-content/65">
+									Denoのパス
+								</span>
+								<input
+									className="input input-bordered h-10 min-h-10 rounded-md"
 									value={denoPath}
-									onChange={(e) => setDenoPath(e.target.value)}
-									margin="dense"
-									helperText="Deno実行ファイルのパス（空欄時は PATH を参照）"
+									onChange={(event) => setDenoPath(event.target.value)}
+									placeholder="deno"
 								/>
-							</Box>
-						</Box>
-					)}
+							</label>
+						</div>
+					) : null}
 
-					<Box
-						sx={{
-							display: "flex",
-							flexDirection: "column",
-							gap: 1,
-							marginBottom: "1rem",
-						}}
-					>
-						{useBundleTools && (
-							<CustomButton
-								variant="contained"
-								className="variant-primary"
-								onClick={downloadBundleTools}
-								disabled={
-									isDownloading ||
-									isChecking ||
-									(downloadedOnce &&
-										checkResults.ytDlp &&
-										checkResults.ffmpeg &&
-										checkResults.deno)
-								}
-								sx={{
-									width: "100%",
-									height: "48px",
-									fontSize: "0.95rem",
-								}}
-								startIcon={
-									isDownloading ? (
-										<CircularProgress size={16} color="inherit" />
-									) : (
-										<Download />
-									)
-								}
-							>
-								{isDownloading ? "ダウンロード中..." : "ツールをダウンロード"}
-							</CustomButton>
-						)}
-
-						<Box
-							sx={{
-								display: "flex",
-								gap: 1,
-								flexWrap: { xs: "wrap", sm: "nowrap" },
-							}}
-						>
-							<CustomButton
-								variant="outlined"
-								className="variant-secondary"
-								onClick={checkTools}
-								disabled={
-									isChecking ||
-									isDownloading ||
-									(downloadedOnce &&
-										checkResults.ytDlp &&
-										checkResults.ffmpeg &&
-										checkResults.deno)
-								}
-								sx={{
-									flex: "1 1 0px",
-									height: "48px",
-									fontSize: "0.95rem",
-									minWidth: { xs: "100%", sm: "auto" },
-								}}
-								startIcon={
-									isChecking ? (
-										<CircularProgress size={16} color="inherit" />
-									) : (
-										<CheckCircle />
-									)
-								}
-							>
-								{isChecking ? "確認中..." : "ツールを確認"}
-							</CustomButton>
-
-							<CustomButton
-								variant="contained"
-								className="variant-primary"
-								onClick={saveSettings}
-								disabled={
-									!checkResults.ytDlp ||
-									!checkResults.ffmpeg ||
-									!checkResults.deno
-								}
-								sx={{
-									flex: "1 1 0px",
-									height: "48px",
-									fontSize: "0.95rem",
-									minWidth: { xs: "100%", sm: "auto" },
-								}}
-								startIcon={<PlayArrow />}
-							>
-								設定完了して開始
-							</CustomButton>
-						</Box>
-					</Box>
-
-					{/* ダウンロード進捗表示 */}
-					{downloadProgress && (
-						<Box sx={{ marginBottom: "0.75rem" }}>
-							<Typography
-								variant="caption"
-								sx={{ color: "var(--text-primary)", fontSize: "0.8rem" }}
-							>
-								{downloadProgress.tool_name} - {downloadProgress.status}
-							</Typography>
-							<LinearProgress
-								variant="determinate"
+					{downloadProgress ? (
+						<div className="rounded-md border border-base-300 bg-base-100 p-3">
+							<div className="flex justify-between gap-3 text-sm">
+								<span>{downloadProgress.tool_name}</span>
+								<span>{downloadProgress.progress.toFixed(1)}%</span>
+							</div>
+							<progress
+								className="progress progress-primary mt-2 w-full"
 								value={downloadProgress.progress}
-								sx={{
-									height: 4,
-									borderRadius: 2,
-									backgroundColor: "var(--surface-secondary)",
-									"& .MuiLinearProgress-bar": {
-										backgroundColor: "var(--accent-primary)",
-									},
-								}}
+								max={100}
 							/>
-							<Typography
-								variant="caption"
-								sx={{ color: "var(--text-secondary)", fontSize: "0.75rem" }}
-							>
-								{downloadProgress.progress.toFixed(1)}%
-							</Typography>
-						</Box>
-					)}
+							<p className="mt-1 text-xs text-base-content/55">
+								{downloadProgress.status}
+							</p>
+						</div>
+					) : null}
 
-					{(checkResults.ytDlp || checkResults.ffmpeg || checkResults.deno) && (
-						<Box sx={{ marginBottom: "0.75rem" }}>
-							<Alert
-								severity={
-									checkResults.ytDlp && checkResults.ffmpeg && checkResults.deno
-										? "success"
-										: "warning"
-								}
-								sx={{
-									backgroundColor: "var(--surface-primary)",
-									border: "1px solid var(--border-primary)",
-									borderRadius: "6px",
-									padding: "0.4rem 0.6rem",
-								}}
+					<div className="grid gap-2 sm:grid-cols-3">
+						{toolLabels.map(([label, key]) => (
+							<div
+								key={key}
+								className="flex items-center justify-between rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm"
 							>
-								<Typography variant="caption" sx={{ fontSize: "0.8rem" }}>
-									yt-dlp: {checkResults.ytDlp ? "OK" : "NG"} | FFmpeg:{" "}
-									{checkResults.ffmpeg ? "OK" : "NG"} | Deno:{" "}
-									{checkResults.deno ? "OK" : "NG"}
-								</Typography>
-							</Alert>
-						</Box>
-					)}
+								<span>{label}</span>
+								<span
+									className={
+										checkResults[key]
+											? "inline-flex items-center gap-1 text-success"
+											: "text-base-content/45"
+									}
+								>
+									{checkResults[key] ? (
+										<>
+											<CheckCircle2 size={14} />
+											OK
+										</>
+									) : (
+										"未確認"
+									)}
+								</span>
+							</div>
+						))}
+					</div>
 
-					<Alert
-						severity="info"
-						sx={{
-							backgroundColor: "var(--surface-primary)",
-							border: "1px solid var(--border-primary)",
-							borderRadius: "6px",
-							padding: "0.4rem 0.6rem",
-						}}
-					>
-						<Typography
-							variant="caption"
-							sx={{ fontSize: "0.8rem", lineHeight: 1.4 }}
+					<footer className="grid gap-2 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
+						{useBundleTools ? (
+							<button
+								className="btn btn-outline rounded-md"
+								type="button"
+								disabled={isDownloading || isChecking}
+								onClick={() => void downloadBundleTools()}
+							>
+								{isDownloading ? (
+									<Loader2 size={16} className="animate-spin" />
+								) : (
+									<Download size={16} />
+								)}
+								ダウンロード
+							</button>
+						) : (
+							<span />
+						)}
+						<button
+							className="btn btn-outline rounded-md"
+							type="button"
+							disabled={isChecking || isDownloading}
+							onClick={() => void checkTools()}
 						>
-							<strong>ヒント:</strong>
-							<br />・ バンドル版: ツールを自動で設定・使用
-							<br />・ 上級者向け: 手動でインストールしたツールを指定
-						</Typography>
-					</Alert>
-				</Box>
-			</Container>
+							{isChecking ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : (
+								<RefreshCw size={16} />
+							)}
+							確認
+						</button>
+						<span />
+						<button
+							className="btn btn-primary rounded-md"
+							type="button"
+							disabled={!canStart}
+							onClick={() => void saveSettings()}
+						>
+							<Play size={16} />
+							開始
+						</button>
+					</footer>
+				</section>
+			</main>
 		</div>
 	);
 }
