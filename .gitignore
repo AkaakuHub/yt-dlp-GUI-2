@@ -27,4 +27,5 @@ dist-ssr
 todo.txt
 
 null
+.playwright-mcp
 src-tauri/tools-manifest.json

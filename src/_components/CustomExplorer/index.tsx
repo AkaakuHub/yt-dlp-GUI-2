@@ -1,21 +1,19 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import {
-	ArrowBack as BackIcon,
-	InsertDriveFile as FileIcon,
-	Folder as FolderIcon,
-	ArrowForward as ForwardIcon,
-	Home as HomeIcon,
-	Refresh as RefreshIcon,
-	ArrowUpward as UpIcon,
-} from "@mui/icons-material";
 import { dirname, resolve } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/tauri";
+import {
+	ArrowLeft,
+	ArrowRight,
+	ArrowUp,
+	File,
+	Folder,
+	Home,
+	RefreshCw,
+} from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
-
-import "./index.css";
 
 interface FileInfo {
 	name: string;
@@ -73,23 +71,19 @@ const Item: React.FC<ItemProps> = ({ handleClick, file, fullPath }) => {
 
 	return (
 		<div
-			className={`explorer-item ${file.is_dir ? "directory" : "file"}`}
+			className="grid cursor-pointer grid-cols-[24px_minmax(0,1fr)_90px_170px] items-center gap-3 border-b border-base-300 px-4 py-3 text-sm text-base-content hover:bg-base-300/60"
 			onClick={handleItemClick}
 			draggable={!file.is_dir}
 			onDragStart={handleDragStart}
 		>
-			<div className="explorer-item-icon">
-				{file.is_dir ? (
-					<FolderIcon fontSize="small" />
-				) : (
-					<FileIcon fontSize="small" />
-				)}
+			<div className={file.is_dir ? "text-warning" : "text-info"}>
+				{file.is_dir ? <Folder size={18} /> : <File size={18} />}
 			</div>
-			<div className="explorer-item-name">{file.name}</div>
-			<div className="explorer-item-size">
+			<div className="truncate font-medium">{file.name}</div>
+			<div className="text-right text-xs text-base-content/55">
 				{file.is_dir ? "" : calculateFileSize(file.file_size)}
 			</div>
-			<div className="explorer-item-date">
+			<div className="text-right font-mono text-xs text-base-content/55">
 				{formatDateTime(file.last_modified)}
 			</div>
 		</div>
@@ -219,51 +213,64 @@ const CustomExplorer: React.FC = () => {
 	};
 
 	return (
-		<div className="explorer-wrapper">
-			<div className="explorer-toolbar">
-				<div className="explorer-navigation">
+		<div className="flex h-full min-h-0 flex-col overflow-hidden bg-base-200">
+			<div className="flex min-h-14 items-center gap-2 border-b border-base-300 bg-base-100 px-3">
+				<div className="flex items-center gap-1">
 					<button
-						className="explorer-button"
+						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70 disabled:text-base-content/25"
 						onClick={goBack}
 						disabled={historyIndex <= 0}
 						title="戻る"
 					>
-						<BackIcon fontSize="small" />
+						<ArrowLeft size={18} />
 					</button>
 					<button
-						className="explorer-button"
+						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70 disabled:text-base-content/25"
 						onClick={goForward}
 						disabled={historyIndex >= history.length - 1}
 						title="進む"
 					>
-						<ForwardIcon fontSize="small" />
+						<ArrowRight size={18} />
 					</button>
-					<button className="explorer-button" onClick={goUp} title="上の階層">
-						<UpIcon fontSize="small" />
+					<button
+						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70"
+						onClick={goUp}
+						title="上の階層"
+					>
+						<ArrowUp size={18} />
 					</button>
-					<button className="explorer-button" onClick={goHome} title="ホーム">
-						<HomeIcon fontSize="small" />
+					<button
+						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70"
+						onClick={goHome}
+						title="ホーム"
+					>
+						<Home size={18} />
 					</button>
 				</div>
-				<div className="explorer-path-container">
+				<div className="min-w-0 flex-1">
 					<input
-						className="explorer-path-input"
+						className="input input-bordered h-10 w-full rounded-md bg-base-200 font-mono text-sm focus:outline-primary"
 						value={currentPath}
 						onChange={handlePathChange}
 						onKeyPress={handlePathSubmit}
 						placeholder="パスを入力..."
 					/>
 				</div>
-				<button className="explorer-button" onClick={fetchFiles} title="更新">
-					<RefreshIcon fontSize="small" />
+				<button
+					className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70"
+					onClick={fetchFiles}
+					title="更新"
+				>
+					<RefreshCw size={18} />
 				</button>
 			</div>
-			<div className="explorer-header">
-				<div className="explorer-header-name">名前</div>
-				<div className="explorer-header-size">サイズ</div>
-				<div className="explorer-header-date">更新日時</div>
+			<div className="grid grid-cols-[24px_minmax(0,1fr)_90px_170px] gap-3 border-b border-base-300 bg-base-300/55 px-4 py-2 text-xs font-semibold text-base-content/55">
+				<div />
+				<div>名前</div>
+				<div className="text-right">サイズ</div>
+				<div className="text-right">更新日時</div>
 			</div>
-			<div className="explorer-list">
+			<div className="min-h-0 flex-1 overflow-y-auto">
 				{files.map((file: FileInfo, index: number) => (
 					<Item
 						key={`${file.name}-${index}`}

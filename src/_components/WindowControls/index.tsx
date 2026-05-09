@@ -1,15 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import {
 	isPermissionGranted,
 	requestPermission,
 	sendNotification,
 } from "@tauri-apps/api/notification";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
-
-import "./index.css";
 
 function WindowControls() {
 	useEffect(() => {
@@ -63,7 +59,6 @@ function WindowControls() {
 
 		useEffect(() => {
 			let formattedPercentageString = "";
-			// console.log("last", latestConsoleText);
 
 			if (latestConsoleText.startsWith("[download]")) {
 				setIsDownloading(true);
@@ -71,7 +66,6 @@ function WindowControls() {
 					latestConsoleText.split(" "),
 				);
 				try {
-					// const percentage = latestConsoleText.split("  ")[1].trim().split(" ")[0].replace("%", "");
 					const percentage = splittedArray[1].replace("%", "");
 					const parsedPercentage = parseFloat(percentage);
 					const percentageString = parsedPercentage.toFixed(1);
@@ -85,9 +79,7 @@ function WindowControls() {
 					}
 					setProgressPercentage(parsedPercentage);
 					setProgressText(`残り ??:?? (${formattedPercentageString}%)`);
-				} catch (_error) {
-					/** */
-				}
+				} catch {}
 
 				if (latestConsoleText.includes("ETA")) {
 					try {
@@ -103,7 +95,7 @@ function WindowControls() {
 								setProgressText(`残り ??:?? (${formattedPercentageString}%)`);
 							}
 						}
-					} catch (_error) {
+					} catch {
 						try {
 							const remainingTime2 = latestConsoleText.split("ETA ")[1];
 							if (remainingTime2) {
@@ -111,9 +103,7 @@ function WindowControls() {
 									`残り ${remainingTime2} (${formattedPercentageString}%)`,
 								);
 							}
-						} catch (_error) {
-							/** */
-						}
+						} catch {}
 					}
 				} else if (!latestConsoleText.includes("Destination:")) {
 					const finalTime = splittedArray[5];
@@ -129,9 +119,7 @@ function WindowControls() {
 						setVideoTitle(videoTitleExtracted);
 						setScrollKey((prevKey) => prevKey + 1);
 					}
-				} catch (_error) {
-					/** */
-				}
+				} catch {}
 			} else if (latestConsoleText.startsWith("[Merger]")) {
 				setIsDownloading(true);
 				setProgressText("マージ中...");
@@ -159,76 +147,44 @@ function WindowControls() {
 			videoTitle,
 		]);
 
-		const [shouldScroll, setShouldScroll] = useState(false);
-		const [scrollDuration, setScrollDuration] = useState(0);
-		const scrollingTextRef = useRef(null);
-
-		useEffect(() => {
-			if (!videoTitle) {
-				setShouldScroll(false);
-				setScrollDuration(0);
-				return;
-			}
-			if (scrollingTextRef.current) {
-				const textElement: HTMLElement = scrollingTextRef.current;
-
-				const wrapper = textElement?.parentElement;
-				const textWidth = textElement?.offsetWidth;
-				const wrapperWidth = wrapper?.offsetWidth;
-
-				if (wrapperWidth && textWidth > wrapperWidth) {
-					setShouldScroll(true);
-					setScrollDuration(textWidth / 50);
-				} else {
-					setShouldScroll(false);
-				}
-			}
-		}, [videoTitle]);
-
 		return (
 			<>
 				{isDownloading ? (
-					<div data-tauri-drag-region className="download-progress-wrapper">
+					<div
+						data-tauri-drag-region
+						className="relative h-7 overflow-hidden bg-base-300"
+					>
 						<div
 							data-tauri-drag-region
-							className="download-progress-bar"
+							className="h-full bg-success transition-[width] duration-300"
 							style={{ width: `${progressPercentage}%` }}
 						/>
-						<div data-tauri-drag-region className="download-progress-info">
-							<span data-tauri-drag-region className="progress-text">
+						<div
+							data-tauri-drag-region
+							className="absolute inset-0 flex items-center gap-3 px-3 font-mono text-sm text-success-content"
+						>
+							<span data-tauri-drag-region className="shrink-0">
 								{progressText}
 							</span>
-							<div data-tauri-drag-region className="scrolling-text-wrapper">
-								<span
-									data-tauri-drag-region
-									className="scrolling-text"
-									key={scrollKey}
-									ref={scrollingTextRef}
-									style={{
-										animation: shouldScroll
-											? `scroll-left ${scrollDuration}s linear infinite`
-											: "none",
-									}}
-								>
-									{videoTitle}
-								</span>
+							<div
+								data-tauri-drag-region
+								className="min-w-0 truncate"
+								key={scrollKey}
+							>
+								{videoTitle}
 							</div>
 						</div>
 					</div>
 				) : (
-					<div
-						data-tauri-drag-region
-						className="download-progress-wrapper"
-					></div>
+					<div data-tauri-drag-region className="h-7 bg-base-300"></div>
 				)}
 			</>
 		);
 	};
 
 	return (
-		<div data-tauri-drag-region className="window-controls-root">
+		<div data-tauri-drag-region className="h-7 shrink-0">
 			<DownloadProgress />
-			<div data-tauri-drag-region className="window-right-controls"></div>
 		</div>
 	);
 }

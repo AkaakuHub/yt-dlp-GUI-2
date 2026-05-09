@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
@@ -27,16 +27,16 @@
 					"fix": "safe"
 				}
 			},
-      "a11y": {
-        "noLabelWithoutControl": "off",
-        "useSemanticElements": "off",
-        "useButtonType": "off",
-        "noStaticElementInteractions" : "off",
-        "useKeyWithClickEvents": "off"
-      },
-      "complexity": {
-        "noImportantStyles": "off"
-      }
+			"a11y": {
+				"noLabelWithoutControl": "off",
+				"useSemanticElements": "off",
+				"useButtonType": "off",
+				"noStaticElementInteractions": "off",
+				"useKeyWithClickEvents": "off"
+			},
+			"complexity": {
+				"noImportantStyles": "off"
+			}
 		}
 	},
 	"javascript": {
@@ -45,6 +45,11 @@
 		},
 		"parser": {
 			"unsafeParameterDecoratorsEnabled": true
+		}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
 		}
 	}
 }

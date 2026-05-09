@@ -23,27 +23,24 @@ import {
 	Typography,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { dialog } from "@tauri-apps/api";
 import { open } from "@tauri-apps/api/dialog";
 import { listen } from "@tauri-apps/api/event";
+import {
+	isPermissionGranted,
+	requestPermission,
+} from "@tauri-apps/api/notification";
 import { relaunch } from "@tauri-apps/api/process";
 import { invoke } from "@tauri-apps/api/tauri";
 import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useState } from "react";
-import { useAppContext } from "../_components/AppContext";
-import ThemeSelector from "../_components/ThemeSelector";
-import type { ConfigProps } from "../types";
-
-import "./index.css";
-
-import { dialog } from "@tauri-apps/api";
-import {
-	isPermissionGranted,
-	requestPermission,
-} from "@tauri-apps/api/notification";
 import { toast } from "react-toastify";
+import { useAppContext } from "../_components/AppContext";
 import CustomButton from "../_components/CustomButton";
+import ThemeSelector from "../_components/ThemeSelector";
 import { checkToolAvailability } from "../_utils/toolAvailability";
+import type { ConfigProps } from "../types";
 
 // StyledComponents for dark mode support
 const StyledTextField = styled(TextField)(() => ({
@@ -227,10 +224,6 @@ export default function Settings() {
 		};
 
 		const checkForUpdates = async () => {
-			// await emit("tauri://update");
-			// const unlisten = await onUpdaterEvent(({ error, status }) => {
-			//   console.log('Updater event', error, status)
-			// })
 			try {
 				const { shouldUpdate, manifest } = await checkUpdate();
 				if (shouldUpdate) {
@@ -496,7 +489,6 @@ export default function Settings() {
 			"start-server-output",
 			(event) => {
 				const data = event.payload;
-				// console.log(data);
 				if (data === "失敗") {
 					toast.error(
 						"サーバーの起動に失敗しました。ポート番号が他のプログラムで使用されています。",

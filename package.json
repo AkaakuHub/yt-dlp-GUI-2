@@ -20,16 +20,19 @@
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^5.16.7",
     "@mui/material": "^5.16.7",
+    "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/api": "^1",
     "clsx": "^2.1.1",
+    "daisyui": "^5.5.19",
     "events": "^3.3.0",
     "lodash": "^4.17.21",
+    "lucide-react": "^1.14.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.26.1",
     "react-toastify": "^10.0.5",
     "react-window": "^1.8.10",
-    "swiper": "^11.1.12"
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.10",

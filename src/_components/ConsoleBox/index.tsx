@@ -1,9 +1,7 @@
-import { ArrowDownward } from "@mui/icons-material";
-import { Fab, Tooltip } from "@mui/material";
+import { ArrowDown } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FixedSizeList, type ListOnScrollProps } from "react-window";
-import "./index.css";
 
 interface ConsoleBoxProps {
 	consoleText: string;
@@ -15,43 +13,43 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 	const [isAtBottom, setIsAtBottom] = useState<boolean>(true);
 	const [listHeight, setListHeight] = useState<number>(400);
 
+	const wrapperRef = useRef<HTMLDivElement>(null);
 	const listRef = useRef<FixedSizeList>(null);
 	const isScrollingRef = useRef<boolean>(false);
 	const scrollTimerRef = useRef<number | null>(null);
 	const lastScrollOffsetRef = useRef<number>(0);
 
-	// テキストを行ごとに分割
 	useEffect(() => {
 		setConsoleLines(consoleText.split("\n"));
 	}, [consoleText]);
 
-	// コンテナの高さを計算
-	const updateListHeight = useCallback(() => {
-		const height = window.innerHeight - 110 - 290 - 46;
-		setListHeight(height);
+	useEffect(() => {
+		const wrapper = wrapperRef.current;
+		if (!wrapper) {
+			return;
+		}
+
+		const observer = new ResizeObserver(([entry]) => {
+			setListHeight(Math.max(120, Math.floor(entry.contentRect.height)));
+		});
+		observer.observe(wrapper);
+
+		return () => observer.disconnect();
 	}, []);
 
-	useEffect(() => {
-		updateListHeight();
-		window.addEventListener("resize", updateListHeight);
-		return () => window.removeEventListener("resize", updateListHeight);
-	}, [updateListHeight]);
-
-	// 最下部にいるかチェック（より厳密に）
 	const checkIsAtBottom = useCallback(
 		(scrollOffset: number) => {
 			if (consoleLines.length === 0) return true;
 
 			const contentHeight = consoleLines.length * 20;
 			const maxScrollOffset = Math.max(0, contentHeight - listHeight);
-			const threshold = 3; // 3pxのマージン（さらに厳密）
+			const threshold = 3;
 
 			return scrollOffset >= maxScrollOffset - threshold;
 		},
 		[consoleLines.length, listHeight],
 	);
 
-	// スクロールハンドラー（react-window対応版）
 	const handleScroll = useCallback(
 		({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
 			if (scrollUpdateWasRequested) return;
@@ -59,22 +57,17 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 			const scrollDirection = scrollOffset - lastScrollOffsetRef.current;
 			const currentlyAtBottom = checkIsAtBottom(scrollOffset);
 
-			// スクロール中フラグを立てる
 			isScrollingRef.current = true;
 
-			// 既存のタイマーをクリア
 			if (scrollTimerRef.current) {
 				clearTimeout(scrollTimerRef.current);
 			}
 
-			// スクロール方向に応じて状態を更新
 			if (scrollDirection < 0) {
-				// 上にスクロールしたら追従を解除
 				if (!isUserScrolled) {
 					setIsUserScrolled(true);
 				}
 			} else if (scrollDirection > 0 && currentlyAtBottom) {
-				// 下にスクロールして最下部に到達したら追従を再開
 				if (isUserScrolled) {
 					setIsUserScrolled(false);
 					setIsAtBottom(true);
@@ -84,18 +77,15 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 			setIsAtBottom(currentlyAtBottom);
 			lastScrollOffsetRef.current = scrollOffset;
 
-			// スクロールが終わったことを検知
-			scrollTimerRef.current = setTimeout(() => {
+			scrollTimerRef.current = window.setTimeout(() => {
 				isScrollingRef.current = false;
-			}, 100) as unknown as number;
+			}, 100);
 		},
 		[checkIsAtBottom, isUserScrolled],
 	);
 
-	// 自動スクロール（追従中のみ） - 遅延を追加して確実に最下部に
 	useEffect(() => {
 		if (!isUserScrolled && !isScrollingRef.current && consoleLines.length > 0) {
-			// 少し遅延してからスクロール
 			const timer = setTimeout(() => {
 				requestAnimationFrame(() => {
 					listRef.current?.scrollToItem(consoleLines.length - 1, "end");
@@ -106,17 +96,14 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 		}
 	}, [consoleLines.length, isUserScrolled]);
 
-	// 手動で最下部にスクロール
 	const scrollToBottom = useCallback(() => {
 		setIsUserScrolled(false);
 		setIsAtBottom(true);
 		if (consoleLines.length > 0) {
-			// 即時実行
 			listRef.current?.scrollToItem(consoleLines.length - 1, "end");
 		}
 	}, [consoleLines.length]);
 
-	// 選択ハンドラー
 	const handleLineDoubleClick = useCallback((lineNumber: number) => {
 		const element = document.getElementById(`console-line-${lineNumber}`);
 		if (element) {
@@ -130,7 +117,6 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 		}
 	}, []);
 
-	// Row renderer for react-window
 	const Row = useCallback(
 		({ index, style }: { index: number; style: React.CSSProperties }) => {
 			const text = consoleLines[index];
@@ -141,15 +127,20 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 				<div
 					style={{
 						...style,
-						top: style.top, // react-windowのpositionを維持
+						top: style.top,
 						left: 0,
 						right: 0,
 					}}
-					className={`console-line ${isEmpty ? "empty-line" : ""}`}
+					className="flex min-h-5 cursor-text items-center text-xs text-base-content hover:bg-base-200"
 					onDoubleClick={() => handleLineDoubleClick(lineNumber)}
 				>
-					<span className="line-number">{lineNumber}</span>
-					<span id={`console-line-${lineNumber}`} className="line-content">
+					<span className="w-11 shrink-0 border-r border-base-300 bg-base-200 px-2 text-right font-mono text-[11px] leading-5 text-base-content/45">
+						{lineNumber}
+					</span>
+					<span
+						id={`console-line-${lineNumber}`}
+						className={`min-w-0 flex-1 truncate px-3 font-mono leading-5 ${isEmpty ? "opacity-60" : ""}`}
+					>
 						{text || " "}
 					</span>
 				</div>
@@ -159,33 +150,37 @@ const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
 	);
 
 	return (
-		<div className="console-box-wrapper">
-			<div className="console-box">
+		<div
+			className="relative h-full min-h-0 overflow-hidden bg-base-100"
+			ref={wrapperRef}
+		>
+			<div className="h-full">
 				<FixedSizeList
 					ref={listRef}
 					height={listHeight}
 					width="100%"
 					itemCount={consoleLines.length}
 					itemSize={20}
-					className="console-list"
+					className="scrollbar-thin"
 					onScroll={handleScroll}
-					overscanCount={5} // パフォーマンス向上のためのoverscan
+					overscanCount={5}
 				>
 					{Row}
 				</FixedSizeList>
 			</div>
 
-			{/* 追従状況を示すフローティングボタン */}
-			<Tooltip title={isAtBottom ? "追従中" : "最下部に移動して追従"}>
-				<Fab
-					className={`scroll-fab ${isAtBottom ? "following" : "not-following"}`}
-					size="small"
-					onClick={scrollToBottom}
-					color={isAtBottom ? "primary" : "secondary"}
-				>
-					<ArrowDownward />
-				</Fab>
-			</Tooltip>
+			<button
+				aria-label={isAtBottom ? "追従中" : "最下部に移動して追従"}
+				className={`absolute right-4 bottom-4 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-lg transition-colors ${
+					isAtBottom
+						? "border-primary bg-primary text-primary-content"
+						: "border-base-300 bg-base-200 text-base-content hover:bg-base-300"
+				}`}
+				type="button"
+				onClick={scrollToBottom}
+			>
+				<ArrowDown size={18} />
+			</button>
 		</div>
 	);
 };

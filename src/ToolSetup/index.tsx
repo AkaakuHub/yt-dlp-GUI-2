@@ -1,9 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/tauri";
-import type React from "react";
-import { useCallback, useEffect, useState } from "react";
-import "./index.css";
-
 import {
 	CheckCircle,
 	Download,
@@ -24,6 +18,10 @@ import {
 	Typography,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/tauri";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import CustomButton from "../_components/CustomButton";

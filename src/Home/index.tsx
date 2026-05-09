@@ -1,112 +1,47 @@
+import { readText } from "@tauri-apps/api/clipboard";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/tauri";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Cookie,
+	Download,
+	FolderOpen,
+	ListPlus,
+	Square,
+	Terminal,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import "./index.css";
-
-import { Input, Switch, TextField } from "@mui/material";
-import { styled } from "@mui/material/styles";
 
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import BottomTab from "../_components/BottomTab";
-import CustomButton from "../_components/CustomButton";
+import {
+	cleanDownloadUrl,
+	type DownloadParam,
+	isValidTimestamp,
+	normalizeTimestamp,
+	parseQueueItems,
+	resolveOutputName,
+	shortenText,
+	type TimestampField,
+} from "./downloadForm";
 
-import DropDownWithArrows from "../_components/DropDownWithArrows";
-import ExecuteButton from "../_components/ExecuteButton";
-
-const StyledInput = styled(Input)(() => ({
-	backgroundColor: "var(--input-background)",
-	color: "var(--text-primary)",
-	borderRadius: "8px",
-	border: "1px solid var(--border-primary)",
-	transition: "all 0.2s ease-in-out",
-	paddingLeft: "8px",
-	paddingRight: "8px",
-	"&::before": {
-		display: "none",
-	},
-	"&::after": {
-		display: "none",
-	},
-	"&:hover": {
-		backgroundColor: "var(--input-background-hover)",
-		borderColor: "var(--accent-primary)",
-	},
-	"&.Mui-focused": {
-		backgroundColor: "var(--input-background-focus)",
-		borderColor: "var(--accent-primary)",
-	},
-	"& input": {
-		Padding: 4,
-	},
-}));
-
-const StyledTextField = styled(TextField)(() => ({
-	"& .MuiInputBase-root": {
-		borderRadius: "8px",
-		backgroundColor: "var(--input-background)",
-		color: "var(--text-primary)",
-		transition: "all 0.2s ease-in-out",
-	},
-	"& .MuiOutlinedInput-root": {
-		"&:hover": {
-			backgroundColor: "var(--input-background-hover)",
-			"& .MuiOutlinedInput-notchedOutline": {
-				borderColor: "var(--accent-primary)",
-			},
-		},
-		"&.Mui-focused": {
-			backgroundColor: "var(--input-background-focus)",
-			"& .MuiOutlinedInput-notchedOutline": {
-				borderColor: "var(--accent-primary)",
-				borderWidth: "2px",
-			},
-		},
-		"& .MuiOutlinedInput-notchedOutline": {
-			borderColor: "var(--border-primary)",
-			transition: "all 0.2s ease-in-out",
-		},
-	},
-	"& .MuiInputLabel-root": {
-		color: "var(--text-secondary)",
-		"&.Mui-focused": {
-			color: "var(--accent-primary)",
-		},
-	},
-	"& .MuiInputBase-input::placeholder": {
-		color: "var(--text-placeholder)",
-		opacity: 1,
-	},
-	"& .MuiInputBase-input": {
-		color: "var(--text-primary)",
-	},
-}));
-
-const StyledSwitch = styled(Switch)(() => ({
-	"& .MuiSwitch-switchBase": {
-		color: "var(--border-primary)",
-		"&.Mui-checked": {
-			color: "var(--accent-primary)",
-			"& + .MuiSwitch-track": {
-				backgroundColor: "var(--accent-primary)",
-				opacity: 0.7,
-			},
-		},
-	},
-	"& .MuiSwitch-track": {
-		backgroundColor: "var(--border-primary)",
-		opacity: 0.5,
-	},
-}));
-
-interface Param {
-	codec_id?: string;
-	subtitle_lang?: string;
-	output_name?: string;
-	start_time?: string;
-	end_time?: string;
-	is_cookie: boolean;
-}
+const downloadModes = [
+	{ value: 1, label: "通常ダウンロード" },
+	{ value: 2, label: "音声のみダウンロード" },
+	{ value: 3, label: "1080p" },
+	{ value: 4, label: "720p" },
+	{ value: 5, label: "480p" },
+	{ value: 6, label: "360p" },
+	{ value: 7, label: "リストを表示" },
+	{ value: 8, label: "IDを指定" },
+	{ value: 9, label: "配信録画(最初から)" },
+	{ value: 10, label: "配信録画(現在から)" },
+	{ value: 11, label: "サムネイル" },
+	{ value: 12, label: "字幕" },
+	{ value: 13, label: "任意コード >yt-dlp" },
+] as const;
 
 interface QueueState {
 	active: boolean;
@@ -115,11 +50,17 @@ interface QueueState {
 }
 
 export default function Home() {
-	const { setLatestConsoleText } = useAppContext();
-	const { saveDir } = useAppContext();
+	const {
+		isSettingLoaded,
+		saveDir,
+		selectedIndexNumber,
+		setLatestConsoleText,
+		setSelectedIndexNumber,
+	} = useAppContext();
 	const [pid, setPid] = useState<number | null>(null);
 
 	const [consoleText, setConsoleText] = useState<string>("");
+	const [urlInput, setUrlInput] = useState<string>("");
 	const [arbitraryCode, setArbitraryCode] = useState<string>("");
 	const [urlQueueText, setUrlQueueText] = useState<string>("");
 
@@ -133,7 +74,6 @@ export default function Home() {
 		items: [],
 	});
 
-	const { selectedIndexNumber, setSelectedIndexNumber } = useAppContext();
 	const selectedIndexRef = useRef(selectedIndexNumber);
 
 	const resetQueueState = useCallback(() => {
@@ -142,14 +82,10 @@ export default function Home() {
 	}, []);
 
 	useEffect(() => {
-		// ツールチェックは初期設定画面で行うため、ここでは不要
-	}, []);
-
-	useEffect(() => {
 		selectedIndexRef.current = selectedIndexNumber;
 	}, [selectedIndexNumber]);
 
-	const [param, setParam] = useState<Param>({
+	const [param, setParam] = useState<DownloadParam>({
 		codec_id: undefined,
 		subtitle_lang: undefined,
 		output_name: "",
@@ -158,93 +94,13 @@ export default function Home() {
 		is_cookie: false,
 	});
 
-	const deleteQuery = useCallback((url: string) => {
-		let pattern: string;
-		if (url.includes("playlist")) {
-			pattern = "([&?](si|index|ab_channel|pp)[^&]*)";
-		} else {
-			pattern = "([&?](si|list|index|ab_channel|pp|spm_id_from)[^&]*)";
-		}
-		url = url.replace(new RegExp(pattern, "g"), "");
-		url = url.replace(/[&?]$/g, "");
-		return url;
-	}, []);
-
-	const parseQueueItems = useCallback((value: string): string[] => {
-		return value
-			.split(/[,\r\n]+/)
-			.map((url) => url.trim())
-			.filter((url) => url !== "");
-	}, []);
-	const normalizeTimestamp = useCallback((value: string): string | null => {
-		const trimmed = value.trim().replace(/\s+/g, "").replace(/：/g, ":");
-		if (trimmed === "") {
-			return "";
-		}
-		const parts = trimmed.split(":");
-		if (parts.length === 0 || parts.length > 3) {
-			return null;
-		}
-		if (parts.some((part) => part === "" || !/^\d+$/.test(part))) {
-			return null;
-		}
-		if (parts.length === 1) {
-			const seconds = Number(parts[0]);
-			if (!Number.isInteger(seconds) || seconds < 0) {
-				return null;
-			}
-			const hh = Math.floor(seconds / 3600);
-			const mm = Math.floor((seconds % 3600) / 60);
-			const ss = seconds % 60;
-			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
-		}
-		if (parts.length === 2) {
-			const minutes = Number(parts[0]);
-			const seconds = Number(parts[1]);
-			if (
-				!Number.isInteger(minutes) ||
-				minutes < 0 ||
-				!Number.isInteger(seconds) ||
-				seconds < 0 ||
-				seconds >= 60
-			) {
-				return null;
-			}
-			const totalSeconds = minutes * 60 + seconds;
-			const hh = Math.floor(totalSeconds / 3600);
-			const mm = Math.floor((totalSeconds % 3600) / 60);
-			const ss = totalSeconds % 60;
-			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
-		}
-		const [hoursText, minutesText, secondsText] = parts;
-		const hours = Number(hoursText);
-		const minutes = Number(minutesText);
-		const seconds = Number(secondsText);
-		if (
-			!Number.isInteger(hours) ||
-			hours < 0 ||
-			!Number.isInteger(minutes) ||
-			minutes < 0 ||
-			minutes >= 60 ||
-			!Number.isInteger(seconds) ||
-			seconds < 0 ||
-			seconds >= 60
-		) {
-			return null;
-		}
-		return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-	}, []);
-	const isValidTimestamp = useCallback(
-		(value: string): boolean => normalizeTimestamp(value) !== null,
-		[normalizeTimestamp],
-	);
 	const invalidTimestampRef = useRef({
 		start_time: false,
 		end_time: false,
 	});
 
 	const validateTimestamp = useCallback(
-		(field: "start_time" | "end_time", value: string): void => {
+		(field: TimestampField, value: string): void => {
 			if (value === "") {
 				invalidTimestampRef.current[field] = false;
 				return;
@@ -260,7 +116,7 @@ export default function Home() {
 				invalidTimestampRef.current[field] = true;
 			}
 		},
-		[isValidTimestamp],
+		[],
 	);
 
 	const hasInvalidTimestamp = useCallback((): boolean => {
@@ -277,7 +133,7 @@ export default function Home() {
 			return true;
 		}
 		return false;
-	}, [isValidTimestamp, param.start_time, param.end_time]);
+	}, [param.start_time, param.end_time]);
 	const runArbitraryCommand = useCallback(async () => {
 		const currentSelectedIndex = selectedIndexRef.current;
 		if (hasInvalidTimestamp()) {
@@ -304,31 +160,7 @@ export default function Home() {
 			},
 		})) as number;
 		setPid(processId);
-	}, [arbitraryCode, hasInvalidTimestamp, normalizeTimestamp, param]);
-
-	const resolveOutputName = useCallback(
-		(outputName: string, queueIndex?: number): string => {
-			if (queueIndex === undefined) {
-				return outputName;
-			}
-			const indexText = `${queueIndex + 1}`;
-			const formatQueueIndex = (rawWidth?: string): string => {
-				if (rawWidth === undefined) {
-					return indexText;
-				}
-				const width = Number.parseInt(rawWidth, 10);
-				if (!Number.isInteger(width) || width <= 0) {
-					return indexText;
-				}
-				return indexText.padStart(width, "0");
-			};
-			return outputName.replace(
-				/\{i(?::(\d+))?\}/g,
-				(_match, rawWidth?: string) => formatQueueIndex(rawWidth),
-			);
-		},
-		[],
-	);
+	}, [arbitraryCode, hasInvalidTimestamp, param]);
 
 	const runCommandFromUrl = useCallback(
 		async (urlInput: string, queueIndex?: number) => {
@@ -339,19 +171,17 @@ export default function Home() {
 				toast.error("開始時間/終了時間の形式が不正です。");
 				throw new Error("invalid_timestamp");
 			}
-			let url = urlInput;
-			if (!url || url === "") {
+			if (!urlInput || urlInput.trim() === "") {
 				toast.error("URLが空です。");
 				throw new Error("empty_url");
 			}
-			if (!url.startsWith("http")) {
-				if (url.length > 100) {
-					url = `${url.slice(0, 97)}…`;
-				}
-				toast.error(`"${url}"は有効なURLではありません。`);
+			const url = cleanDownloadUrl(urlInput);
+			if (url === null) {
+				toast.error(
+					`"${shortenText(urlInput, 100)}"は有効なURLではありません。`,
+				);
 				throw new Error("invalid_url");
 			}
-			url = deleteQuery(url);
 			const processId = (await invoke("run_command", {
 				param: {
 					...param,
@@ -364,7 +194,7 @@ export default function Home() {
 			})) as number;
 			setPid(processId);
 		},
-		[deleteQuery, normalizeTimestamp, param, resolveOutputName],
+		[param],
 	);
 
 	const executeButtonOnClick = useCallback(
@@ -391,13 +221,11 @@ export default function Home() {
 				return;
 			}
 
-			const invalidUrl = urls.find(
-				(url) => url.length > 0 && !url.startsWith("http"),
-			);
+			const invalidUrl = urls.find((url) => cleanDownloadUrl(url) === null);
 			if (invalidUrl) {
-				const invalid =
-					invalidUrl.length > 100 ? `${invalidUrl.slice(0, 97)}…` : invalidUrl;
-				toast.error(`"${invalid}"は有効なURLではありません。`);
+				toast.error(
+					`"${shortenText(invalidUrl, 100)}"は有効なURLではありません。`,
+				);
 				return;
 			}
 
@@ -416,7 +244,6 @@ export default function Home() {
 			}
 		},
 		[
-			parseQueueItems,
 			runArbitraryCommand,
 			runCommandFromUrl,
 			resetQueueState,
@@ -497,152 +324,312 @@ export default function Home() {
 		await invoke("open_directory", { path: saveDir });
 	};
 
+	const executeFromPrimaryInput = async () => {
+		const manualUrl = urlInput.trim();
+		if (manualUrl !== "") {
+			await executeButtonOnClick(manualUrl);
+			return;
+		}
+
+		const clipboardUrl = (await readText()) || "";
+		setUrlInput(clipboardUrl);
+		await executeButtonOnClick(clipboardUrl);
+	};
+
+	const persistDownloadMode = async (nextMode: number) => {
+		if (!isSettingLoaded) {
+			return;
+		}
+		setSelectedIndexNumber(nextMode);
+		await invoke("set_index", { newIndex: nextMode });
+	};
+
+	const moveDownloadMode = (direction: -1 | 1) => {
+		const currentIndex = downloadModes.findIndex(
+			(mode) => mode.value === selectedIndexNumber,
+		);
+		const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+		const nextIndex =
+			(safeIndex + direction + downloadModes.length) % downloadModes.length;
+		void persistDownloadMode(downloadModes[nextIndex].value);
+	};
+
 	const queueProgressLabel =
 		queueProgress.total > 0
 			? ` キュー(${queueProgress.current}/${queueProgress.total})`
 			: "";
 	const isQueueRunning = queueProgress.total > 0;
+	const usesCodecId = selectedIndexNumber === 8;
+	const usesSubtitleLang = selectedIndexNumber === 12;
+	const usesArbitraryCode = selectedIndexNumber === 13;
 
 	return (
-		<div className="root-home">
-			<div className="main-row">
-				<div className="line-1">
-					<div className="line-children">
-						<p>コーデックID</p>
-						<StyledInput
-							value={param.codec_id || ""}
-							onChange={(e) => setParam({ ...param, codec_id: e.target.value })}
-						/>
-					</div>
-					<div className="line-children">
-						<p>字幕言語</p>
-						<StyledInput
-							value={param.subtitle_lang || ""}
-							onChange={(e) =>
-								setParam({ ...param, subtitle_lang: e.target.value })
-							}
-						/>
-					</div>
-					<DropDownWithArrows
-						{...{ selectedIndexNumber, setSelectedIndexNumber }}
-					/>
-					<div className="is-running-label-wrapper">
-						{pid !== null ? (
-							<div className="is-running-inner">
-								<div className="is-running-label">
-									PID {pid}で実行中です{queueProgressLabel}
-								</div>
-								<CustomButton
-									variant="contained"
-									onClick={() => {
-										stopProcessHanlder();
-									}}
-								>
-									中止
-								</CustomButton>
+		<div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-base-100 p-3 text-base-content">
+			<section className="overflow-hidden rounded-lg border border-base-300 bg-base-200 shadow-sm">
+				<div className="grid h-[318px] min-h-0 grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)] gap-3 p-3">
+					<div className="grid min-h-0 grid-rows-[auto_auto_auto_auto_auto] gap-2">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<h2 className="text-sm font-semibold leading-5 text-base-content">
+									ダウンロード
+								</h2>
 							</div>
-						) : (
-							<div className="is-not-running-label"></div>
-						)}
-					</div>
-					<div>
-						<CustomButton
-							variant="contained"
-							onClick={openDirectory}
-							sx={{
-								width: "8rem",
+							{pid !== null ? (
+								<div className="flex items-center gap-2">
+									<span className="badge badge-error badge-outline">
+										PID {pid}
+										{queueProgressLabel}
+									</span>
+									<button
+										className="btn btn-error btn-xs"
+										type="button"
+										onClick={() => {
+											void stopProcessHanlder();
+										}}
+									>
+										中止
+									</button>
+								</div>
+							) : (
+								<span className="badge badge-ghost border-base-300 text-base-content/60">
+									待機中
+								</span>
+							)}
+						</div>
+
+						<button
+							className="btn btn-primary h-11 min-h-11 rounded-md text-sm font-bold shadow-sm"
+							type="button"
+							disabled={isQueueRunning || pid !== null}
+							onClick={() => {
+								void executeFromPrimaryInput();
 							}}
 						>
-							保存先を開く
-						</CustomButton>
-						<StyledSwitch
-							checked={param.is_cookie}
-							onChange={(e) =>
-								setParam({ ...param, is_cookie: e.target.checked })
-							}
-						/>
-						クッキーを使う
+							<Download size={18} />
+							クリップボードから実行
+						</button>
+
+						<label className="grid gap-1">
+							<span className="text-xs font-semibold text-base-content/60">
+								手入力URL
+							</span>
+							<input
+								className="input input-bordered h-10 w-full rounded-md bg-base-100 text-sm placeholder:text-base-content/35 focus:outline-primary"
+								value={urlInput}
+								onChange={(event) => setUrlInput(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") {
+										void executeFromPrimaryInput();
+									}
+								}}
+								placeholder="https://www.youtube.com/watch?v=..."
+								type="url"
+							/>
+						</label>
+
+						<div className="grid grid-cols-[minmax(0,320px)_auto] gap-2">
+							<label className="grid gap-1">
+								<span className="text-xs font-semibold text-base-content/60">
+									モード
+								</span>
+								<select
+									className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-100 text-sm focus:outline-primary"
+									disabled={!isSettingLoaded}
+									value={selectedIndexNumber}
+									onChange={(event) => {
+										void persistDownloadMode(Number(event.target.value));
+									}}
+								>
+									{downloadModes.map((mode) => (
+										<option key={mode.value} value={mode.value}>
+											{mode.label}
+										</option>
+									))}
+								</select>
+							</label>
+							<div className="flex items-end gap-2 self-end">
+								<button
+									aria-label="前のモード"
+									className="btn btn-outline h-10 min-h-10 w-10 rounded-md"
+									disabled={!isSettingLoaded}
+									type="button"
+									onClick={() => moveDownloadMode(-1)}
+								>
+									<ChevronLeft size={18} />
+								</button>
+								<button
+									aria-label="次のモード"
+									className="btn btn-outline h-10 min-h-10 w-10 rounded-md"
+									disabled={!isSettingLoaded}
+									type="button"
+									onClick={() => moveDownloadMode(1)}
+								>
+									<ChevronRight size={18} />
+								</button>
+							</div>
+						</div>
+
+						<div className="flex flex-wrap items-center gap-2">
+							<button
+								className="btn btn-outline btn-sm h-8 min-h-8 rounded-md"
+								type="button"
+								onClick={openDirectory}
+							>
+								<FolderOpen size={16} />
+								保存先を開く
+							</button>
+							<label className="flex h-8 items-center gap-2 rounded-md border border-base-300 bg-base-100 px-3 text-sm text-base-content">
+								<input
+									className="toggle toggle-primary toggle-sm"
+									checked={param.is_cookie}
+									type="checkbox"
+									onChange={(event) =>
+										setParam({ ...param, is_cookie: event.target.checked })
+									}
+								/>
+								<Cookie size={15} />
+								クッキーを使う
+							</label>
+						</div>
+					</div>
+
+					<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+						<label className="grid gap-1">
+							<span className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
+								<ListPlus size={14} />
+								一括URLリスト
+							</span>
+							<textarea
+								className="textarea textarea-bordered h-20 min-h-20 w-full resize-none rounded-md bg-base-100 text-sm leading-5 placeholder:text-base-content/35 focus:outline-primary"
+								value={urlQueueText}
+								onChange={(event) => setUrlQueueText(event.target.value)}
+								placeholder="改行またはカンマ区切り"
+							/>
+						</label>
+
+						<div className="grid min-h-0 gap-2 rounded-md border border-base-300 bg-base-100 p-3">
+							<div className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
+								<Terminal size={14} />
+								詳細設定
+							</div>
+							<div className="grid gap-2 sm:grid-cols-2">
+								<label className="grid gap-1">
+									<span className="text-xs text-base-content/60">開始</span>
+									<input
+										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm placeholder:text-base-content/35 focus:outline-primary"
+										value={param.start_time || ""}
+										onChange={(event) => {
+											const value = event.target.value;
+											setParam((prev) => ({ ...prev, start_time: value }));
+											validateTimestamp("start_time", value);
+										}}
+										placeholder="00:00:00"
+										type="text"
+									/>
+								</label>
+								<label className="grid gap-1">
+									<span className="text-xs text-base-content/60">終了</span>
+									<input
+										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm placeholder:text-base-content/35 focus:outline-primary"
+										value={param.end_time || ""}
+										onChange={(event) => {
+											const value = event.target.value;
+											setParam((prev) => ({ ...prev, end_time: value }));
+											validateTimestamp("end_time", value);
+										}}
+										placeholder="00:00:00"
+										type="text"
+									/>
+								</label>
+							</div>
+
+							<div className="grid gap-2 sm:grid-cols-2">
+								<label className="grid gap-1">
+									<span className="text-xs text-base-content/60">
+										出力ファイル名
+									</span>
+									<input
+										className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm placeholder:text-base-content/35 focus:outline-primary"
+										value={param.output_name || ""}
+										onChange={(event) =>
+											setParam((prev) => ({
+												...prev,
+												output_name: event.target.value,
+											}))
+										}
+										placeholder="{i}で連番"
+										type="text"
+									/>
+								</label>
+
+								{usesCodecId && (
+									<label className="grid gap-1">
+										<span className="text-xs text-base-content/60">
+											コーデックID
+										</span>
+										<input
+											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm focus:outline-primary"
+											value={param.codec_id || ""}
+											onChange={(event) =>
+												setParam({ ...param, codec_id: event.target.value })
+											}
+											type="text"
+										/>
+									</label>
+								)}
+
+								{usesSubtitleLang && (
+									<label className="grid gap-1">
+										<span className="text-xs text-base-content/60">
+											字幕言語
+										</span>
+										<input
+											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm focus:outline-primary"
+											value={param.subtitle_lang || ""}
+											onChange={(event) =>
+												setParam({
+													...param,
+													subtitle_lang: event.target.value,
+												})
+											}
+											type="text"
+										/>
+									</label>
+								)}
+
+								{usesArbitraryCode && (
+									<label className="grid gap-1 sm:col-span-2">
+										<span className="text-xs text-base-content/60">
+											任意コード
+										</span>
+										<input
+											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm focus:outline-primary"
+											value={arbitraryCode}
+											onChange={(event) => setArbitraryCode(event.target.value)}
+											onKeyDown={(event) => {
+												if (event.key === "Enter") {
+													void executeButtonOnClick("");
+												}
+											}}
+											type="text"
+										/>
+									</label>
+								)}
+
+								{!usesCodecId && !usesSubtitleLang && !usesArbitraryCode && (
+									<div className="flex items-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-xs text-base-content/50">
+										<Square size={12} />
+										このモードの追加入力はありません
+									</div>
+								)}
+							</div>
+						</div>
 					</div>
 				</div>
-				<div className="line-2">
-					<ExecuteButton
-						executeButtonOnClick={executeButtonOnClick}
-						isRunning={isQueueRunning || pid !== null}
-					/>
-					<StyledTextField
-						className="queue-textarea"
-						label="一括URLリスト"
-						variant="outlined"
-						multiline
-						minRows={3}
-						maxRows={3}
-						value={urlQueueText}
-						onChange={(e) => setUrlQueueText(e.target.value)}
-						placeholder="改行またはカンマ区切り"
-					/>
-					<div className="line-children">
-						<p>開始</p>
-						<StyledInput
-							sx={{ flex: 1 }}
-							value={param.start_time || ""}
-							onChange={(e) => {
-								const value = e.target.value;
-								setParam((prev) => ({ ...prev, start_time: value }));
-								validateTimestamp("start_time", value);
-							}}
-							type="text"
-							inputProps={{
-								inputMode: "text",
-								placeholder: "00:00:00",
-							}}
-						/>
-						<p>終了</p>
-						<StyledInput
-							sx={{ flex: 1 }}
-							value={param.end_time || ""}
-							onChange={(e) => {
-								const value = e.target.value;
-								setParam((prev) => ({ ...prev, end_time: value }));
-								validateTimestamp("end_time", value);
-							}}
-							type="text"
-							inputProps={{
-								inputMode: "text",
-								placeholder: "00:00:00",
-							}}
-						/>
-					</div>
-					<div className="line-children">
-						<p>出力ファイル名</p>
-						<StyledInput
-							sx={{ flex: 1 }}
-							value={param.output_name || ""}
-							onChange={(e) =>
-								setParam((prev) => ({ ...prev, output_name: e.target.value }))
-							}
-							placeholder="{i}で連番"
-						/>
-					</div>
-					<div className="line-children">
-						<span className="arbitrary-code-label">任意コード</span>
-						<StyledInput
-							sx={{
-								width: "100%",
-							}}
-							value={arbitraryCode}
-							onChange={(e) => {
-								setArbitraryCode(e.target.value);
-							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									executeButtonOnClick("");
-								}
-							}}
-						/>
-					</div>
-				</div>
+			</section>
+			<div className="min-h-0 overflow-hidden">
+				<BottomTab consoleText={consoleText} />
 			</div>
-			<BottomTab consoleText={consoleText} />
 		</div>
 	);
 }
