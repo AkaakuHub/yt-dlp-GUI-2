@@ -362,7 +362,7 @@ export default function Home() {
 			<section className="rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm">
 				<div className="grid gap-2">
 					<div className="relative grid gap-2 sm:min-h-40">
-						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
+						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:left-2 sm:right-1/2 sm:pr-28">
 							<div className="flex min-w-0 items-center gap-2">
 								{pid === null ? (
 									<span className="badge badge-ghost border-base-300 text-base-content/60">
@@ -376,7 +376,7 @@ export default function Home() {
 								)}
 							</div>
 							<input
-								className="input input-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm"
+								className="input input-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
 								value={urlInput}
 								onChange={(event) => setUrlInput(event.target.value)}
 								onKeyDown={(event) => {
@@ -389,7 +389,7 @@ export default function Home() {
 							/>
 						</div>
 
-						<div className="z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:bottom-2 sm:left-2 sm:right-[calc(50%-48px)] sm:pr-32">
+						<div className="z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:bottom-2 sm:left-2 sm:right-1/2 sm:pr-28">
 							<select
 								className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm"
 								disabled={!isSettingLoaded}
@@ -424,7 +424,7 @@ export default function Home() {
 							</button>
 						</div>
 
-						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:left-[calc(50%-48px)] sm:right-2 sm:pl-32">
+						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:right-2 sm:left-1/2 sm:pl-28">
 							<button
 								className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
 								type="button"
@@ -447,9 +447,9 @@ export default function Home() {
 							</label>
 						</div>
 
-						<div className="z-10 sm:absolute sm:bottom-2 sm:left-[calc(50%-48px)] sm:right-2">
+						<div className="z-30 sm:absolute sm:right-2 sm:bottom-2 sm:left-1/2 sm:pl-28">
 							<button
-								className="flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 pl-3 text-left text-xs font-semibold text-base-content/65 hover:bg-base-300 sm:pl-32"
+								className="flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 text-left text-xs font-semibold text-base-content/65 hover:bg-base-300"
 								type="button"
 								onClick={() => setShowQueuePanel((prev) => !prev)}
 							>
@@ -457,9 +457,9 @@ export default function Home() {
 								一括URLリスト
 							</button>
 							{showQueuePanel ? (
-								<div className="absolute right-0 bottom-14 left-0 z-30 rounded-lg bg-base-100 p-3 shadow-xl ring-1 ring-base-300 sm:left-24">
+								<div className="absolute top-14 right-0 left-28 z-40 rounded-lg bg-base-100 p-3 shadow-xl ring-1 ring-base-300">
 									<textarea
-										className="textarea textarea-bordered h-24 min-h-24 w-full resize-none rounded-md bg-base-200 text-sm"
+										className="textarea textarea-bordered h-28 min-h-28 w-full resize-none rounded-md bg-base-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
 										value={urlQueueText}
 										onChange={(event) => setUrlQueueText(event.target.value)}
 										placeholder="改行またはカンマ区切り"
@@ -468,23 +468,23 @@ export default function Home() {
 							) : null}
 						</div>
 
-						<div className="z-20 grid place-items-center gap-2 sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+						<div className="z-20 grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 							<PrimaryCircleButton
 								label="実行"
 								icon={<Download size={30} />}
 								disabled={isQueueRunning || pid !== null}
 								onClick={() => void executeFromPrimaryInput()}
 							/>
-							{pid !== null ? (
-								<button
-									className="btn btn-error btn-sm rounded-md"
-									type="button"
-									onClick={() => void stopProcess()}
-								>
-									中止
-								</button>
-							) : null}
 						</div>
+						{pid !== null ? (
+							<button
+								className="btn btn-error btn-sm absolute right-2 bottom-2 z-40 h-10 min-h-10 rounded-md px-5"
+								type="button"
+								onClick={() => void stopProcess()}
+							>
+								中止
+							</button>
+						) : null}
 					</div>
 
 					<div className="relative">

@@ -9,9 +9,13 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 	const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const lines = consoleText === "" ? [] : consoleText.split("\n");
+	const lineCount = lines.length;
 
 	useEffect(() => {
 		if (!isPinnedToBottom) {
+			return;
+		}
+		if (lineCount === 0) {
 			return;
 		}
 		const scrollArea = scrollAreaRef.current;
@@ -19,7 +23,7 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 			return;
 		}
 		scrollArea.scrollTop = scrollArea.scrollHeight;
-	}, [isPinnedToBottom]);
+	}, [isPinnedToBottom, lineCount]);
 
 	const handleScroll = () => {
 		const scrollArea = scrollAreaRef.current;

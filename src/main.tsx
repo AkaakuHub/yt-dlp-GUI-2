@@ -64,8 +64,10 @@ const App = () => {
 				<ToastContainer
 					position="top-left"
 					autoClose={5000}
+					icon={false}
 					hideProgressBar={false}
 					newestOnTop={false}
+					closeButton={false}
 					closeOnClick
 					rtl={false}
 					draggable
@@ -84,8 +86,10 @@ const App = () => {
 			<ToastContainer
 				position="top-left"
 				autoClose={5000}
+				icon={false}
 				hideProgressBar={false}
 				newestOnTop={false}
+				closeButton={false}
 				closeOnClick
 				rtl={false}
 				draggable

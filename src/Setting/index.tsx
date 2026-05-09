@@ -305,11 +305,11 @@ export default function Settings() {
 	return (
 		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-3 text-base-content">
 			<div className="mx-auto grid h-full max-w-5xl grid-rows-[auto_auto_auto_auto_auto] gap-3">
-				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+				<section className="grid gap-3 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-[minmax(0,1fr)_9rem] md:items-end">
 					<ThemeSelector />
-					<div className="flex md:justify-end">
+					<div className="flex h-10 items-end">
 						<button
-							className="btn btn-ghost btn-sm rounded-md bg-base-100 hover:bg-base-300"
+							className="btn btn-ghost h-10 min-h-10 w-full rounded-md bg-base-100 hover:bg-base-300"
 							type="button"
 							onClick={openToolsModal}
 						>
@@ -443,7 +443,7 @@ export default function Settings() {
 			</div>
 
 			{showToolsModal ? (
-				<div className="fixed inset-0 z-50 grid place-items-center bg-base-300/70 p-4">
+				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
 					<section className="grid max-h-[calc(100vh-2rem)] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl">
 						<header className="flex items-center justify-between border-b border-base-300 p-4">
 							<h2 className="text-lg font-bold">ツール</h2>

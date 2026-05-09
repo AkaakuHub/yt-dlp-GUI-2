@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ConsoleBox from "../ConsoleBox";
 import CustomExplorer from "../CustomExplorer";
 
@@ -6,24 +7,43 @@ interface WorkspaceProps {
 }
 
 export default function Workspace({ consoleText }: WorkspaceProps) {
+	const [activeTab, setActiveTab] = useState<"explorer" | "console">(
+		"explorer",
+	);
+
 	return (
-		<div className="grid h-full min-h-0 gap-2 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(260px,34%)]">
-			<section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200">
-				<header className="flex h-10 shrink-0 items-center border-b border-base-300 bg-base-100 px-3 text-sm font-semibold text-primary">
+		<section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200">
+			<div className="grid h-10 shrink-0 grid-cols-2 border-b border-base-300 bg-base-100">
+				<button
+					className={`text-sm font-semibold transition-colors ${
+						activeTab === "explorer"
+							? "bg-base-200 text-primary"
+							: "text-base-content/55 hover:bg-base-300"
+					}`}
+					type="button"
+					onClick={() => setActiveTab("explorer")}
+				>
 					エクスプローラー
-				</header>
-				<div className="min-h-0 flex-1 overflow-hidden">
-					<CustomExplorer />
-				</div>
-			</section>
-			<section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200">
-				<header className="flex h-10 shrink-0 items-center border-b border-base-300 bg-base-100 px-3 text-sm font-semibold text-primary">
+				</button>
+				<button
+					className={`text-sm font-semibold transition-colors ${
+						activeTab === "console"
+							? "bg-base-200 text-primary"
+							: "text-base-content/55 hover:bg-base-300"
+					}`}
+					type="button"
+					onClick={() => setActiveTab("console")}
+				>
 					コンソール
-				</header>
-				<div className="min-h-0 flex-1 overflow-hidden">
+				</button>
+			</div>
+			<div className="min-h-0 flex-1 overflow-hidden">
+				{activeTab === "explorer" ? (
+					<CustomExplorer />
+				) : (
 					<ConsoleBox consoleText={consoleText} />
-				</div>
-			</section>
-		</div>
+				)}
+			</div>
+		</section>
 	);
 }
