@@ -1,34 +1,29 @@
-import type React from "react";
 import ConsoleBox from "../ConsoleBox";
 import CustomExplorer from "../CustomExplorer";
 
-interface TabbedExplorerConsoleProps {
+interface WorkspaceProps {
 	consoleText: string;
 }
 
-const TabbedExplorerConsole: React.FC<TabbedExplorerConsoleProps> = ({
-	consoleText,
-}) => {
+export default function Workspace({ consoleText }: WorkspaceProps) {
 	return (
-		<div className="grid h-full min-h-0 grid-cols-[minmax(0,1.45fr)_minmax(360px,0.55fr)] gap-3 overflow-hidden">
-			<section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200 shadow-sm">
-				<div className="flex h-11 shrink-0 items-center border-b border-base-300 bg-base-100 px-4 text-sm font-semibold text-primary">
+		<div className="grid h-full min-h-0 gap-2 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(260px,34%)]">
+			<section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200">
+				<header className="flex h-10 shrink-0 items-center border-b border-base-300 bg-base-100 px-3 text-sm font-semibold text-primary">
 					エクスプローラー
-				</div>
+				</header>
 				<div className="min-h-0 flex-1 overflow-hidden">
 					<CustomExplorer />
 				</div>
 			</section>
-			<section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200 shadow-sm">
-				<div className="flex h-11 shrink-0 items-center border-b border-base-300 bg-base-100 px-4 text-sm font-semibold text-primary">
+			<section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-base-300 bg-base-200">
+				<header className="flex h-10 shrink-0 items-center border-b border-base-300 bg-base-100 px-3 text-sm font-semibold text-primary">
 					コンソール
-				</div>
+				</header>
 				<div className="min-h-0 flex-1 overflow-hidden">
 					<ConsoleBox consoleText={consoleText} />
 				</div>
 			</section>
 		</div>
 	);
-};
-
-export default TabbedExplorerConsole;
+}

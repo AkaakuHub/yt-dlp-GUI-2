@@ -10,8 +10,14 @@ import {
 	Home,
 	RefreshCw,
 } from "lucide-react";
-import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type ChangeEvent,
+	type KeyboardEvent,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
@@ -22,78 +28,77 @@ interface FileInfo {
 	file_size: number;
 }
 
-interface ItemProps {
-	handleClick: (fileName: string) => void;
+interface FileRowProps {
 	file: FileInfo;
 	fullPath: string;
+	onOpenDirectory: (fileName: string) => void;
 }
 
-const Item: React.FC<ItemProps> = ({ handleClick, file, fullPath }) => {
-	const calculateFileSize = (size: number): string => {
-		if (size < 1024) {
-			return `${size} B`;
-		} else if (size < 1024 * 1024) {
-			return `${(size / 1024).toFixed(1)} KB`;
-		} else if (size < 1024 * 1024 * 1024) {
-			return `${(size / 1024 / 1024).toFixed(1)} MB`;
-		} else {
-			return `${(size / 1024 / 1024 / 1024).toFixed(1)} GB`;
-		}
-	};
+const formatFileSize = (size: number): string => {
+	if (size < 1024) {
+		return `${size} B`;
+	}
+	if (size < 1024 * 1024) {
+		return `${(size / 1024).toFixed(1)} KB`;
+	}
+	if (size < 1024 * 1024 * 1024) {
+		return `${(size / 1024 / 1024).toFixed(1)} MB`;
+	}
+	return `${(size / 1024 / 1024 / 1024).toFixed(1)} GB`;
+};
 
-	const formatDateTime = (timestamp: number) => {
-		const date = new Date(timestamp * 1000);
-		const options: Intl.DateTimeFormatOptions = {
-			year: "numeric",
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-			second: "2-digit",
-			hour12: false,
-		};
-		return new Intl.DateTimeFormat("ja-JP", options).format(date);
-	};
+const formatDateTime = (timestamp: number): string => {
+	return new Intl.DateTimeFormat("ja-JP", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	}).format(new Date(timestamp * 1000));
+};
 
-	const handleItemClick = () => {
+function FileRow({ file, fullPath, onOpenDirectory }: FileRowProps) {
+	const openItem = () => {
 		if (file.is_dir) {
-			handleClick(file.name);
-		} else {
-			invoke("open_file", { path: fullPath });
+			onOpenDirectory(file.name);
+			return;
 		}
+		void invoke("open_file", { path: fullPath });
 	};
 
-	const handleDragStart = () => {
+	const startFileDrag = () => {
 		if (!file.is_dir) {
-			startDrag({ item: [fullPath], icon: "📄" });
+			void startDrag({ item: [fullPath], icon: "📄" });
 		}
 	};
 
 	return (
-		<div
-			className="grid cursor-pointer grid-cols-[24px_minmax(0,1fr)_90px_170px] items-center gap-3 border-b border-base-300 px-4 py-3 text-sm text-base-content hover:bg-base-300/60"
-			onClick={handleItemClick}
+		<button
+			className="grid h-11 w-full grid-cols-[22px_minmax(0,1fr)_72px_116px] items-center gap-2 border-b border-base-300 px-3 text-left text-sm hover:bg-base-300/55"
+			type="button"
 			draggable={!file.is_dir}
-			onDragStart={handleDragStart}
+			onClick={openItem}
+			onDragStart={startFileDrag}
 		>
-			<div className={file.is_dir ? "text-warning" : "text-info"}>
-				{file.is_dir ? <Folder size={18} /> : <File size={18} />}
-			</div>
-			<div className="truncate font-medium">{file.name}</div>
-			<div className="text-right text-xs text-base-content/55">
-				{file.is_dir ? "" : calculateFileSize(file.file_size)}
-			</div>
-			<div className="text-right font-mono text-xs text-base-content/55">
+			<span className={file.is_dir ? "text-warning" : "text-info"}>
+				{file.is_dir ? <Folder size={17} /> : <File size={17} />}
+			</span>
+			<span className="truncate font-medium">{file.name}</span>
+			<span className="text-right text-xs text-base-content/55">
+				{file.is_dir ? "" : formatFileSize(file.file_size)}
+			</span>
+			<span className="truncate text-right font-mono text-xs text-base-content/55">
 				{formatDateTime(file.last_modified)}
-			</div>
-		</div>
+			</span>
+		</button>
 	);
-};
+}
 
-const CustomExplorer: React.FC = () => {
+export default function CustomExplorer() {
 	const { saveDir } = useAppContext();
 	const [files, setFiles] = useState<FileInfo[]>([]);
-	const [currentPath, setCurrentPath] = useState<string>(saveDir);
+	const [currentPath, setCurrentPath] = useState(saveDir);
 	const [history, setHistory] = useState<string[]>([]);
 	const [historyIndex, setHistoryIndex] = useState(-1);
 	const [isLoading, setIsLoading] = useState(false);
@@ -102,41 +107,41 @@ const CustomExplorer: React.FC = () => {
 	const currentPathRef = useRef(currentPath);
 	const historyIndexRef = useRef(historyIndex);
 
-	const navigateTo = useCallback((newPath: string) => {
-		if (currentPathRef.current !== newPath) {
-			setHistory((prev) => {
-				const updatedHistory = [
-					...prev.slice(0, historyIndexRef.current + 1),
-					newPath,
-				];
-				return updatedHistory;
-			});
-			setHistoryIndex((prev) => {
-				const nextIndex = prev + 1;
-				historyIndexRef.current = nextIndex;
-				return nextIndex;
-			});
-			currentPathRef.current = newPath;
-			setCurrentPath(newPath);
+	const navigateTo = useCallback((nextPath: string) => {
+		if (currentPathRef.current === nextPath) {
+			return;
 		}
+		setHistory((prev) => [
+			...prev.slice(0, historyIndexRef.current + 1),
+			nextPath,
+		]);
+		setHistoryIndex((prev) => {
+			const nextIndex = prev + 1;
+			historyIndexRef.current = nextIndex;
+			return nextIndex;
+		});
+		currentPathRef.current = nextPath;
+		setCurrentPath(nextPath);
 	}, []);
 
 	useEffect(() => {
-		if (saveDir && saveDir !== "") {
+		if (saveDir !== "") {
 			navigateTo(saveDir);
 		}
 	}, [navigateTo, saveDir]);
 
 	const fetchFiles = useCallback(async () => {
-		if (!currentPath) {
+		if (currentPath === "") {
 			return;
 		}
 		setIsLoading(true);
 		setErrorText("");
 		try {
-			const contents: FileInfo[] = await invoke(
+			const contents = await invoke<FileInfo[]>(
 				"get_sorted_directory_contents",
-				{ path: currentPath },
+				{
+					path: currentPath,
+				},
 			);
 			setFiles(contents);
 		} catch {
@@ -148,164 +153,157 @@ const CustomExplorer: React.FC = () => {
 	}, [currentPath]);
 
 	useEffect(() => {
-		const handleRefreshFiles = () => {
-			setTimeout(() => {
-				fetchFiles();
-			}, 100);
-		};
-
-		eventEmitter.on("refreshFiles", handleRefreshFiles);
-
-		return () => {
-			eventEmitter.off("refreshFiles", handleRefreshFiles);
-		};
+		void fetchFiles();
 	}, [fetchFiles]);
 
 	useEffect(() => {
-		fetchFiles();
+		const refreshFiles = () => {
+			void fetchFiles();
+		};
+		eventEmitter.on("refreshFiles", refreshFiles);
+		return () => {
+			eventEmitter.off("refreshFiles", refreshFiles);
+		};
 	}, [fetchFiles]);
 
-	const handleClick = async (name: string) => {
-		const newPath = await resolve(currentPath, name);
-		navigateTo(newPath);
+	const openDirectory = async (name: string) => {
+		navigateTo(await resolve(currentPath, name));
 	};
 
 	const goBack = () => {
-		if (historyIndex > 0) {
-			setHistoryIndex((prev) => {
-				const nextIndex = prev - 1;
-				historyIndexRef.current = nextIndex;
-				return nextIndex;
-			});
-			const nextPath = history[historyIndex - 1];
-			currentPathRef.current = nextPath;
-			setCurrentPath(nextPath);
+		if (historyIndex <= 0) {
+			return;
 		}
+		const nextIndex = historyIndex - 1;
+		const nextPath = history[nextIndex];
+		historyIndexRef.current = nextIndex;
+		currentPathRef.current = nextPath;
+		setHistoryIndex(nextIndex);
+		setCurrentPath(nextPath);
 	};
 
 	const goForward = () => {
-		if (historyIndex < history.length - 1) {
-			setHistoryIndex((prev) => {
-				const nextIndex = prev + 1;
-				historyIndexRef.current = nextIndex;
-				return nextIndex;
-			});
-			const nextPath = history[historyIndex + 1];
-			currentPathRef.current = nextPath;
-			setCurrentPath(nextPath);
+		if (historyIndex >= history.length - 1) {
+			return;
 		}
+		const nextIndex = historyIndex + 1;
+		const nextPath = history[nextIndex];
+		historyIndexRef.current = nextIndex;
+		currentPathRef.current = nextPath;
+		setHistoryIndex(nextIndex);
+		setCurrentPath(nextPath);
 	};
 
 	const goUp = async () => {
-		const parentDir = await dirname(currentPath);
-		navigateTo(parentDir);
+		navigateTo(await dirname(currentPath));
 	};
 
 	const goHome = () => {
-		if (saveDir) {
+		if (saveDir !== "") {
 			navigateTo(saveDir);
 		}
 	};
 
-	const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const nextPath = e.target.value;
+	const changePath = (event: ChangeEvent<HTMLInputElement>) => {
+		const nextPath = event.target.value;
 		currentPathRef.current = nextPath;
 		setCurrentPath(nextPath);
 	};
 
-	const handlePathSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter") {
+	const submitPath = (event: KeyboardEvent<HTMLInputElement>) => {
+		if (event.key === "Enter") {
 			navigateTo(currentPath);
 		}
 	};
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden bg-base-200">
-			<div className="flex min-h-14 items-center gap-2 border-b border-base-300 bg-base-100 px-3">
+			<div className="grid h-12 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-base-300 bg-base-100 px-2">
 				<div className="flex items-center gap-1">
 					<button
-						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70 disabled:text-base-content/25"
-						onClick={goBack}
+						className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+						type="button"
 						disabled={historyIndex <= 0}
-						title="戻る"
+						onClick={goBack}
+						aria-label="戻る"
 					>
-						<ArrowLeft size={18} />
+						<ArrowLeft size={17} />
 					</button>
 					<button
-						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70 disabled:text-base-content/25"
-						onClick={goForward}
+						className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+						type="button"
 						disabled={historyIndex >= history.length - 1}
-						title="進む"
+						onClick={goForward}
+						aria-label="進む"
 					>
-						<ArrowRight size={18} />
+						<ArrowRight size={17} />
 					</button>
 					<button
-						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70"
-						onClick={goUp}
-						title="上の階層"
+						className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+						type="button"
+						onClick={() => void goUp()}
+						aria-label="上の階層"
 					>
-						<ArrowUp size={18} />
+						<ArrowUp size={17} />
 					</button>
 					<button
-						className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70"
+						className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+						type="button"
 						onClick={goHome}
-						title="ホーム"
+						aria-label="保存先"
 					>
-						<Home size={18} />
+						<Home size={17} />
 					</button>
 				</div>
-				<div className="min-w-0 flex-1">
-					<input
-						className="input input-bordered h-10 w-full rounded-md bg-base-200 font-mono text-sm focus:outline-primary"
-						value={currentPath}
-						onChange={handlePathChange}
-						onKeyPress={handlePathSubmit}
-						placeholder="パスを入力..."
-					/>
-				</div>
+				<input
+					className="input input-bordered h-9 min-h-9 w-full rounded-md bg-base-200 font-mono text-sm"
+					value={currentPath}
+					onChange={changePath}
+					onKeyDown={submitPath}
+					placeholder="保存先"
+				/>
 				<button
-					className="btn btn-ghost btn-sm h-9 min-h-9 w-9 rounded-md p-0 text-base-content/70"
-					onClick={fetchFiles}
-					title="更新"
+					className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+					type="button"
+					onClick={() => void fetchFiles()}
+					aria-label="更新"
 				>
-					<RefreshCw size={18} />
+					<RefreshCw size={17} />
 				</button>
 			</div>
-			<div className="grid grid-cols-[24px_minmax(0,1fr)_90px_170px] gap-3 border-b border-base-300 bg-base-300/55 px-4 py-2 text-xs font-semibold text-base-content/55">
-				<div />
-				<div>名前</div>
-				<div className="text-right">サイズ</div>
-				<div className="text-right">更新日時</div>
+			<div className="grid h-9 shrink-0 grid-cols-[22px_minmax(0,1fr)_72px_116px] items-center gap-2 border-b border-base-300 bg-base-300/55 px-3 text-xs font-semibold text-base-content/55">
+				<span />
+				<span>名前</span>
+				<span className="text-right">サイズ</span>
+				<span className="text-right">更新日時</span>
 			</div>
-			<div className="min-h-0 flex-1 overflow-y-auto">
-				{isLoading && (
+			<div className="min-h-0 flex-1 overflow-auto">
+				{isLoading ? (
 					<div className="flex h-full items-center justify-center text-sm text-base-content/45">
 						読み込み中
 					</div>
-				)}
-				{!isLoading && errorText !== "" && (
+				) : null}
+				{!isLoading && errorText !== "" ? (
 					<div className="flex h-full items-center justify-center text-sm text-error">
 						{errorText}
 					</div>
-				)}
-				{!isLoading && errorText === "" && files.length === 0 && (
+				) : null}
+				{!isLoading && errorText === "" && files.length === 0 ? (
 					<div className="flex h-full items-center justify-center text-sm text-base-content/45">
 						ファイルなし
 					</div>
-				)}
-				{!isLoading &&
-					errorText === "" &&
-					files.map((file: FileInfo, index: number) => (
-						<Item
-							key={`${file.name}-${index}`}
-							handleClick={handleClick}
-							file={file}
-							fullPath={`${currentPath}/${file.name}`}
-						/>
-					))}
+				) : null}
+				{!isLoading && errorText === ""
+					? files.map((file) => (
+							<FileRow
+								key={`${currentPath}/${file.name}`}
+								file={file}
+								fullPath={`${currentPath}/${file.name}`}
+								onOpenDirectory={(name) => void openDirectory(name)}
+							/>
+						))
+					: null}
 			</div>
 		</div>
 	);
-};
-
-export default CustomExplorer;
+}

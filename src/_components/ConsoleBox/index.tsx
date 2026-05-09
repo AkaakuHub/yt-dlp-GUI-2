@@ -1,196 +1,80 @@
 import { ArrowDown } from "lucide-react";
-import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FixedSizeList, type ListOnScrollProps } from "react-window";
+import { useEffect, useRef, useState } from "react";
 
 interface ConsoleBoxProps {
 	consoleText: string;
 }
 
-const ConsoleBox: React.FC<ConsoleBoxProps> = ({ consoleText }) => {
-	const [consoleLines, setConsoleLines] = useState<string[]>([]);
-	const [isUserScrolled, setIsUserScrolled] = useState<boolean>(false);
-	const [isAtBottom, setIsAtBottom] = useState<boolean>(true);
-	const [listHeight, setListHeight] = useState<number>(400);
-
-	const wrapperRef = useRef<HTMLDivElement>(null);
-	const listRef = useRef<FixedSizeList>(null);
-	const isScrollingRef = useRef<boolean>(false);
-	const scrollTimerRef = useRef<number | null>(null);
-	const lastScrollOffsetRef = useRef<number>(0);
+export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
+	const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
+	const scrollAreaRef = useRef<HTMLDivElement>(null);
+	const lines = consoleText === "" ? [] : consoleText.split("\n");
 
 	useEffect(() => {
-		setConsoleLines(consoleText === "" ? [] : consoleText.split("\n"));
-	}, [consoleText]);
-
-	useEffect(() => {
-		const wrapper = wrapperRef.current;
-		if (!wrapper) {
+		if (!isPinnedToBottom) {
 			return;
 		}
-
-		const observer = new ResizeObserver(([entry]) => {
-			setListHeight(Math.max(120, Math.floor(entry.contentRect.height)));
-		});
-		observer.observe(wrapper);
-
-		return () => observer.disconnect();
-	}, []);
-
-	const checkIsAtBottom = useCallback(
-		(scrollOffset: number) => {
-			if (consoleLines.length === 0) return true;
-
-			const contentHeight = consoleLines.length * 20;
-			const maxScrollOffset = Math.max(0, contentHeight - listHeight);
-			const threshold = 3;
-
-			return scrollOffset >= maxScrollOffset - threshold;
-		},
-		[consoleLines.length, listHeight],
-	);
-
-	const handleScroll = useCallback(
-		({ scrollOffset, scrollUpdateWasRequested }: ListOnScrollProps) => {
-			if (scrollUpdateWasRequested) return;
-
-			const scrollDirection = scrollOffset - lastScrollOffsetRef.current;
-			const currentlyAtBottom = checkIsAtBottom(scrollOffset);
-
-			isScrollingRef.current = true;
-
-			if (scrollTimerRef.current) {
-				clearTimeout(scrollTimerRef.current);
-			}
-
-			if (scrollDirection < 0) {
-				if (!isUserScrolled) {
-					setIsUserScrolled(true);
-				}
-			} else if (scrollDirection > 0 && currentlyAtBottom) {
-				if (isUserScrolled) {
-					setIsUserScrolled(false);
-					setIsAtBottom(true);
-				}
-			}
-
-			setIsAtBottom(currentlyAtBottom);
-			lastScrollOffsetRef.current = scrollOffset;
-
-			scrollTimerRef.current = window.setTimeout(() => {
-				isScrollingRef.current = false;
-			}, 100);
-		},
-		[checkIsAtBottom, isUserScrolled],
-	);
-
-	useEffect(() => {
-		if (!isUserScrolled && !isScrollingRef.current && consoleLines.length > 0) {
-			const timer = setTimeout(() => {
-				requestAnimationFrame(() => {
-					listRef.current?.scrollToItem(consoleLines.length - 1, "end");
-				});
-			}, 10);
-
-			return () => clearTimeout(timer);
+		const scrollArea = scrollAreaRef.current;
+		if (!scrollArea) {
+			return;
 		}
-	}, [consoleLines.length, isUserScrolled]);
+		scrollArea.scrollTop = scrollArea.scrollHeight;
+	}, [isPinnedToBottom]);
 
-	const scrollToBottom = useCallback(() => {
-		setIsUserScrolled(false);
-		setIsAtBottom(true);
-		if (consoleLines.length > 0) {
-			listRef.current?.scrollToItem(consoleLines.length - 1, "end");
+	const handleScroll = () => {
+		const scrollArea = scrollAreaRef.current;
+		if (!scrollArea) {
+			return;
 		}
-	}, [consoleLines.length]);
+		const distanceFromBottom =
+			scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+		setIsPinnedToBottom(distanceFromBottom < 8);
+	};
 
-	const handleLineDoubleClick = useCallback((lineNumber: number) => {
-		const element = document.getElementById(`console-line-${lineNumber}`);
-		if (element) {
-			const range = document.createRange();
-			range.selectNodeContents(element);
-			const selection = window.getSelection();
-			if (selection) {
-				selection.removeAllRanges();
-				selection.addRange(range);
-			}
+	const scrollToBottom = () => {
+		const scrollArea = scrollAreaRef.current;
+		if (!scrollArea) {
+			return;
 		}
-	}, []);
+		scrollArea.scrollTop = scrollArea.scrollHeight;
+		setIsPinnedToBottom(true);
+	};
 
-	const Row = useCallback(
-		({ index, style }: { index: number; style: React.CSSProperties }) => {
-			const text = consoleLines[index];
-			const lineNumber = index + 1;
-			const isEmpty = text.trim() === "";
-
-			return (
-				<div
-					style={{
-						...style,
-						top: style.top,
-						left: 0,
-						right: 0,
-					}}
-					className="flex min-h-5 cursor-text items-center text-xs text-base-content hover:bg-base-200"
-					onDoubleClick={() => handleLineDoubleClick(lineNumber)}
-				>
-					<span className="w-11 shrink-0 border-r border-base-300 bg-base-200 px-2 text-right font-mono text-[11px] leading-5 text-base-content/45">
-						{lineNumber}
-					</span>
-					<span
-						id={`console-line-${lineNumber}`}
-						className={`min-w-0 flex-1 whitespace-pre px-3 font-mono leading-5 ${isEmpty ? "opacity-60" : ""}`}
-					>
-						{text || " "}
-					</span>
-				</div>
-			);
-		},
-		[consoleLines, handleLineDoubleClick],
-	);
+	if (lines.length === 0) {
+		return (
+			<div className="flex h-full min-h-0 items-center justify-center bg-base-100 text-sm text-base-content/45">
+				出力待機
+			</div>
+		);
+	}
 
 	return (
-		<div
-			className="relative h-full min-h-0 overflow-hidden bg-base-100"
-			ref={wrapperRef}
-		>
-			{consoleLines.length === 0 ? (
-				<div className="flex h-full items-center justify-center text-sm text-base-content/45">
-					出力待機
-				</div>
-			) : (
-				<>
-					<div className="h-full">
-						<FixedSizeList
-							ref={listRef}
-							height={listHeight}
-							width="100%"
-							itemCount={consoleLines.length}
-							itemSize={20}
-							className="scrollbar-thin"
-							onScroll={handleScroll}
-							overscanCount={5}
-						>
-							{Row}
-						</FixedSizeList>
-					</div>
-
-					<button
-						aria-label={isAtBottom ? "追従中" : "最下部に移動して追従"}
-						className={`absolute right-4 bottom-4 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-lg transition-colors ${
-							isAtBottom
-								? "border-primary bg-primary text-primary-content"
-								: "border-base-300 bg-base-200 text-base-content hover:bg-base-300"
-						}`}
-						type="button"
-						onClick={scrollToBottom}
+		<div className="relative h-full min-h-0 bg-base-100">
+			<div
+				ref={scrollAreaRef}
+				className="h-full overflow-auto py-2 font-mono text-xs leading-5"
+				onScroll={handleScroll}
+			>
+				{lines.map((line, index) => (
+					<div
+						key={`${index}-${line}`}
+						className="grid grid-cols-[42px_minmax(0,1fr)] text-base-content hover:bg-base-200"
 					>
-						<ArrowDown size={18} />
-					</button>
-				</>
-			)}
+						<span className="border-r border-base-300 px-2 text-right text-base-content/40">
+							{index + 1}
+						</span>
+						<span className="min-w-0 whitespace-pre px-3">{line || " "}</span>
+					</div>
+				))}
+			</div>
+			<button
+				aria-label="最下部に移動"
+				className="btn btn-primary btn-sm absolute right-3 bottom-3 h-9 min-h-9 w-9 rounded-full p-0 shadow"
+				type="button"
+				onClick={scrollToBottom}
+			>
+				<ArrowDown size={16} />
+			</button>
 		</div>
 	);
-};
-
-export default ConsoleBox;
+}
