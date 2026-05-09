@@ -11,6 +11,7 @@ import {
 	FolderOpen,
 	ListPlus,
 	Settings2,
+	Square,
 	Terminal,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -470,21 +471,21 @@ export default function Home() {
 
 						<div className="z-20 grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 							<PrimaryCircleButton
-								label="実行"
-								icon={<Download size={30} />}
-								disabled={isQueueRunning || pid !== null}
-								onClick={() => void executeFromPrimaryInput()}
+								label={pid === null ? "実行" : "中止"}
+								icon={
+									pid === null ? <Download size={30} /> : <Square size={26} />
+								}
+								disabled={pid === null && isQueueRunning}
+								tone={pid === null ? "primary" : "danger"}
+								onClick={() => {
+									if (pid === null) {
+										void executeFromPrimaryInput();
+										return;
+									}
+									void stopProcess();
+								}}
 							/>
 						</div>
-						{pid !== null ? (
-							<button
-								className="btn btn-error btn-sm absolute right-2 bottom-2 z-40 h-10 min-h-10 rounded-md px-5"
-								type="button"
-								onClick={() => void stopProcess()}
-							>
-								中止
-							</button>
-						) : null}
 					</div>
 
 					<div className="relative">
