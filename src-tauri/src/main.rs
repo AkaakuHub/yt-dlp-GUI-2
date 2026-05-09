@@ -2,6 +2,7 @@
 
 mod command_handlers;
 mod config;
+mod download_command;
 mod process_manager;
 mod server;
 mod system;
