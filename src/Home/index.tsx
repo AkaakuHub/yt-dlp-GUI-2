@@ -363,7 +363,7 @@ export default function Home() {
 			<section className="rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm">
 				<div className="grid gap-2">
 					<div className="relative grid gap-2 sm:min-h-40">
-						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:left-2 sm:right-1/2 sm:pr-28">
+						<div className="z-10 grid gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:bottom-2 sm:left-2 sm:right-1/2 sm:pr-28">
 							<div className="flex min-w-0 items-center gap-2">
 								{pid === null ? (
 									<span className="badge badge-ghost border-base-300 text-base-content/60">
@@ -388,41 +388,41 @@ export default function Home() {
 								placeholder="URL"
 								type="url"
 							/>
-						</div>
 
-						<div className="z-10 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:bottom-2 sm:left-2 sm:right-1/2 sm:pr-28">
-							<select
-								className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm"
-								disabled={!isSettingLoaded}
-								value={selectedIndexNumber}
-								onChange={(event) => {
-									void persistDownloadMode(Number(event.target.value));
-								}}
-							>
-								{downloadModes.map((mode) => (
-									<option key={mode.value} value={mode.value}>
-										{mode.label}
-									</option>
-								))}
-							</select>
-							<button
-								aria-label="前のモード"
-								className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300"
-								disabled={!isSettingLoaded}
-								type="button"
-								onClick={() => moveDownloadMode(-1)}
-							>
-								<ChevronLeft size={18} />
-							</button>
-							<button
-								aria-label="次のモード"
-								className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300"
-								disabled={!isSettingLoaded}
-								type="button"
-								onClick={() => moveDownloadMode(1)}
-							>
-								<ChevronRight size={18} />
-							</button>
+							<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
+								<select
+									className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									disabled={!isSettingLoaded}
+									value={selectedIndexNumber}
+									onChange={(event) => {
+										void persistDownloadMode(Number(event.target.value));
+									}}
+								>
+									{downloadModes.map((mode) => (
+										<option key={mode.value} value={mode.value}>
+											{mode.label}
+										</option>
+									))}
+								</select>
+								<button
+									aria-label="前のモード"
+									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									disabled={!isSettingLoaded}
+									type="button"
+									onClick={() => moveDownloadMode(-1)}
+								>
+									<ChevronLeft size={18} />
+								</button>
+								<button
+									aria-label="次のモード"
+									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									disabled={!isSettingLoaded}
+									type="button"
+									onClick={() => moveDownloadMode(1)}
+								>
+									<ChevronRight size={18} />
+								</button>
+							</div>
 						</div>
 
 						<div className="z-10 grid grid-cols-2 gap-2 rounded-lg bg-base-100 p-2 sm:absolute sm:top-2 sm:right-2 sm:left-1/2 sm:pl-28">
