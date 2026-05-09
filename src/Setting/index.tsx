@@ -309,13 +309,7 @@ export default function Settings() {
 		<div className="h-full min-h-0 overflow-auto bg-base-100 p-4 text-base-content">
 			<div className="mx-auto grid max-w-5xl gap-4">
 				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-wide text-primary">
-								Settings
-							</p>
-							<h1 className="text-xl font-bold">ツール設定</h1>
-						</div>
+					<div className="flex justify-end">
 						<button
 							className="btn btn-outline btn-sm rounded-md"
 							type="button"
@@ -462,12 +456,7 @@ export default function Settings() {
 				<div className="fixed inset-0 z-50 grid place-items-center bg-base-300/70 p-4">
 					<section className="grid max-h-[calc(100vh-2rem)] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl">
 						<header className="flex items-center justify-between border-b border-base-300 p-4">
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-wide text-primary">
-									Tools
-								</p>
-								<h2 className="text-lg font-bold">ツール設定</h2>
-							</div>
+							<h2 className="text-lg font-bold">ツール</h2>
 							<button
 								className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
 								type="button"

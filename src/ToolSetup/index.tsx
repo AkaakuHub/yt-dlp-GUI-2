@@ -174,9 +174,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				<section className="grid w-full max-w-sm gap-3 rounded-lg border border-base-300 bg-base-200 p-6 text-center shadow-sm">
 					<Loader2 className="mx-auto animate-spin text-primary" size={28} />
 					<h1 className="text-lg font-bold">ツールを確認中</h1>
-					<p className="text-sm text-base-content/60">
-						yt-dlp、FFmpeg、Denoの状態を読み込んでいます。
-					</p>
 				</section>
 			</div>
 		);
@@ -189,16 +186,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		<div className="h-screen overflow-auto bg-base-100 p-4 text-base-content">
 			<main className="mx-auto grid min-h-full max-w-3xl place-items-center">
 				<section className="grid w-full gap-4 rounded-lg border border-base-300 bg-base-200 p-5 shadow-sm">
-					<header className="grid gap-1 text-center">
-						<p className="text-xs font-semibold uppercase tracking-wide text-primary">
-							Setup
-						</p>
-						<h1 className="text-2xl font-bold">初期設定</h1>
-						<p className="text-sm text-base-content/60">
-							動画処理に使うツールを選択します。
-						</p>
-					</header>
-
 					<div className="grid gap-2 sm:grid-cols-2">
 						<label
 							className={`flex cursor-pointer gap-3 rounded-md border p-4 ${
@@ -219,9 +206,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								<span className="flex items-center gap-2 font-semibold">
 									<Package size={18} />
 									バンドル版
-								</span>
-								<span className="text-sm opacity-75">
-									内蔵ツールを使用します。
 								</span>
 							</span>
 						</label>
@@ -245,9 +229,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								<span className="flex items-center gap-2 font-semibold">
 									<Terminal size={18} />
 									カスタムパス
-								</span>
-								<span className="text-sm opacity-75">
-									実行ファイルを直接指定します。
 								</span>
 							</span>
 						</label>
