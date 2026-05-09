@@ -31,8 +31,8 @@ export default function PrimaryCircleButton({
 	return (
 		<button
 			aria-disabled={disabled}
-			className={`aspect-square h-32 min-h-0 rounded-full text-lg font-bold shadow-md ring-6 ring-base-200 transition-transform ${colorClass} ${
-				disabled ? "cursor-not-allowed" : "hover:scale-[1.02] active:scale-95"
+			className={`aspect-square h-32 min-h-0 scale-[1.02] rounded-full text-lg font-bold shadow-md ring-6 ring-base-200 transition-transform ${colorClass} ${
+				disabled ? "cursor-not-allowed" : "active:scale-95"
 			} sm:h-36`}
 			type="button"
 			onClick={handleClick}
