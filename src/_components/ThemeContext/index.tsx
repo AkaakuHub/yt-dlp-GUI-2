@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/tauri";
-import { debounce } from "lodash";
 import type React from "react";
 import {
 	createContext,
@@ -36,12 +35,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
 	const actualTheme = themeMode === "system" ? systemTheme : themeMode;
 
-	// デバウンスでRustバックエンドに保存
-	const saveThemeModeChanged = debounce(async (mode: ThemeMode) => {
-		await invoke("set_theme_mode", { newThemeMode: mode });
-	}, 500);
-
-	// 初期設定をバックエンドから読み込み
 	useEffect(() => {
 		const loadSettings = async () => {
 			try {
@@ -59,10 +52,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 		loadSettings();
 	}, []);
 
-	// テーマモード変更時にバックエンドに保存
 	const handleSetThemeMode = (mode: ThemeMode) => {
 		setThemeMode(mode);
-		saveThemeModeChanged(mode);
+		void invoke("set_theme_mode", { newThemeMode: mode });
 	};
 
 	useEffect(() => {

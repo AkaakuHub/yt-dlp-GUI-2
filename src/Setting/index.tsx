@@ -1,28 +1,3 @@
-import { Build, CheckCircle, Download, Storage } from "@mui/icons-material";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import SettingsIcon from "@mui/icons-material/Settings";
-import {
-	Alert,
-	Box,
-	Button,
-	CircularProgress,
-	Container,
-	Dialog,
-	DialogActions,
-	DialogContent,
-	DialogTitle,
-	FormControlLabel,
-	IconButton,
-	LinearProgress,
-	Link,
-	FormControlLabel as MuiFormControlLabel,
-	Radio,
-	RadioGroup,
-	Switch,
-	TextField,
-	Typography,
-} from "@mui/material";
-import { styled } from "@mui/material/styles";
 import { dialog } from "@tauri-apps/api";
 import { open } from "@tauri-apps/api/dialog";
 import { listen } from "@tauri-apps/api/event";
@@ -33,345 +8,236 @@ import {
 import { relaunch } from "@tauri-apps/api/process";
 import { invoke } from "@tauri-apps/api/tauri";
 import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
-import { debounce } from "lodash";
-import { useCallback, useEffect, useState } from "react";
+import {
+	Bell,
+	Download,
+	FolderOpen,
+	HardDrive,
+	Loader2,
+	Package,
+	RefreshCw,
+	Save,
+	Server,
+	Settings2,
+	Terminal,
+	X,
+} from "lucide-react";
+import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
-import CustomButton from "../_components/CustomButton";
 import ThemeSelector from "../_components/ThemeSelector";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 import type { ConfigProps } from "../types";
 
-// StyledComponents for dark mode support
-const StyledTextField = styled(TextField)(() => ({
-	"& .MuiInputBase-root": {
-		borderRadius: "12px",
-	},
-	"& .MuiOutlinedInput-root": {
-		backgroundColor: "var(--input-background)",
-		color: "var(--text-primary)",
-		transition: "all 0.2s ease-in-out",
-		"&:hover": {
-			backgroundColor: "var(--input-background-hover)",
-			"& .MuiOutlinedInput-notchedOutline": {
-				borderColor: "var(--accent-primary)",
-			},
-		},
-		"&.Mui-focused": {
-			backgroundColor: "var(--input-background-focus)",
-			"& .MuiOutlinedInput-notchedOutline": {
-				borderColor: "var(--accent-primary)",
-				borderWidth: "2px",
-			},
-		},
-		"& .MuiOutlinedInput-notchedOutline": {
-			borderColor: "var(--border-primary)",
-			transition: "all 0.2s ease-in-out",
-		},
-	},
-	"& .MuiInputLabel-root": {
-		color: "var(--text-secondary)",
-		"&.Mui-focused": {
-			color: "var(--accent-primary)",
-		},
-	},
-	"& .MuiInputBase-input": {
-		color: "var(--text-primary)",
-	},
-	"& .MuiInputBase-input::placeholder": {
-		color: "var(--text-placeholder)",
-		opacity: 1,
-	},
-	"& .MuiFormHelperText-root": {
-		color: "var(--text-tertiary)",
-	},
-}));
+type ToolCheckResults = {
+	ytDlp: boolean;
+	ffmpeg: boolean;
+	deno: boolean;
+};
 
-const StyledFormControlLabel = styled(FormControlLabel)(() => ({
-	margin: 0,
-	padding: "12px 16px",
-	borderRadius: "12px",
-	border: "1px solid var(--border-primary)",
-	backgroundColor: "var(--surface-primary)",
-	transition: "all 0.2s ease-in-out",
-	"&:hover": {
-		backgroundColor: "var(--surface-hover)",
-		borderColor: "var(--accent-primary)",
-		transform: "translateY(-1px)",
-		boxShadow: "var(--shadow-md)",
-	},
-	"& .MuiFormControlLabel-label": {
-		color: "var(--text-primary)",
-		fontWeight: 500,
-		fontSize: "0.875rem",
-	},
-}));
+type DownloadProgress = {
+	tool_name: string;
+	progress: number;
+	status: string;
+};
 
-const StyledIconButton = styled(IconButton)(() => ({
-	backgroundColor: "var(--surface-primary)",
-	color: "var(--accent-primary)",
-	border: "1px solid var(--border-primary)",
-	transition: "all 0.2s ease-in-out",
-	"&:hover": {
-		backgroundColor: "var(--surface-hover)",
-		borderColor: "var(--accent-primary)",
-		transform: "translateY(-1px)",
-		boxShadow: "var(--shadow-md)",
-	},
-}));
+const emptyToolResults: ToolCheckResults = {
+	ytDlp: false,
+	ffmpeg: false,
+	deno: false,
+};
+
+const toolLabels = [
+	["yt-dlp", "ytDlp"],
+	["FFmpeg", "ffmpeg"],
+	["Deno", "deno"],
+] as const;
+
+const parseServerPort = (value: string): number | null => {
+	const parsedPort = Number.parseInt(value, 10);
+	if (Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+		return null;
+	}
+	return parsedPort;
+};
 
 export default function Settings() {
-	const { saveDir, setSaveDir } = useAppContext();
-	const { browser, setBrowser } = useAppContext();
-	const { serverPort, setServerPort } = useAppContext();
-	const { isSendNotification, setIsSendNotification } = useAppContext();
-	const { isServerEnabled, setIsServerEnabled } = useAppContext();
-	const { useBundleTools, setUseBundleTools } = useAppContext();
-	const { ytDlpPath, setYtDlpPath } = useAppContext();
-	const { ffmpegPath, setFfmpegPath } = useAppContext();
-	const { denoPath, setDenoPath } = useAppContext();
-	const { isSettingLoaded } = useAppContext();
+	const {
+		saveDir,
+		setSaveDir,
+		browser,
+		setBrowser,
+		serverPort,
+		setServerPort,
+		isSendNotification,
+		setIsSendNotification,
+		isServerEnabled,
+		setIsServerEnabled,
+		useBundleTools,
+		setUseBundleTools,
+		ytDlpPath,
+		setYtDlpPath,
+		ffmpegPath,
+		setFfmpegPath,
+		denoPath,
+		setDenoPath,
+		isSettingLoaded,
+	} = useAppContext();
 
 	const [currentVersion, setCurrentVersion] = useState("");
 	const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 	const [notificationPermission, setNotificationPermission] = useState<
 		boolean | null
 	>(null);
-	const [osType, setOsType] = useState<string>("");
-
-	// ツール設定モーダル用
+	const [osType, setOsType] = useState("");
 	const [showToolsModal, setShowToolsModal] = useState(false);
 	const [tempUseBundle, setTempUseBundle] = useState(useBundleTools);
 	const [tempYtDlpPath, setTempYtDlpPath] = useState(ytDlpPath);
 	const [tempFfmpegPath, setTempFfmpegPath] = useState(ffmpegPath);
 	const [tempDenoPath, setTempDenoPath] = useState(denoPath);
 	const [isCheckingTools, setIsCheckingTools] = useState(false);
-	const [toolCheckResults, setToolCheckResults] = useState<{
-		ytDlp: boolean;
-		ffmpeg: boolean;
-		deno: boolean;
-	}>({ ytDlp: false, ffmpeg: false, deno: false });
-
-	// ダウンロード機能用
+	const [toolCheckResults, setToolCheckResults] =
+		useState<ToolCheckResults>(emptyToolResults);
 	const [isDownloadingTools, setIsDownloadingTools] = useState(false);
-	const [downloadProgress, setDownloadProgress] = useState<{
-		tool_name: string;
-		progress: number;
-		status: string;
-	} | null>(null);
+	const [downloadProgress, setDownloadProgress] =
+		useState<DownloadProgress | null>(null);
 	const [downloadedOnce, setDownloadedOnce] = useState(false);
 
-	// ツ�備スイッチ
-	const StyledSwitch = styled(Switch)(() => ({
-		"& .MuiSwitch-switchBase": {
-			color: "var(--border-primary)",
-			"&.Mui-checked": {
-				color: "var(--accent-primary)",
-				"& + .MuiSwitch-track": {
-					backgroundColor: "var(--accent-primary)",
-					opacity: 0.7,
-				},
-			},
-		},
-		"& .MuiSwitch-track": {
-			backgroundColor: "var(--border-primary)",
-			opacity: 0.5,
-		},
-	}));
+	const updateSaveDir = async (nextSaveDir: string) => {
+		setSaveDir(nextSaveDir);
+		await invoke("set_save_dir", { newSaveDir: nextSaveDir });
+	};
 
-	// ツード用ラジオグル
-	const StyledRadioGroup = styled(RadioGroup)(() => ({
-		"& .MuiFormControlLabel-root": {
-			color: "var(--text-primary)",
-		},
-		"& .MuiRadio-root": {
-			color: "var(--text-primary)",
-			"&.Mui-checked": {
-				color: "var(--accent-primary)",
-			},
-		},
-	}));
+	const updateBrowser = async (nextBrowser: string) => {
+		setBrowser(nextBrowser);
+		await invoke("set_browser", { newBrowser: nextBrowser });
+	};
+
+	const updateServerPort = async (nextServerPort: number) => {
+		setServerPort(nextServerPort);
+		await invoke("set_server_port", { newServerPort: nextServerPort });
+	};
+
+	const updateNotification = async (nextIsSendNotification: boolean) => {
+		setIsSendNotification(nextIsSendNotification);
+		await invoke("set_is_send_notification", {
+			newIsSendNotification: nextIsSendNotification,
+		});
+	};
+
+	const updateServerEnabled = async (nextIsServerEnabled: boolean) => {
+		setIsServerEnabled(nextIsServerEnabled);
+		await invoke("set_is_server_enabled", {
+			newIsServerEnabled: nextIsServerEnabled,
+		});
+	};
 
 	const executeUpdate = useCallback(async () => {
-		// Install the update. This will also restart the app on Windows!
 		await installUpdate();
-		// On macOS and Linux you will need to restart the app manually.
-		// You could use this step to display another confirmation dialog.
 		await dialog.message(
 			"アップデートが完了しました。アプリケーションを再起動します。",
 		);
-		// relaunch() handles quitting the current process and starting the new bundle.
 		await relaunch();
 	}, []);
 
 	useEffect(() => {
-		// ダウンロード進捗リスナーを設定
-		let unlistenPromise: Promise<() => void> | null = null;
-
-		const setupListener = async () => {
-			unlistenPromise = listen<{
-				tool_name: string;
-				progress: number;
-				status: string;
-			}>("download-progress", (event) => {
+		const setupDownloadProgressListener = async () => {
+			return listen<DownloadProgress>("download-progress", (event) => {
 				setDownloadProgress(event.payload);
 			});
 		};
 
-		const getCurrentVersion = async () => {
-			const version = await invoke<string>("get_current_version");
+		const loadSettingsMetadata = async () => {
+			const [version, os, granted, update] = await Promise.all([
+				invoke<string>("get_current_version"),
+				invoke<string>("get_os_type"),
+				isPermissionGranted().catch(() => false),
+				checkUpdate().catch(() => ({ shouldUpdate: false })),
+			]);
 			setCurrentVersion(version);
+			setOsType(os);
+			setNotificationPermission(granted);
+			setIsUpdateAvailable(update.shouldUpdate);
 		};
 
-		const checkForUpdates = async () => {
-			try {
-				const { shouldUpdate, manifest } = await checkUpdate();
-				if (shouldUpdate) {
-					setIsUpdateAvailable(true);
-					const yes = await dialog.ask(
-						`最新バージョン(${manifest?.version})があります！アップデートしますか？`,
-						{
-							okLabel: "はい",
-							cancelLabel: "いいえ",
-						},
-					);
-					// \n\nリリースノート: ${manifest?.body}
-					if (yes) {
-						executeUpdate();
-					} else {
-						toast.info(
-							"アップデートはキャンセルされました。設定タブから行うこともできます。",
-						);
-					}
-				}
-			} catch (error) {
-				alert(error);
-			}
-			// unlisten();
-		};
-		checkForUpdates();
-		setupListener();
-		getCurrentVersion();
+		const unlistenPromise = setupDownloadProgressListener();
+		void loadSettingsMetadata();
 
 		return () => {
-			if (unlistenPromise) {
-				unlistenPromise.then((fn) => fn());
-			}
+			unlistenPromise.then((unlisten) => unlisten());
 		};
-	}, [executeUpdate]);
-
-	useEffect(() => {
-		const getOsType = async () => {
-			const os = await invoke<string>("get_os_type");
-			setOsType(os);
-		};
-		getOsType();
 	}, []);
 
 	useEffect(() => {
-		const checkNotificationPermission = async () => {
-			try {
-				const granted = await isPermissionGranted();
-				setNotificationPermission(granted);
-			} catch {
-				setNotificationPermission(false);
+		if (!isSettingLoaded || serverPort === 0 || Number.isNaN(serverPort)) {
+			return;
+		}
+		void invoke("toggle_server", {
+			enable: isServerEnabled,
+			port: serverPort,
+		});
+	}, [isServerEnabled, isSettingLoaded, serverPort]);
+
+	useEffect(() => {
+		const unlistenPromise = listen<string>("start-server-output", (event) => {
+			if (event.payload !== "失敗") {
+				void invoke("set_is_server_enabled", {
+					newIsServerEnabled: true,
+				});
+				return;
 			}
+			toast.error(
+				"サーバーの起動に失敗しました。ポート番号が他のプログラムで使用されています。",
+			);
+			setIsServerEnabled(false);
+			void invoke("set_is_server_enabled", {
+				newIsServerEnabled: false,
+			});
+		});
+
+		return () => {
+			unlistenPromise.then((unlisten) => unlisten());
 		};
-		checkNotificationPermission();
-	}, []);
+	}, [setIsServerEnabled]);
 
-	const requestNotificationPermission = async () => {
-		try {
-			const permission = await requestPermission();
-			const granted = permission === "granted";
-			setNotificationPermission(granted);
-			if (granted) {
-				toast.success("通知権限が許可されました");
-			} else {
-				toast.error(
-					"通知権限が拒否されました。システム設定で手動で許可してください。",
-				);
-			}
-		} catch {
-			toast.error("通知権限の要求に失敗しました");
+	const requestNotificationAccess = async () => {
+		const permission = await requestPermission();
+		const granted = permission === "granted";
+		setNotificationPermission(granted);
+		if (granted) {
+			toast.success("通知権限が許可されました");
+			return;
+		}
+		toast.error("通知権限が拒否されました。システム設定で許可してください。");
+	};
+
+	const chooseSaveDirectory = async () => {
+		const selectedDir = await open({
+			directory: true,
+			multiple: false,
+		});
+		if (typeof selectedDir === "string") {
+			await updateSaveDir(selectedDir);
 		}
 	};
 
-	// デバウンスで遅延
-	const saveDirChanged = debounce(async (temp_saveDir: string) => {
-		await invoke("set_save_dir", { newSaveDir: temp_saveDir }); // ここのkeyをrust側と合わせる
-	}, 500);
-
-	const saveBrowserChanged = debounce(async (temp_browser: string) => {
-		await invoke("set_browser", { newBrowser: temp_browser });
-	}, 500);
-
-	const saveServerPortChanged = debounce(async (temp_serverPort: number) => {
-		await invoke("set_server_port", { newServerPort: temp_serverPort });
-	}, 500);
-
-	const saveNotificationChanged = debounce(
-		async (temp_notification: boolean) => {
-			await invoke("set_is_send_notification", {
-				newIsSendNotification: temp_notification,
-			});
-		},
-		500,
-	);
-
-	const saveServerEnabledChanged = debounce(
-		async (temp_serverEnabled: boolean) => {
-			await invoke("set_is_server_enabled", {
-				newIsServerEnabled: temp_serverEnabled,
-			});
-		},
-		500,
-	);
-
-	// ツール設定用デバンス関数
-	const saveBundleToolsChanged = debounce(async (temp_useBundle: boolean) => {
-		await invoke("set_use_bundle_tools", { useBundleTools: temp_useBundle });
-	}, 500);
-
-	const saveYtDlpPathChanged = debounce(async (temp_ytDlpPath: string) => {
-		await invoke("set_yt_dlp_path", { ytDlpPath: temp_ytDlpPath });
-	}, 500);
-
-	const saveFfmpegPathChanged = debounce(async (temp_ffmpegPath: string) => {
-		await invoke("set_ffmpeg_path", { ffmpegPath: temp_ffmpegPath });
-	}, 500);
-
-	const saveDenoPathChanged = debounce(async (temp_denoPath: string) => {
-		await invoke("set_deno_path", { denoPath: temp_denoPath });
-	}, 500);
-
-	// ダウンロード関数
-	const downloadBundleTools = async () => {
-		setIsDownloadingTools(true);
-		setDownloadProgress(null);
-
-		try {
-			await invoke<string>("download_bundle_tools");
-			setDownloadedOnce(true);
-			toast.success("ツールのダウンロードが完了しました");
-			// ダウンロード後にツールチェックを実行
-			await checkTools();
-		} catch (error) {
-			const errorMsg =
-				error instanceof Error
-					? error.message
-					: typeof error === "string"
-						? error
-						: JSON.stringify(error);
-			console.error("Download failed:", error);
-			toast.error(`ツールのダウンロードに失敗しました: ${errorMsg}`);
-		} finally {
-			setIsDownloadingTools(false);
-			setDownloadProgress(null);
+	const changeServerPort = async (event: ChangeEvent<HTMLInputElement>) => {
+		const nextPort = parseServerPort(event.target.value);
+		if (nextPort === null) {
+			return;
 		}
+		await updateServerPort(nextPort);
 	};
 
-	// ツールチェック関数
+	const openToolsModal = () => {
+		setTempUseBundle(useBundleTools);
+		setTempYtDlpPath(ytDlpPath);
+		setTempFfmpegPath(ffmpegPath);
+		setTempDenoPath(denoPath);
+		setToolCheckResults(emptyToolResults);
+		setShowToolsModal(true);
+	};
+
 	const checkTools = async () => {
 		setIsCheckingTools(true);
 		try {
@@ -381,637 +247,405 @@ export default function Settings() {
 				tempFfmpegPath,
 				tempDenoPath,
 			);
-			if (!status.ok) {
-				toast.error(
-					status.ytDlpError ||
-						status.ffmpegError ||
-						status.denoError ||
-						"ツールが見つかりません。先にダウンロードするか、PATH または実行ファイルパスを確認してください。",
-				);
-				setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
-				return;
-			}
-
 			setToolCheckResults({
 				ytDlp: status.ytDlpFound,
 				ffmpeg: status.ffmpegFound,
 				deno: status.denoFound,
 			});
-
 			if (status.ok) {
 				toast.success("すべてのツールが利用可能です");
-			} else {
-				const failedTools = [];
-				if (!status.ytDlpFound) failedTools.push("yt-dlp");
-				if (!status.ffmpegFound) failedTools.push("FFmpeg");
-				if (!status.denoFound) failedTools.push("Deno");
-				toast.error(`以下のツールが利用できません: ${failedTools.join(", ")}`);
+				return;
 			}
+			toast.error(
+				status.ytDlpError ||
+					status.ffmpegError ||
+					status.denoError ||
+					"ツールが見つかりません。設定を確認してください。",
+			);
 		} catch (error) {
-			const errorMsg = error instanceof Error ? error.message : String(error);
-
-			if (errorMsg.includes("yt-dlp")) {
-				toast.error(`yt-dlpのチェックに失敗しました: ${errorMsg}`);
-			} else if (errorMsg.includes("ffmpeg")) {
-				toast.error(`FFmpegのチェックに失敗しました: ${errorMsg}`);
-			} else if (errorMsg.includes("deno")) {
-				toast.error(`Denoのチェックに失敗しました: ${errorMsg}`);
-			} else {
-				toast.error(`ツールのチェックに失敗しました: ${errorMsg}`);
-			}
-
-			setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
+			toast.error(`ツールのチェックに失敗しました:${String(error)}`);
+			setToolCheckResults(emptyToolResults);
 		} finally {
 			setIsCheckingTools(false);
 		}
 	};
 
-	// ツール設定モーダルを開く
-	const openToolsModal = () => {
-		setTempUseBundle(useBundleTools);
-		setTempYtDlpPath(ytDlpPath);
-		setTempFfmpegPath(ffmpegPath);
-		setTempDenoPath(denoPath);
-		setToolCheckResults({ ytDlp: false, ffmpeg: false, deno: false });
-		setShowToolsModal(true);
-	};
-
-	// ツール設定を保存
-	const saveToolsSettings = async () => {
+	const downloadBundleTools = async () => {
+		setIsDownloadingTools(true);
+		setDownloadProgress(null);
 		try {
-			await saveBundleToolsChanged(tempUseBundle);
-
-			if (!tempUseBundle) {
-				await saveYtDlpPathChanged(tempYtDlpPath);
-				await saveFfmpegPathChanged(tempFfmpegPath);
-				await saveDenoPathChanged(tempDenoPath);
-			}
-
-			// 設定を再読み込み
-			const settings = await invoke<ConfigProps>("get_settings");
-			setUseBundleTools(settings.use_bundle_tools);
-			setYtDlpPath(settings.yt_dlp_path);
-			setFfmpegPath(settings.ffmpeg_path);
-			setDenoPath(settings.deno_path);
-
-			// ツールチェックを実行
+			await invoke<string>("download_bundle_tools");
+			setDownloadedOnce(true);
+			toast.success("ツールのダウンロードが完了しました");
 			await checkTools();
-
-			setShowToolsModal(false);
-			toast.success("ツール設定を保存しました");
-		} catch {
-			toast.error("ツール設定の保存に失敗しました");
+		} catch (error) {
+			toast.error(`ツールのダウンロードに失敗しました:${String(error)}`);
+		} finally {
+			setIsDownloadingTools(false);
+			setDownloadProgress(null);
 		}
 	};
 
-	const openDirectoryDialog = async () => {
-		const selectedDir = await open({
-			directory: true,
-			multiple: false,
-		});
-		if (selectedDir) {
-			setSaveDir(selectedDir as string);
-			saveDirChanged(selectedDir as string);
+	const saveToolsSettings = async () => {
+		await invoke("set_use_bundle_tools", { useBundleTools: tempUseBundle });
+		if (!tempUseBundle) {
+			await Promise.all([
+				invoke("set_yt_dlp_path", { ytDlpPath: tempYtDlpPath }),
+				invoke("set_ffmpeg_path", { ffmpegPath: tempFfmpegPath }),
+				invoke("set_deno_path", { denoPath: tempDenoPath }),
+			]);
 		}
+
+		const settings = await invoke<ConfigProps>("get_settings");
+		setUseBundleTools(settings.use_bundle_tools);
+		setYtDlpPath(settings.yt_dlp_path);
+		setFfmpegPath(settings.ffmpeg_path);
+		setDenoPath(settings.deno_path);
+		setShowToolsModal(false);
+		toast.success("ツール設定を保存しました");
 	};
-
-	// サーバーの自動起動を無効化 - ユーザーが手動で有効にするまで起動しない
-	useEffect(() => {
-		// 設定がロードされていない、またはポートが無効な場合は起動しない
-		if (!isSettingLoaded || serverPort === 0 || Number.isNaN(serverPort)) {
-			return;
-		}
-		invoke("toggle_server", { enable: isServerEnabled, port: serverPort });
-	}, [isServerEnabled, serverPort, isSettingLoaded]);
-
-	useEffect(() => {
-		const unlistenStartServerOutput = listen<string>(
-			"start-server-output",
-			(event) => {
-				const data = event.payload;
-				if (data === "失敗") {
-					toast.error(
-						"サーバーの起動に失敗しました。ポート番号が他のプログラムで使用されています。",
-					);
-
-					saveServerEnabledChanged(false);
-					setIsServerEnabled(false);
-				} else {
-					saveServerEnabledChanged(true);
-				}
-			},
-		);
-
-		return () => {
-			unlistenStartServerOutput.then((fn) => fn());
-		};
-	}, [saveServerEnabledChanged, setIsServerEnabled]);
 
 	return (
-		<Box sx={{ flexGrow: 1 }} className="settings-container">
-			<Container
-				maxWidth="sm"
-				sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 2 }}
-			>
-				<ThemeSelector />
-				<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-					<StyledTextField
-						fullWidth
-						label="保存先"
-						variant="outlined"
-						value={saveDir}
-						onChange={(e) => {
-							setSaveDir(e.target.value);
-							saveDirChanged(e.target.value);
-						}}
-					/>
-					<StyledIconButton
-						aria-label="フォルダを開く"
-						onClick={openDirectoryDialog}
-					>
-						<FolderOpenIcon />
-					</StyledIconButton>
-				</Box>
+		<div className="h-full min-h-0 overflow-auto bg-base-100 p-4 text-base-content">
+			<div className="mx-auto grid max-w-5xl gap-4">
+				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wide text-primary">
+								Settings
+							</p>
+							<h1 className="text-xl font-bold">ツール設定</h1>
+						</div>
+						<button
+							className="btn btn-outline btn-sm rounded-md"
+							type="button"
+							onClick={openToolsModal}
+						>
+							<Settings2 size={16} />
+							ツールを管理
+						</button>
+					</div>
+					<ThemeSelector />
+				</section>
 
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-					<Box sx={{ display: "flex", gap: 2 }}>
-						<StyledTextField
-							label="Cookie取得元のブラウザ"
-							variant="outlined"
-							value={browser}
-							onChange={(e) => {
-								setBrowser(e.target.value);
-								saveBrowserChanged(e.target.value);
-							}}
-							sx={{ flex: 1 }}
+				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
+					<div className="flex items-center gap-2 text-sm font-semibold">
+						<HardDrive size={16} className="text-primary" />
+						保存先
+					</div>
+					<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+						<input
+							className="input input-bordered h-11 min-h-11 rounded-md bg-base-100 text-sm"
+							value={saveDir}
+							onChange={(event) => void updateSaveDir(event.target.value)}
+							placeholder="/Users/name/Movies/yt-dlp-data"
 						/>
-						<StyledTextField
-							label="使用するポート番号"
-							variant="outlined"
-							value={serverPort}
-							disabled={isServerEnabled}
-							onChange={(e) => {
-								const parsedPort = Number.parseInt(e.target.value, 10);
-								if (Number.isNaN(parsedPort)) return;
-								if (parsedPort > 65535) return;
+						<button
+							className="btn btn-outline h-11 min-h-11 rounded-md"
+							type="button"
+							onClick={() => void chooseSaveDirectory()}
+							aria-label="保存先を選択"
+						>
+							<FolderOpen size={18} />
+						</button>
+					</div>
+				</section>
 
-								setServerPort(parsedPort);
-								saveServerPortChanged(parsedPort);
-							}}
-							sx={{ flex: 1 }}
-						/>
-					</Box>
-				</Box>
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-					<StyledFormControlLabel
-						control={
-							<StyledSwitch
-								checked={isSendNotification}
-								onChange={(e) => {
-									setIsSendNotification(e.target.checked);
-									saveNotificationChanged(e.target.checked);
-								}}
+				<section className="grid gap-3 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
+					<div className="grid gap-3 md:grid-cols-2">
+						<label className="grid gap-1">
+							<span className="label pb-1 text-xs font-semibold text-base-content/65">
+								Cookie取得元のブラウザ
+							</span>
+							<input
+								className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
+								value={browser}
+								onChange={(event) => void updateBrowser(event.target.value)}
+								placeholder="firefox"
 							/>
-						}
-						label={
-							<Box>
-								ダウンロード完了時に通知を受け取る
-								{osType === "macos" && (
-									<Typography variant="caption" display="block">
-										macOSでは「通知パネル」設定でバナー通知が表示されます
-									</Typography>
-								)}
-							</Box>
-						}
-					/>
-					{isSendNotification && notificationPermission === false && (
-						<Alert severity="warning" sx={{ mt: 1 }}>
-							通知権限が許可されていません。
-							<Button
-								size="small"
-								onClick={requestNotificationPermission}
-								sx={{ ml: 1 }}
+						</label>
+						<label className="grid gap-1">
+							<span className="label pb-1 text-xs font-semibold text-base-content/65">
+								使用するポート番号
+							</span>
+							<input
+								className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
+								value={serverPort}
+								disabled={isServerEnabled}
+								inputMode="numeric"
+								onChange={(event) => void changeServerPort(event)}
+							/>
+						</label>
+					</div>
+				</section>
+
+				<section className="grid gap-2 rounded-lg border border-base-300 bg-base-200 p-4 shadow-sm">
+					<label className="flex min-h-14 items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-3">
+						<span className="flex min-w-0 items-center gap-3">
+							<Bell size={18} className="shrink-0 text-primary" />
+							<span className="min-w-0">
+								<span className="block text-sm font-semibold">
+									ダウンロード完了時に通知を受け取る
+								</span>
+								{osType === "macos" ? (
+									<span className="block truncate text-xs text-base-content/55">
+										macOSでは通知設定でバナー通知が表示されます
+									</span>
+								) : null}
+							</span>
+						</span>
+						<input
+							className="toggle toggle-primary"
+							type="checkbox"
+							checked={isSendNotification}
+							onChange={(event) =>
+								void updateNotification(event.target.checked)
+							}
+						/>
+					</label>
+
+					{isSendNotification && notificationPermission === false ? (
+						<div className="alert border-warning/35 bg-warning/10 py-2 text-sm">
+							<Bell size={16} />
+							<span>通知権限が許可されていません。</span>
+							<button
+								className="btn btn-warning btn-sm rounded-md"
+								type="button"
+								onClick={() => void requestNotificationAccess()}
 							>
 								権限を要求
-							</Button>
-						</Alert>
+							</button>
+						</div>
+					) : null}
+
+					<label className="flex min-h-14 items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-3">
+						<span className="flex items-center gap-3 text-sm font-semibold">
+							<Server size={18} className="text-primary" />
+							ポート{serverPort}でサーバーを起動する
+						</span>
+						<input
+							className="toggle toggle-primary"
+							type="checkbox"
+							checked={isServerEnabled}
+							onChange={(event) =>
+								void updateServerEnabled(event.target.checked)
+							}
+						/>
+					</label>
+				</section>
+
+				<footer className="flex flex-wrap items-center justify-center gap-2 pb-3 text-sm text-base-content/60">
+					<a
+						className="link link-primary inline-flex items-center gap-1"
+						href="https://github.com/AkaakuHub/yt-dlp-GUI-2"
+						target="_blank"
+						rel="noreferrer"
+					>
+						GitHub
+					</a>
+					<span>バージョン{currentVersion || "1.3.1"}</span>
+					{isUpdateAvailable ? (
+						<button
+							className="btn btn-primary btn-xs rounded-md"
+							type="button"
+							onClick={() => void executeUpdate()}
+						>
+							更新する
+						</button>
+					) : (
+						<span>最新です</span>
 					)}
-					<StyledFormControlLabel
-						control={
-							<StyledSwitch
-								checked={isServerEnabled}
-								onChange={(e) => {
-									setIsServerEnabled(e.target.checked);
-								}}
-							/>
-						}
-						label={`ポート${serverPort}でサーバーを起動する`}
-					/>
-				</Box>
+				</footer>
+			</div>
 
-				{/* ツール設定ボタン */}
-				<Box sx={{ display: "flex", justifyContent: "center" }}>
-					<Button
-						variant="outlined"
-						onClick={openToolsModal}
-						startIcon={<SettingsIcon />}
-						sx={{
-							borderColor: "var(--accent-primary)",
-							color: "var(--accent-primary)",
-							"&:hover": {
-								borderColor: "var(--accent-primary)",
-								backgroundColor: "var(--surface-hover)",
-							},
-						}}
-					>
-						ツール設定を管理
-					</Button>
-				</Box>
-
-				<Box sx={{ textAlign: "center" }} className="version-info">
-					<Typography
-						variant="body2"
-						color="textSecondary"
-						className="version-text"
-					>
-						<Link
-							href="https://github.com/AkaakuHub/yt-dlp-GUI-2"
-							target="_blank"
-							rel="noopener"
-							className="github-link"
-						>
-							GitHub
-						</Link>
-						・ バージョン {currentVersion || ""}
-						{isUpdateAvailable ? (
-							<span>
-								・{" "}
-								<Link
-									href={""}
-									onClick={(e) => {
-										e.preventDefault();
-										executeUpdate();
-									}}
-									className="update-link"
-								>
-									ここをクリックしてアップデート
-								</Link>
-							</span>
-						) : (
-							<span>・ 最新です</span>
-						)}
-					</Typography>
-				</Box>
-			</Container>
-
-			{/* ツール設定モーダル */}
-			<Dialog
-				open={showToolsModal}
-				onClose={() => setShowToolsModal(false)}
-				maxWidth="md"
-				fullWidth
-				BackdropProps={{
-					sx: {
-						backgroundColor: "rgba(5, 10, 20, 0.6)",
-					},
-				}}
-				PaperProps={{
-					sx: {
-						backgroundColor: "var(--background-secondary)",
-						color: "var(--text-primary)",
-						border: "1px solid var(--border-primary)",
-						borderRadius: "12px",
-						backdropFilter: "none",
-					},
-				}}
-			>
-				<DialogTitle
-					sx={{
-						color: "var(--text-primary)",
-						borderBottom: "1px solid var(--border-primary)",
-						pb: 2,
-					}}
-				>
-					ツール設定
-				</DialogTitle>
-				<DialogContent sx={{ pt: 3 }}>
-					<Typography
-						variant="body1"
-						sx={{ color: "var(--text-secondary)", my: 2 }}
-					>
-						yt-dlp、FFmpeg、Denoの設定を管理します。
-					</Typography>
-
-					<Box mb={3}>
-						<Typography
-							variant="h6"
-							gutterBottom
-							sx={{ color: "var(--text-primary)" }}
-						>
-							ツールの使用方法を選択
-						</Typography>
-						<StyledRadioGroup
-							value={tempUseBundle ? "bundle" : "path"}
-							onChange={(e) => setTempUseBundle(e.target.value === "bundle")}
-							sx={{
-								gap: 2,
-							}}
-						>
-							<MuiFormControlLabel
-								value="bundle"
-								control={<Radio size="small" />}
-								label={
-									<Box
-										sx={{
-											ml: 1,
-											display: "flex",
-											alignItems: "center",
-											gap: 1,
-										}}
-									>
-										<Storage
-											sx={{ fontSize: 20, color: "var(--accent-primary)" }}
-										/>
-										<Box>
-											<Typography
-												variant="body2"
-												fontWeight="600"
-												sx={{
-													color: "var(--text-primary)",
-													fontSize: "0.85rem",
-													lineHeight: 1.2,
-												}}
-											>
-												バンドル版（初心者向け）
-											</Typography>
-											<Typography
-												variant="caption"
-												sx={{
-													color: "var(--text-secondary)",
-													fontSize: "0.75rem",
-													display: "block",
-													mt: 0.3,
-												}}
-											>
-												ツールを自動で設定・使用
-											</Typography>
-										</Box>
-									</Box>
-								}
-							/>
-							<MuiFormControlLabel
-								value="path"
-								control={<Radio size="small" />}
-								label={
-									<Box
-										sx={{
-											ml: 1,
-											display: "flex",
-											alignItems: "center",
-											gap: 1,
-										}}
-									>
-										<Build
-											sx={{ fontSize: 20, color: "var(--accent-primary)" }}
-										/>
-										<Box>
-											<Typography
-												variant="body2"
-												fontWeight="600"
-												sx={{
-													color: "var(--text-primary)",
-													fontSize: "0.85rem",
-													lineHeight: 1.2,
-												}}
-											>
-												カスタムパス（上級者向け）
-											</Typography>
-											<Typography
-												variant="caption"
-												sx={{
-													color: "var(--text-secondary)",
-													fontSize: "0.75rem",
-													display: "block",
-													mt: 0.3,
-												}}
-											>
-												手動でインストールしたツールを指定
-											</Typography>
-										</Box>
-									</Box>
-								}
-							/>
-						</StyledRadioGroup>
-					</Box>
-
-					{!tempUseBundle && (
-						<Box mb={3}>
-							<Typography
-								variant="h6"
-								gutterBottom
-								sx={{ color: "var(--text-primary)" }}
+			{showToolsModal ? (
+				<div className="fixed inset-0 z-50 grid place-items-center bg-base-300/70 p-4">
+					<section className="grid max-h-[calc(100vh-2rem)] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl">
+						<header className="flex items-center justify-between border-b border-base-300 p-4">
+							<div>
+								<p className="text-xs font-semibold uppercase tracking-wide text-primary">
+									Tools
+								</p>
+								<h2 className="text-lg font-bold">ツール設定</h2>
+							</div>
+							<button
+								className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+								type="button"
+								onClick={() => setShowToolsModal(false)}
+								aria-label="閉じる"
 							>
-								ツールのパス設定
-							</Typography>
+								<X size={18} />
+							</button>
+						</header>
 
-							<Box mb={2}>
-								<StyledTextField
-									fullWidth
-									label="yt-dlp のパス"
-									placeholder="yt-dlp"
-									value={tempYtDlpPath}
-									onChange={(e) => setTempYtDlpPath(e.target.value)}
-									margin="normal"
-									helperText="yt-dlp実行ファイルのパス（空欄時は PATH を参照）"
-								/>
-							</Box>
+						<div className="min-h-0 overflow-auto p-4">
+							<div className="grid gap-3">
+								<div className="grid gap-2 sm:grid-cols-2">
+									<button
+										className={`btn h-auto min-h-20 justify-start rounded-md border p-3 ${
+											tempUseBundle ? "btn-primary" : "btn-outline"
+										}`}
+										type="button"
+										onClick={() => setTempUseBundle(true)}
+									>
+										<Package size={18} />
+										<span className="text-left">
+											<span className="block">バンドル版</span>
+											<span className="block text-xs font-normal opacity-75">
+												内蔵ツールを使用
+											</span>
+										</span>
+									</button>
+									<button
+										className={`btn h-auto min-h-20 justify-start rounded-md border p-3 ${
+											tempUseBundle ? "btn-outline" : "btn-primary"
+										}`}
+										type="button"
+										onClick={() => setTempUseBundle(false)}
+									>
+										<Terminal size={18} />
+										<span className="text-left">
+											<span className="block">カスタムパス</span>
+											<span className="block text-xs font-normal opacity-75">
+												実行ファイルを指定
+											</span>
+										</span>
+									</button>
+								</div>
 
-							<Box mb={2}>
-								<StyledTextField
-									fullWidth
-									label="FFmpeg のパス"
-									placeholder="ffmpeg"
-									value={tempFfmpegPath}
-									onChange={(e) => setTempFfmpegPath(e.target.value)}
-									margin="normal"
-									helperText="FFmpeg実行ファイルのパス（空欄時は PATH を参照）"
-								/>
-							</Box>
+								{!tempUseBundle ? (
+									<div className="grid gap-3 rounded-md border border-base-300 bg-base-200 p-3">
+										<label className="grid gap-1">
+											<span className="label pb-1 text-xs font-semibold text-base-content/65">
+												yt-dlpのパス
+											</span>
+											<input
+												className="input input-bordered h-10 min-h-10 rounded-md bg-base-100"
+												value={tempYtDlpPath}
+												onChange={(event) =>
+													setTempYtDlpPath(event.target.value)
+												}
+												placeholder="yt-dlp"
+											/>
+										</label>
+										<label className="grid gap-1">
+											<span className="label pb-1 text-xs font-semibold text-base-content/65">
+												FFmpegのパス
+											</span>
+											<input
+												className="input input-bordered h-10 min-h-10 rounded-md bg-base-100"
+												value={tempFfmpegPath}
+												onChange={(event) =>
+													setTempFfmpegPath(event.target.value)
+												}
+												placeholder="ffmpeg"
+											/>
+										</label>
+										<label className="grid gap-1">
+											<span className="label pb-1 text-xs font-semibold text-base-content/65">
+												Denoのパス
+											</span>
+											<input
+												className="input input-bordered h-10 min-h-10 rounded-md bg-base-100"
+												value={tempDenoPath}
+												onChange={(event) =>
+													setTempDenoPath(event.target.value)
+												}
+												placeholder="deno"
+											/>
+										</label>
+									</div>
+								) : null}
 
-							<Box mb={2}>
-								<StyledTextField
-									fullWidth
-									label="Deno のパス"
-									placeholder="deno"
-									value={tempDenoPath}
-									onChange={(e) => setTempDenoPath(e.target.value)}
-									margin="normal"
-									helperText="Deno実行ファイルのパス（空欄時は PATH を参照）"
-								/>
-							</Box>
-						</Box>
-					)}
+								{downloadProgress ? (
+									<div className="rounded-md border border-base-300 bg-base-200 p-3">
+										<div className="flex justify-between gap-3 text-sm">
+											<span>{downloadProgress.tool_name}</span>
+											<span>{downloadProgress.progress.toFixed(1)}%</span>
+										</div>
+										<progress
+											className="progress progress-primary mt-2 w-full"
+											value={downloadProgress.progress}
+											max={100}
+										/>
+										<p className="mt-1 text-xs text-base-content/55">
+											{downloadProgress.status}
+										</p>
+									</div>
+								) : null}
 
-					<Box
-						sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 3 }}
-					>
-						{tempUseBundle && (
-							<CustomButton
-								variant="contained"
-								className="variant-primary"
-								onClick={downloadBundleTools}
-								disabled={
-									isDownloadingTools ||
-									isCheckingTools ||
-									(downloadedOnce &&
-										toolCheckResults.ytDlp &&
-										toolCheckResults.ffmpeg &&
-										toolCheckResults.deno)
-								}
-								sx={{
-									width: "100%",
-									height: "48px",
-									fontSize: "0.875rem",
-								}}
-								startIcon={
-									isDownloadingTools ? (
-										<CircularProgress size={16} color="inherit" />
+								<div className="grid gap-2 sm:grid-cols-3">
+									{toolLabels.map(([label, key]) => (
+										<div
+											key={key}
+											className="flex items-center justify-between rounded-md border border-base-300 bg-base-200 px-3 py-2 text-sm"
+										>
+											<span>{label}</span>
+											<span
+												className={
+													toolCheckResults[key]
+														? "text-success"
+														: "text-base-content/40"
+												}
+											>
+												{toolCheckResults[key] ? "OK" : "未確認"}
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
+						</div>
+
+						<footer className="grid gap-2 border-t border-base-300 p-4 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
+							{tempUseBundle ? (
+								<button
+									className="btn btn-outline rounded-md"
+									type="button"
+									disabled={isDownloadingTools || isCheckingTools}
+									onClick={() => void downloadBundleTools()}
+								>
+									{isDownloadingTools ? (
+										<Loader2 size={16} className="animate-spin" />
 									) : (
-										<Download />
-									)
-								}
+										<Download size={16} />
+									)}
+									ダウンロード
+								</button>
+							) : (
+								<span />
+							)}
+							<button
+								className="btn btn-outline rounded-md"
+								type="button"
+								disabled={isDownloadingTools || isCheckingTools}
+								onClick={() => void checkTools()}
 							>
-								{isDownloadingTools
-									? "ダウンロード中..."
-									: "ツールを上書きダウンロード"}
-							</CustomButton>
-						)}
-
-						<CustomButton
-							variant="outlined"
-							className="variant-secondary"
-							onClick={checkTools}
-							disabled={
-								isCheckingTools ||
-								isDownloadingTools ||
-								(downloadedOnce &&
-									toolCheckResults.ytDlp &&
-									toolCheckResults.ffmpeg &&
-									toolCheckResults.deno)
-							}
-							sx={{
-								width: "100%",
-								height: "48px",
-								fontSize: "0.875rem",
-							}}
-							startIcon={
-								isCheckingTools ? (
-									<CircularProgress size={16} color="inherit" />
+								{isCheckingTools ? (
+									<Loader2 size={16} className="animate-spin" />
 								) : (
-									<CheckCircle />
-								)
-							}
-						>
-							{isCheckingTools ? "確認中..." : "ツールを確認"}
-						</CustomButton>
-					</Box>
-
-					{/* ダウンロード進捗表示 */}
-					{downloadProgress && (
-						<Box sx={{ mb: 3 }}>
-							<Typography
-								variant="caption"
-								sx={{ color: "var(--text-primary)", fontSize: "0.7rem" }}
-							>
-								{downloadProgress.tool_name} - {downloadProgress.status}
-							</Typography>
-							<LinearProgress
-								variant="determinate"
-								value={downloadProgress.progress}
-								sx={{
-									height: 4,
-									borderRadius: 2,
-									backgroundColor: "var(--surface-secondary)",
-									"& .MuiLinearProgress-bar": {
-										backgroundColor: "var(--accent-primary)",
-									},
-								}}
-							/>
-							<Typography
-								variant="caption"
-								sx={{ color: "var(--text-secondary)", fontSize: "0.65rem" }}
-							>
-								{downloadProgress.progress.toFixed(1)}%
-							</Typography>
-						</Box>
-					)}
-
-					{(toolCheckResults.ytDlp ||
-						toolCheckResults.ffmpeg ||
-						toolCheckResults.deno) && (
-						<Box mb={2}>
-							<Alert
-								severity={
-									toolCheckResults.ytDlp &&
-									toolCheckResults.ffmpeg &&
-									toolCheckResults.deno
-										? "success"
-										: "warning"
+									<RefreshCw size={16} />
+								)}
+								確認
+							</button>
+							<span />
+							<button
+								className="btn btn-primary rounded-md"
+								type="button"
+								disabled={
+									!toolCheckResults.ytDlp ||
+									!toolCheckResults.ffmpeg ||
+									!toolCheckResults.deno ||
+									(downloadedOnce && isDownloadingTools)
 								}
-								sx={{
-									backgroundColor: "var(--surface-primary)",
-									color: "var(--text-primary)",
-									border: "1px solid var(--border-primary)",
-									borderRadius: "10px",
-									"& .MuiAlert-icon": {
-										color:
-											toolCheckResults.ytDlp &&
-											toolCheckResults.ffmpeg &&
-											toolCheckResults.deno
-												? "var(--success)"
-												: "var(--warning)",
-									},
-								}}
+								onClick={() => void saveToolsSettings()}
 							>
-								<Typography
-									variant="body2"
-									sx={{ color: "var(--text-primary)" }}
-								>
-									yt-dlp: {toolCheckResults.ytDlp ? "✓ 利用可能" : "✗ 利用不可"}
-									<br />
-									FFmpeg:{" "}
-									{toolCheckResults.ffmpeg ? "✓ 利用可能" : "✗ 利用不可"}
-									<br />
-									Deno: {toolCheckResults.deno ? "✓ 利用可能" : "✗ 利用不可"}
-								</Typography>
-							</Alert>
-						</Box>
-					)}
-				</DialogContent>
-				<DialogActions
-					sx={{ p: 3, borderTop: "1px solid var(--border-primary)" }}
-				>
-					<CustomButton
-						variant="outlined"
-						className="variant-secondary"
-						onClick={() => setShowToolsModal(false)}
-					>
-						キャンセル
-					</CustomButton>
-					<CustomButton
-						onClick={saveToolsSettings}
-						variant="contained"
-						className="variant-primary"
-						disabled={
-							!toolCheckResults.ytDlp ||
-							!toolCheckResults.ffmpeg ||
-							!toolCheckResults.deno
-						}
-					>
-						設定を保存
-					</CustomButton>
-				</DialogActions>
-			</Dialog>
-		</Box>
+								<Save size={16} />
+								保存
+							</button>
+						</footer>
+					</section>
+				</div>
+			) : null}
+		</div>
 	);
 }

@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/tauri";
-import { checkUpdate } from "@tauri-apps/api/updater";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
@@ -25,68 +24,38 @@ const App = () => {
 	};
 
 	useEffect(() => {
-		// リロード禁止
-		document.addEventListener("keydown", (e) => {
-			if (e.key === "F5") {
-				e.preventDefault();
+		const preventReload = (event: KeyboardEvent) => {
+			if (event.key === "F5") {
+				event.preventDefault();
 			}
-		});
+		};
 
-		// 1. アップデート確認を最優先
-		// 2. ツールチェックはアップデート確認後に実施
+		document.addEventListener("keydown", preventReload);
+
 		const boot = async () => {
 			try {
-				const update = await checkUpdate();
-				// アップデート確認が走ったあとにのみツールチェックを行う
-				try {
-					const settings = await invoke<ConfigProps>("get_settings");
-					if (settings?.use_bundle_tools ?? true) {
-						try {
-							await invoke("ensure_bundle_tools");
-						} catch {
-							// ensure が失敗しても、そのまま availability チェックへ進む
-						}
-					}
-					const status = await checkToolAvailability(
-						settings?.use_bundle_tools ?? true,
-						settings?.yt_dlp_path,
-						settings?.ffmpeg_path,
-						settings?.deno_path,
-					);
-					setShowSetup(!status.ok);
-				} catch {
-					setShowSetup(true);
+				const settings = await invoke<ConfigProps>("get_settings");
+				if (settings.use_bundle_tools) {
+					await invoke("ensure_bundle_tools");
 				}
-
-				// 更新可能であれば Setting 画面の checkUpdate に任せる（ここでは UI を変えない）
-				if (update.shouldUpdate) {
-					// 後続で Setting の useEffect がダイアログを出す
-				}
-			} catch {
-				// アップデート確認に失敗してもツールチェックだけは実行して判定
-				try {
-					const settings = await invoke<ConfigProps>("get_settings");
-					if (settings?.use_bundle_tools ?? true) {
-						try {
-							await invoke("ensure_bundle_tools");
-						} catch {
-							// ensure が失敗しても、そのまま availability チェックへ進む
-						}
-					}
-					const status = await checkToolAvailability(
-						settings?.use_bundle_tools ?? true,
-						settings?.yt_dlp_path,
-						settings?.ffmpeg_path,
-						settings?.deno_path,
-					);
-					setShowSetup(!status.ok);
-				} catch {
-					setShowSetup(true);
-				}
+				const status = await checkToolAvailability(
+					settings.use_bundle_tools,
+					settings.yt_dlp_path,
+					settings.ffmpeg_path,
+					settings.deno_path,
+				);
+				setShowSetup(!status.ok);
+			} catch (error) {
+				console.error("Failed to boot app:", error);
+				setShowSetup(true);
 			}
 		};
 
 		boot();
+
+		return () => {
+			document.removeEventListener("keydown", preventReload);
+		};
 	}, []);
 
 	if (showSetup) {
