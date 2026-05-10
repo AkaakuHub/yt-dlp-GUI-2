@@ -31,7 +31,7 @@ pub(super) async fn handle_connection(
 ) -> Result<(), String> {
     let request = read_http_request(&mut stream).await?;
     let settings = Settings::new();
-    if !is_authorized(&request, &settings.remote_auth_token) {
+    if !is_authorized(&request, &settings.server_auth_token) {
         return write_response(&mut stream, 401, "Unauthorized", "unauthorized").await;
     }
 

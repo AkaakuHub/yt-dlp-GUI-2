@@ -68,6 +68,7 @@ fn main() {
             config::commands::set_execution_target,
             config::commands::set_remote_server_url,
             config::commands::set_remote_auth_token,
+            config::commands::set_server_auth_token,
             client::remote::test_remote_server,
             server_cli_service::register_server_cli,
             server_cli_service::unregister_server_cli,

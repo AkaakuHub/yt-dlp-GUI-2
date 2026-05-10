@@ -173,12 +173,12 @@ async fn is_server_cli_running() -> Result<bool, String> {
 
 async fn is_local_server_healthy() -> Result<bool, String> {
     let settings = Settings::new();
-    if settings.remote_auth_token.trim().is_empty() {
+    if settings.server_auth_token.trim().is_empty() {
         return Ok(false);
     }
     let response = reqwest::Client::new()
         .get(format!("http://127.0.0.1:{}/health", settings.server_port))
-        .bearer_auth(settings.remote_auth_token.trim())
+        .bearer_auth(settings.server_auth_token.trim())
         .send()
         .await;
     let Ok(response) = response else {
@@ -192,7 +192,7 @@ async fn is_local_server_healthy() -> Result<bool, String> {
 
 async fn shutdown_local_server_cli() -> Result<bool, String> {
     let settings = Settings::new();
-    if settings.remote_auth_token.trim().is_empty() {
+    if settings.server_auth_token.trim().is_empty() {
         return Ok(false);
     }
     let response = reqwest::Client::new()
@@ -200,7 +200,7 @@ async fn shutdown_local_server_cli() -> Result<bool, String> {
             "http://127.0.0.1:{}/shutdown",
             settings.server_port
         ))
-        .bearer_auth(settings.remote_auth_token.trim())
+        .bearer_auth(settings.server_auth_token.trim())
         .send()
         .await;
     let Ok(response) = response else {

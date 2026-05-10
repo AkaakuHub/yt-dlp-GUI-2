@@ -49,6 +49,7 @@ pub struct Settings {
     pub execution_target: String,
     pub remote_server_url: String,
     pub remote_auth_token: String,
+    pub server_auth_token: String,
     pub yt_dlp_cache: Option<VerifyCache>,
     pub ffmpeg_cache: Option<VerifyCache>,
     pub deno_cache: Option<VerifyCache>,
@@ -72,6 +73,7 @@ impl Default for Settings {
             execution_target: LOCAL_EXECUTION_TARGET.to_string(),
             remote_server_url: "".to_string(),
             remote_auth_token: "".to_string(),
+            server_auth_token: "".to_string(),
             yt_dlp_cache: None,
             ffmpeg_cache: None,
             deno_cache: None,
@@ -182,6 +184,11 @@ impl Settings {
 
     pub fn set_remote_auth_token(&mut self, remote_auth_token: String) {
         self.remote_auth_token = remote_auth_token;
+        self.write_file();
+    }
+
+    pub fn set_server_auth_token(&mut self, server_auth_token: String) {
+        self.server_auth_token = server_auth_token;
         self.write_file();
     }
 
@@ -377,6 +384,16 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_remote_auth_token(remote_auth_token);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_server_auth_token(
+        state: State<'_, AppState>,
+        server_auth_token: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_server_auth_token(server_auth_token);
         Ok(())
     }
 }

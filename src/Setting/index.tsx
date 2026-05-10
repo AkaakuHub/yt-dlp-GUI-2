@@ -103,6 +103,8 @@ export default function Settings() {
 		setRemoteServerUrl,
 		remoteAuthToken,
 		setRemoteAuthToken,
+		serverAuthToken,
+		setServerAuthToken,
 	} = useAppContext();
 
 	const [currentVersion, setCurrentVersion] = useState("");
@@ -180,6 +182,13 @@ export default function Settings() {
 		setRemoteAuthToken(nextRemoteAuthToken);
 		await invoke("set_remote_auth_token", {
 			remoteAuthToken: nextRemoteAuthToken,
+		});
+	};
+
+	const updateServerAuthToken = async (nextServerAuthToken: string) => {
+		setServerAuthToken(nextServerAuthToken);
+		await invoke("set_server_auth_token", {
+			serverAuthToken: nextServerAuthToken,
 		});
 	};
 
@@ -418,13 +427,13 @@ export default function Settings() {
 
 	const generateServerToken = async () => {
 		const token = await invoke<string>("generate_remote_auth_token");
-		await updateRemoteAuthToken(token);
+		await updateServerAuthToken(token);
 		setGeneratedToken(token);
 		setShowTokenModal(true);
 	};
 
 	const copyGeneratedToken = async () => {
-		const token = generatedToken || remoteAuthToken;
+		const token = generatedToken || serverAuthToken;
 		if (token.trim() === "") {
 			toast.error("コピーするトークンがありません");
 			return;
@@ -446,9 +455,13 @@ export default function Settings() {
 
 	const deleteRemoteAuthToken = async () => {
 		await updateRemoteAuthToken("");
+		toast.success("接続トークンを削除しました");
+	};
+
+	const deleteServerAuthToken = async () => {
+		await updateServerAuthToken("");
 		setGeneratedToken("");
 		setShowTokenModal(false);
-		setShowRemoteSettingsModal(false);
 		toast.success("トークンを削除しました");
 	};
 
@@ -467,13 +480,16 @@ export default function Settings() {
 		}
 	};
 
-	const visibleToken = generatedToken || remoteAuthToken;
-	const tokenStatus = remoteAuthToken.trim() === "" ? "未登録" : "登録済み";
+	const visibleToken = generatedToken || serverAuthToken;
+	const serverTokenStatus =
+		serverAuthToken.trim() === "" ? "未登録" : "登録済み";
+	const remoteTokenStatus =
+		remoteAuthToken.trim() === "" ? "未登録" : "登録済み";
 
 	return (
 		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-2 text-base-content">
 			<div className="mx-auto grid h-full min-w-0 max-w-5xl grid-rows-[minmax(0,1fr)_auto] gap-2">
-				<div className="grid min-h-0 min-w-0 grid-rows-[5.125rem_4.625rem_11.875rem_7.875rem_3.625rem] gap-2 overflow-hidden">
+				<div className="grid min-h-0 min-w-0 grid-rows-[5.125rem_4.625rem_7rem_7.875rem_3.625rem] gap-2 overflow-hidden">
 					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_7rem] md:items-end">
 						<ThemeSelector />
 						<div className="flex h-9 items-end">
@@ -535,50 +551,52 @@ export default function Settings() {
 						</div>
 					</SurfaceIsland>
 
-					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_3.5rem_5rem] gap-2">
-						<div className="flex items-center gap-2 text-sm font-semibold">
-							<Network size={16} className="text-primary" />
-							実行先
+					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[8rem_minmax(0,1fr)]">
+						<div className="grid min-h-0 gap-1">
+							<div className="flex h-5 items-center gap-2 text-sm font-semibold">
+								<Network size={16} className="text-primary" />
+								実行先
+							</div>
+							<div className="grid min-h-0 gap-1">
+								<button
+									className={`btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm ${
+										executionTarget === "local"
+											? "btn-primary"
+											: "btn-ghost bg-base-100 hover:bg-base-300"
+									}`}
+									type="button"
+									onClick={() => void updateExecutionTarget("local")}
+								>
+									<HardDrive size={16} />
+									このPC
+								</button>
+								<button
+									className={`btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm ${
+										executionTarget === "remote"
+											? "btn-primary"
+											: "btn-ghost bg-base-100 hover:bg-base-300"
+									}`}
+									type="button"
+									onClick={() => void updateExecutionTarget("remote")}
+								>
+									<Server size={16} />
+									サーバー
+								</button>
+							</div>
 						</div>
-						<div className="grid min-h-0 min-w-0 grid-cols-2 gap-2">
-							<button
-								className={`btn h-14 min-h-14 min-w-0 justify-start rounded-lg px-4 text-base ${
-									executionTarget === "local"
-										? "btn-primary"
-										: "btn-ghost bg-base-100 hover:bg-base-300"
-								}`}
-								type="button"
-								onClick={() => void updateExecutionTarget("local")}
-							>
-								<HardDrive size={16} />
-								このPC
-							</button>
-							<button
-								className={`btn h-14 min-h-14 min-w-0 justify-start rounded-lg px-4 text-base ${
-									executionTarget === "remote"
-										? "btn-primary"
-										: "btn-ghost bg-base-100 hover:bg-base-300"
-								}`}
-								type="button"
-								onClick={() => void updateExecutionTarget("remote")}
-							>
-								<Server size={16} />
-								サーバー
-							</button>
-						</div>
-						<SurfacePanel className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8.5rem] md:items-end">
+						<SurfacePanel className="grid min-h-0 gap-2 p-2 mt-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9.5rem] md:items-center">
 							{executionTarget === "remote" ? (
 								<>
-									<div className="grid min-w-0 gap-1">
-										<span className="text-xs font-semibold text-base-content/65">
+									<div className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] items-center gap-2 rounded-md bg-base-200 px-3 py-2">
+										<span className="text-[11px] font-semibold text-base-content/65">
 											接続先
 										</span>
-										<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-200 px-3 text-sm">
+										<span className="min-w-0 truncate text-sm font-semibold">
 											{remoteServerUrl || "未設定"}
-										</div>
+										</span>
 									</div>
 									<button
-										className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 px-2 text-sm hover:bg-base-300"
+										className="btn btn-ghost h-8 min-h-8 rounded-md bg-base-200 px-2 text-xs hover:bg-base-300"
 										type="button"
 										onClick={() => setShowRemoteSettingsModal(true)}
 									>
@@ -586,7 +604,7 @@ export default function Settings() {
 										接続設定
 									</button>
 									<button
-										className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 px-2 text-sm hover:bg-base-300"
+										className="btn btn-ghost h-8 min-h-8 rounded-md bg-base-200 px-2 text-xs hover:bg-base-300"
 										type="button"
 										disabled={isTestingRemoteServer}
 										onClick={() => void testRemoteServer()}
@@ -600,10 +618,7 @@ export default function Settings() {
 									</button>
 								</>
 							) : (
-								<div className="flex h-full items-center gap-2 rounded-md bg-base-200 px-3 text-sm font-semibold md:col-span-3">
-									<HardDrive size={16} className="text-primary" />
-									このPCで実行
-								</div>
+								<div>このPCで実行します。</div>
 							)}
 						</SurfacePanel>
 					</SurfaceIsland>
@@ -670,7 +685,7 @@ export default function Settings() {
 								className="btn btn-ghost h-9 min-h-9 min-w-0 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
 								type="button"
 								onClick={() => {
-									setGeneratedToken(remoteAuthToken);
+									setGeneratedToken(serverAuthToken);
 									setShowTokenModal(true);
 								}}
 							>
@@ -807,7 +822,7 @@ export default function Settings() {
 						<div className="grid gap-2 rounded-md bg-base-200 p-3 text-sm">
 							<div className="flex items-center justify-between gap-3">
 								<span className="text-base-content/65">状態</span>
-								<span className="font-semibold">{tokenStatus}</span>
+								<span className="font-semibold">{remoteTokenStatus}</span>
 							</div>
 							<div className="flex items-center justify-between gap-3">
 								<span className="text-base-content/65">期限</span>
@@ -870,7 +885,7 @@ export default function Settings() {
 						<div className="grid gap-2 rounded-md bg-base-200 p-3 text-sm">
 							<div className="flex items-center justify-between gap-3">
 								<span className="text-base-content/65">状態</span>
-								<span className="font-semibold">{tokenStatus}</span>
+								<span className="font-semibold">{serverTokenStatus}</span>
 							</div>
 							<div className="flex items-center justify-between gap-3">
 								<span className="text-base-content/65">期限</span>
@@ -889,7 +904,7 @@ export default function Settings() {
 								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
 								type="button"
 								disabled={visibleToken.trim() === ""}
-								onClick={() => void deleteRemoteAuthToken()}
+								onClick={() => void deleteServerAuthToken()}
 							>
 								<X size={16} />
 								削除

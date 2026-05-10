@@ -13,4 +13,5 @@ export interface ConfigProps {
 	execution_target: "local" | "remote";
 	remote_server_url: string;
 	remote_auth_token: string;
+	server_auth_token: string;
 }

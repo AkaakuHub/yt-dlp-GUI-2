@@ -41,6 +41,8 @@ interface AppContextProps {
 	setRemoteServerUrl: React.Dispatch<React.SetStateAction<string>>;
 	remoteAuthToken: string;
 	setRemoteAuthToken: React.Dispatch<React.SetStateAction<string>>;
+	serverAuthToken: string;
+	setServerAuthToken: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -67,6 +69,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	);
 	const [remoteServerUrl, setRemoteServerUrl] = useState("");
 	const [remoteAuthToken, setRemoteAuthToken] = useState("");
+	const [serverAuthToken, setServerAuthToken] = useState("");
 
 	useEffect(() => {
 		invoke<ConfigProps>("get_settings")
@@ -84,6 +87,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setExecutionTarget(config.execution_target);
 				setRemoteServerUrl(config.remote_server_url);
 				setRemoteAuthToken(config.remote_auth_token);
+				setServerAuthToken(config.server_auth_token);
 			})
 			.finally(() => {
 				setIsSettingLoaded(true);
@@ -124,6 +128,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					setRemoteServerUrl,
 					remoteAuthToken,
 					setRemoteAuthToken,
+					serverAuthToken,
+					setServerAuthToken,
 				}}
 			>
 				{children}
