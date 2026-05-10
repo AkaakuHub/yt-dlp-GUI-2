@@ -59,8 +59,11 @@ sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" package.js
 # Remove backup files
 rm -f src-tauri/Cargo.toml.bak src-tauri/tauri.conf.json.bak package.json.bak
 
+cargo update --manifest-path src-tauri/Cargo.toml -p yt-dlp-GUI
+
 echo "Version updated to $NEW_VERSION in:"
 echo "  - src-tauri/Cargo.toml"
+echo "  - src-tauri/Cargo.lock"
 echo "  - src-tauri/tauri.conf.json"
 echo "  - package.json"
 
@@ -76,7 +79,7 @@ if [ -z "$CI" ]; then
     fi
 
     echo "Committing changes..."
-    git add src-tauri/Cargo.toml src-tauri/tauri.conf.json package.json
+    git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json package.json
     git commit -m "v$NEW_VERSION"
 
     echo "Creating tag $TAG..."

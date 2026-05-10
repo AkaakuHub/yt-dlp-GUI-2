@@ -20,7 +20,7 @@
 
 このスクリプトは`main`ブランチ上でだけ実行できます。
 
-1. `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`package.json`のversionを更新します。
+1. `src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`、`package.json`のversionを更新します。
 2. `v2.0.0`形式でcommitします。
 3. `v2.0.0`形式のannotated tagを作成します。
 4. `main`とtagをpushします。
