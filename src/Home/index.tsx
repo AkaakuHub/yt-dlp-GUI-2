@@ -334,14 +334,10 @@ export default function Home() {
 	}, [runQueueNext, setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
-		const manualUrl = urlInput.trim();
-		if (manualUrl !== "") {
-			await executeButtonOnClick(manualUrl);
-			return;
-		}
-		const clipboardUrl = (await readText()) || "";
-		setUrlInput(clipboardUrl);
-		await executeButtonOnClick(clipboardUrl);
+		const clipboardUrl = ((await readText()) || "").trim();
+		const targetUrl = clipboardUrl || urlInput.trim();
+		setUrlInput(targetUrl);
+		await executeButtonOnClick(targetUrl);
 	};
 
 	const stopProcess = async () => {
