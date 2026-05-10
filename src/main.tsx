@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { AppProvider } from "./_components/AppContext";
 import { TabComponent } from "./_components/TabComponent";
 import { useTheme } from "./_components/ThemeContext";
