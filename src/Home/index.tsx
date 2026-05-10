@@ -496,7 +496,7 @@ export default function Home() {
 							) : null}
 						</div>
 
-						<div className="z-20 grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+						<div className="z-[60] grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 							<PrimaryCircleButton
 								label={pid === null ? "実行" : "中止"}
 								icon={
