@@ -87,6 +87,7 @@ export default function Home() {
 		index: -1,
 		items: [],
 	});
+	const latestDownloadDestinationRef = useRef("");
 	const selectedIndexRef = useRef(selectedIndexNumber);
 	const invalidTimestampRef = useRef({
 		start_time: false,
@@ -295,16 +296,33 @@ export default function Home() {
 			if (event.payload === "") {
 				return;
 			}
+			if (event.payload.includes("Destination:")) {
+				latestDownloadDestinationRef.current = event.payload;
+			}
+			if (
+				event.payload.startsWith("[download]") ||
+				event.payload.startsWith("[Merger]") ||
+				event.payload.startsWith("[Fixup")
+			) {
+				const progressPayload =
+					latestDownloadDestinationRef.current &&
+					event.payload.startsWith("[download]") &&
+					!event.payload.includes("Destination:")
+						? `${event.payload}\n${latestDownloadDestinationRef.current}`
+						: event.payload;
+				setLatestConsoleText(progressPayload);
+			}
 			setConsoleText((prev) => {
 				if (prev === "") {
 					return event.payload.trimStart();
 				}
-				setLatestConsoleText(event.payload);
 				return `${prev}\n${event.payload}`;
 			});
 		});
 
 		const unlistenExit = listen<string>("process-exit", () => {
+			latestDownloadDestinationRef.current = "";
+			setLatestConsoleText("");
 			setPid(null);
 			runQueueNext();
 		});
