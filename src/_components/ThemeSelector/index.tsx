@@ -1,4 +1,4 @@
-import { Laptop, Moon, Sun } from "lucide-react";
+import { Laptop, Moon, Palette, Sun } from "lucide-react";
 import type React from "react";
 import { type ThemeMode, useTheme } from "../ThemeContext";
 
@@ -14,7 +14,10 @@ const ThemeSelector: React.FC = () => {
 
 	return (
 		<div className="grid min-w-0 gap-2">
-			<label className="text-sm font-semibold text-base-content">テーマ</label>
+			<label className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
+				<Palette size={14} className="text-primary" />
+				テーマ
+			</label>
 			<div className="grid min-w-0 grid-cols-3 gap-2">
 				{themes.map((theme) => (
 					<button

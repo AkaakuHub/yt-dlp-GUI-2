@@ -11,10 +11,12 @@ import { check } from "@tauri-apps/plugin-updater";
 import {
 	Bell,
 	CheckCircle2,
+	Cookie,
 	Copy,
 	Download,
 	FolderOpen,
 	HardDrive,
+	Hash,
 	KeyRound,
 	Loader2,
 	Network,
@@ -528,7 +530,8 @@ export default function Settings() {
 								</div>
 							</label>
 							<label className="grid min-w-0 gap-1">
-								<span className="text-xs font-semibold text-base-content/65">
+								<span className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
+									<Cookie size={14} className="text-primary" />
 									Cookieブラウザ
 								</span>
 								<AppInput
@@ -538,7 +541,8 @@ export default function Settings() {
 								/>
 							</label>
 							<label className="grid min-w-0 gap-1">
-								<span className="text-xs font-semibold text-base-content/65">
+								<span className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
+									<Hash size={14} className="text-primary" />
 									ポート
 								</span>
 								<AppInput
@@ -553,7 +557,7 @@ export default function Settings() {
 
 					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[8rem_minmax(0,1fr)]">
 						<div className="grid min-h-0 gap-1">
-							<div className="flex h-5 items-center gap-2 text-sm font-semibold">
+							<div className="flex h-5 items-center gap-2 text-xs font-semibold text-base-content/65">
 								<Network size={16} className="text-primary" />
 								実行先
 							</div>
@@ -624,7 +628,7 @@ export default function Settings() {
 					</SurfaceIsland>
 
 					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_2.25rem_2.25rem] gap-2">
-						<div className="flex items-center gap-2 text-sm font-semibold">
+						<div className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
 							<Server size={16} className="text-primary" />
 							このPCをサーバーにする
 							{serverCliStatus ? (

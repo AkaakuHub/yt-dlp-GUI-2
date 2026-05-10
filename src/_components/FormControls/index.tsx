@@ -19,7 +19,7 @@ export function AppInput({
 }: AppInputProps) {
 	return (
 		<input
-			className="input input-bordered h-9 min-h-9 min-w-0 rounded-md bg-base-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+			className="input input-bordered h-9 min-h-9 min-w-0 rounded-md bg-base-100 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
 			value={value}
 			onChange={onChange}
 			placeholder={placeholder}
