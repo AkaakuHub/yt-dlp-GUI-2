@@ -42,6 +42,13 @@
 	border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
 }
 
+.dark .input.input-bordered:not(:focus),
+.dark .textarea.textarea-bordered:not(:focus),
+.dark .select.select-bordered:not(:focus),
+.dark .toggle:not(:checked) {
+	border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
+}
+
 .dark .btn.btn-ghost:hover {
 	border-color: color-mix(in oklch, var(--color-base-content) 30%, transparent);
 }
