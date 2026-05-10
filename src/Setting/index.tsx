@@ -222,8 +222,17 @@ export default function Settings() {
 		const unlistenPromise = setupDownloadProgressListener();
 		void loadSettingsMetadata();
 		void refreshServerCliStatus();
+		const refreshOnVisible = () => {
+			if (document.visibilityState === "visible") {
+				void refreshServerCliStatus();
+			}
+		};
+		window.addEventListener("focus", refreshServerCliStatus);
+		document.addEventListener("visibilitychange", refreshOnVisible);
 
 		return () => {
+			window.removeEventListener("focus", refreshServerCliStatus);
+			document.removeEventListener("visibilitychange", refreshOnVisible);
 			unlistenPromise.then((unlisten) => unlisten());
 		};
 	}, [refreshServerCliStatus]);
