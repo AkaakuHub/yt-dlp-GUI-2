@@ -3,6 +3,7 @@ export interface ConfigProps {
 	browser: string;
 	server_port: number;
 	is_send_notification: boolean;
+	use_cookie: boolean;
 	index: number;
 	theme_mode: string;
 	use_bundle_tools: boolean; // true: バンドル版使用, false: パス版使用

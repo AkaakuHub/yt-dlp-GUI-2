@@ -23,6 +23,8 @@ interface AppContextProps {
 	setServerPort: React.Dispatch<React.SetStateAction<number>>;
 	isSendNotification: boolean;
 	setIsSendNotification: React.Dispatch<React.SetStateAction<boolean>>;
+	useCookie: boolean;
+	setUseCookie: React.Dispatch<React.SetStateAction<boolean>>;
 	selectedIndexNumber: number;
 	setSelectedIndexNumber: React.Dispatch<React.SetStateAction<number>>;
 	useBundleTools: boolean;
@@ -56,6 +58,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const [browser, setBrowser] = useState("");
 	const [serverPort, setServerPort] = useState<number>(0);
 	const [isSendNotification, setIsSendNotification] = useState(true);
+	const [useCookie, setUseCookie] = useState(true);
 	const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(1);
 	const [useBundleTools, setUseBundleTools] = useState(true);
 	const [ytDlpPath, setYtDlpPath] = useState("");
@@ -75,6 +78,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setBrowser(config.browser);
 				setServerPort(config.server_port);
 				setIsSendNotification(config.is_send_notification);
+				setUseCookie(config.use_cookie);
 				setSelectedIndexNumber(config.index);
 				setUseBundleTools(config.use_bundle_tools);
 				setYtDlpPath(config.yt_dlp_path);
@@ -106,6 +110,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					setServerPort,
 					isSendNotification,
 					setIsSendNotification,
+					useCookie,
+					setUseCookie,
 					selectedIndexNumber,
 					setSelectedIndexNumber,
 					useBundleTools,

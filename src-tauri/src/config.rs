@@ -39,6 +39,7 @@ pub struct Settings {
     pub browser: String,
     pub server_port: u16,
     pub is_send_notification: bool,
+    pub use_cookie: bool,
     pub index: u32,
     pub theme_mode: String,
     pub use_bundle_tools: bool, // true: バンドル版使用, false: パス版使用
@@ -62,6 +63,7 @@ impl Default for Settings {
             browser: "firefox".to_string(),
             server_port: 50000,
             is_send_notification: true,
+            use_cookie: true,
             index: 3,
             theme_mode: "system".to_string(),
             use_bundle_tools: true, // デフォルトはバンドル版（初心者向け）
@@ -129,6 +131,11 @@ impl Settings {
 
     pub fn set_is_send_notification(&mut self, new_is_send_notification: bool) {
         self.is_send_notification = new_is_send_notification;
+        self.write_file();
+    }
+
+    pub fn set_use_cookie(&mut self, new_use_cookie: bool) {
+        self.use_cookie = new_use_cookie;
         self.write_file();
     }
 
@@ -281,6 +288,16 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_is_send_notification(new_is_send_notification);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_use_cookie(
+        state: State<'_, AppState>,
+        new_use_cookie: bool,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_use_cookie(new_use_cookie);
         Ok(())
     }
 

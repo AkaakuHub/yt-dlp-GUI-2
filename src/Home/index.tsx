@@ -62,6 +62,8 @@ export default function Home() {
 		selectedIndexNumber,
 		setLatestConsoleText,
 		setSelectedIndexNumber,
+		setUseCookie,
+		useCookie,
 	} = useAppContext();
 	const [pid, setPid] = useState<number | null>(null);
 	const [consoleText, setConsoleText] = useState("");
@@ -77,7 +79,7 @@ export default function Home() {
 		output_name: "",
 		start_time: "",
 		end_time: "",
-		is_cookie: false,
+		is_cookie: useCookie,
 	});
 
 	const queueStateRef = useRef<QueueState>({
@@ -99,6 +101,16 @@ export default function Home() {
 	useEffect(() => {
 		selectedIndexRef.current = selectedIndexNumber;
 	}, [selectedIndexNumber]);
+
+	useEffect(() => {
+		setParam((prev) => ({ ...prev, is_cookie: useCookie }));
+	}, [useCookie]);
+
+	const updateCookie = async (nextUseCookie: boolean) => {
+		setUseCookie(nextUseCookie);
+		setParam((prev) => ({ ...prev, is_cookie: nextUseCookie }));
+		await invoke("set_use_cookie", { newUseCookie: nextUseCookie });
+	};
 
 	const validateTimestamp = useCallback(
 		(field: TimestampField, value: string): void => {
@@ -432,9 +444,7 @@ export default function Home() {
 									className="toggle toggle-primary toggle-sm"
 									checked={param.is_cookie}
 									type="checkbox"
-									onChange={(event) =>
-										setParam({ ...param, is_cookie: event.target.checked })
-									}
+									onChange={(event) => void updateCookie(event.target.checked)}
 								/>
 								<Cookie size={15} />
 								<span className="hidden lg:inline">クッキー</span>
