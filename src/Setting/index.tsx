@@ -9,15 +9,20 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import {
 	Bell,
+	CheckCircle2,
 	Download,
 	FolderOpen,
 	HardDrive,
 	Loader2,
+	Network,
 	Package,
+	Play,
 	RefreshCw,
 	Save,
 	Server,
 	Settings2,
+	Shield,
+	StopCircle,
 	Terminal,
 	X,
 } from "lucide-react";
@@ -38,6 +43,13 @@ type DownloadProgress = {
 	tool_name: string;
 	progress: number;
 	status: string;
+};
+
+type ServerCliStatus = {
+	registered: boolean;
+	running: boolean;
+	pathExists: boolean;
+	path: string;
 };
 
 const emptyToolResults: ToolCheckResults = {
@@ -81,6 +93,12 @@ export default function Settings() {
 		denoPath,
 		setDenoPath,
 		isSettingLoaded,
+		executionTarget,
+		setExecutionTarget,
+		remoteServerUrl,
+		setRemoteServerUrl,
+		remoteAuthToken,
+		setRemoteAuthToken,
 	} = useAppContext();
 
 	const [currentVersion, setCurrentVersion] = useState("");
@@ -100,6 +118,11 @@ export default function Settings() {
 	const [downloadProgress, setDownloadProgress] =
 		useState<DownloadProgress | null>(null);
 	const [downloadedOnce, setDownloadedOnce] = useState(false);
+	const [isRegisteringServerCli, setIsRegisteringServerCli] = useState(false);
+	const [isOperatingServerCli, setIsOperatingServerCli] = useState(false);
+	const [isTestingRemoteServer, setIsTestingRemoteServer] = useState(false);
+	const [serverCliStatus, setServerCliStatus] =
+		useState<ServerCliStatus | null>(null);
 
 	const updateSaveDir = async (nextSaveDir: string) => {
 		setSaveDir(nextSaveDir);
@@ -129,6 +152,34 @@ export default function Settings() {
 			newIsServerEnabled: nextIsServerEnabled,
 		});
 	};
+
+	const updateExecutionTarget = async (
+		nextExecutionTarget: "local" | "remote",
+	) => {
+		setExecutionTarget(nextExecutionTarget);
+		await invoke("set_execution_target", {
+			executionTarget: nextExecutionTarget,
+		});
+	};
+
+	const updateRemoteServerUrl = async (nextRemoteServerUrl: string) => {
+		setRemoteServerUrl(nextRemoteServerUrl);
+		await invoke("set_remote_server_url", {
+			remoteServerUrl: nextRemoteServerUrl,
+		});
+	};
+
+	const updateRemoteAuthToken = async (nextRemoteAuthToken: string) => {
+		setRemoteAuthToken(nextRemoteAuthToken);
+		await invoke("set_remote_auth_token", {
+			remoteAuthToken: nextRemoteAuthToken,
+		});
+	};
+
+	const refreshServerCliStatus = useCallback(async () => {
+		const status = await invoke<ServerCliStatus>("get_server_cli_status");
+		setServerCliStatus(status);
+	}, []);
 
 	const executeUpdate = useCallback(async () => {
 		const update = await check();
@@ -162,11 +213,12 @@ export default function Settings() {
 
 		const unlistenPromise = setupDownloadProgressListener();
 		void loadSettingsMetadata();
+		void refreshServerCliStatus();
 
 		return () => {
 			unlistenPromise.then((unlisten) => unlisten());
 		};
-	}, []);
+	}, [refreshServerCliStatus]);
 
 	useEffect(() => {
 		if (!isSettingLoaded || serverPort === 0 || Number.isNaN(serverPort)) {
@@ -305,6 +357,78 @@ export default function Settings() {
 		toast.success("ツール設定を保存しました");
 	};
 
+	const registerServerCli = async () => {
+		setIsRegisteringServerCli(true);
+		try {
+			await invoke("register_server_cli");
+			await refreshServerCliStatus();
+			toast.success("サーバーCLIを常駐登録しました");
+		} catch (error) {
+			toast.error(`サーバーCLIの常駐登録に失敗しました:${String(error)}`);
+		} finally {
+			setIsRegisteringServerCli(false);
+		}
+	};
+
+	const unregisterServerCli = async () => {
+		setIsRegisteringServerCli(true);
+		try {
+			await invoke("unregister_server_cli");
+			await refreshServerCliStatus();
+			toast.success("サーバーCLIの常駐登録を解除しました");
+		} catch (error) {
+			toast.error(`サーバーCLIの常駐登録解除に失敗しました:${String(error)}`);
+		} finally {
+			setIsRegisteringServerCli(false);
+		}
+	};
+
+	const startServerCli = async () => {
+		setIsOperatingServerCli(true);
+		try {
+			await invoke("start_server_cli");
+			await refreshServerCliStatus();
+			toast.success("サーバーCLIを起動しました");
+		} catch (error) {
+			toast.error(`サーバーCLIの起動に失敗しました:${String(error)}`);
+		} finally {
+			setIsOperatingServerCli(false);
+		}
+	};
+
+	const stopServerCli = async () => {
+		setIsOperatingServerCli(true);
+		try {
+			await invoke("stop_server_cli");
+			await refreshServerCliStatus();
+			toast.success("サーバーCLIを停止しました");
+		} catch (error) {
+			toast.error(`サーバーCLIの停止に失敗しました:${String(error)}`);
+		} finally {
+			setIsOperatingServerCli(false);
+		}
+	};
+
+	const generateRemoteToken = async () => {
+		const token = await invoke<string>("generate_remote_auth_token");
+		await updateRemoteAuthToken(token);
+	};
+
+	const testRemoteServer = async () => {
+		setIsTestingRemoteServer(true);
+		try {
+			await invoke("test_remote_server", {
+				serverUrl: remoteServerUrl,
+				authToken: remoteAuthToken,
+			});
+			toast.success("リモートサーバーに接続できました");
+		} catch (error) {
+			toast.error(`リモートサーバーに接続できません:${String(error)}`);
+		} finally {
+			setIsTestingRemoteServer(false);
+		}
+	};
+
 	return (
 		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-3 text-base-content">
 			<div className="mx-auto grid h-full max-w-5xl content-start gap-3">
@@ -370,6 +494,155 @@ export default function Settings() {
 								onChange={(event) => void changeServerPort(event)}
 							/>
 						</label>
+					</div>
+				</section>
+
+				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300">
+					<div className="flex items-center gap-2 text-sm font-semibold">
+						<Network size={16} className="text-primary" />
+						実行先
+						{serverCliStatus ? (
+							<span className="ml-auto text-xs font-normal text-base-content/60">
+								{serverCliStatus.running ? "CLI起動中" : "CLI停止中"} /{" "}
+								{serverCliStatus.registered ? "登録済み" : "未登録"}
+							</span>
+						) : null}
+					</div>
+					<div className="grid gap-2 md:grid-cols-2">
+						<button
+							className={`btn h-11 min-h-11 justify-start rounded-md ${
+								executionTarget === "local"
+									? "btn-primary"
+									: "btn-ghost bg-base-100 hover:bg-base-300"
+							}`}
+							type="button"
+							onClick={() => void updateExecutionTarget("local")}
+						>
+							<HardDrive size={16} />
+							このPC
+						</button>
+						<button
+							className={`btn h-11 min-h-11 justify-start rounded-md ${
+								executionTarget === "remote"
+									? "btn-primary"
+									: "btn-ghost bg-base-100 hover:bg-base-300"
+							}`}
+							type="button"
+							onClick={() => void updateExecutionTarget("remote")}
+						>
+							<Server size={16} />
+							サーバー
+						</button>
+					</div>
+					{executionTarget === "remote" ? (
+						<div className="grid gap-2 md:grid-cols-2">
+							<label className="grid gap-1">
+								<span className="label pb-1 text-xs font-semibold text-base-content/65">
+									サーバーURL
+								</span>
+								<input
+									className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
+									value={remoteServerUrl}
+									onChange={(event) =>
+										void updateRemoteServerUrl(event.target.value)
+									}
+									placeholder="http://100.x.y.z:50000"
+									type="url"
+								/>
+							</label>
+							<label className="grid gap-1">
+								<span className="label pb-1 text-xs font-semibold text-base-content/65">
+									トークン
+								</span>
+								<div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+									<input
+										className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
+										value={remoteAuthToken}
+										onChange={(event) =>
+											void updateRemoteAuthToken(event.target.value)
+										}
+										type="password"
+									/>
+									<button
+										className="btn btn-ghost h-11 min-h-11 rounded-md bg-base-100 hover:bg-base-300"
+										type="button"
+										onClick={() => void generateRemoteToken()}
+										aria-label="トークンを生成"
+									>
+										<Shield size={16} />
+									</button>
+								</div>
+							</label>
+						</div>
+					) : null}
+					<div className="grid gap-2 md:grid-cols-3">
+						<button
+							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
+							type="button"
+							disabled={isOperatingServerCli}
+							onClick={() =>
+								void (serverCliStatus?.running
+									? stopServerCli()
+									: startServerCli())
+							}
+						>
+							{isOperatingServerCli ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : serverCliStatus?.running ? (
+								<StopCircle size={16} />
+							) : (
+								<Play size={16} />
+							)}
+							{serverCliStatus?.running ? "CLIを停止" : "CLIを起動"}
+						</button>
+						<button
+							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
+							type="button"
+							disabled={isRegisteringServerCli}
+							onClick={() => void registerServerCli()}
+						>
+							{isRegisteringServerCli ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : (
+								<Server size={16} />
+							)}
+							サーバーCLIを登録
+						</button>
+						<button
+							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
+							type="button"
+							disabled={isRegisteringServerCli}
+							onClick={() => void unregisterServerCli()}
+						>
+							<X size={16} />
+							登録を解除
+						</button>
+					</div>
+					<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+						<div className="min-w-0 truncate rounded-md bg-base-100 px-3 py-2 text-xs text-base-content/55">
+							{serverCliStatus?.path || "サーバーCLIの場所を確認中"}
+						</div>
+						<button
+							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
+							type="button"
+							onClick={() => void refreshServerCliStatus()}
+							aria-label="サーバーCLI状態を更新"
+						>
+							<RefreshCw size={16} />
+						</button>
+						<button
+							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
+							type="button"
+							disabled={isTestingRemoteServer}
+							onClick={() => void testRemoteServer()}
+						>
+							{isTestingRemoteServer ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : (
+								<CheckCircle2 size={16} />
+							)}
+							接続確認
+						</button>
 					</div>
 				</section>
 
