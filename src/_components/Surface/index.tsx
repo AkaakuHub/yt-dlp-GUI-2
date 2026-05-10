@@ -11,7 +11,7 @@ export function SurfaceIsland({
 }: SurfaceIslandProps) {
 	return (
 		<section
-			className={`min-w-0 overflow-hidden rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm ${className}`}
+			className={`min-w-0 rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm ${className}`}
 		>
 			{children}
 		</section>
