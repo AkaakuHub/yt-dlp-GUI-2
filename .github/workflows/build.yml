@@ -74,7 +74,12 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev libxdo-dev librsvg2-dev patchelf
+
+      - name: Enable .NET Framework 3.5 (windows only)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -116,8 +121,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.BUILD_SECRET_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.BUILD_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.BUILD_SECRET_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.BUILD_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: 'yt-dlp-GUI v__VERSION__'
