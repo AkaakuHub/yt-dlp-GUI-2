@@ -1,6 +1,6 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
+import { invoke } from "@tauri-apps/api/core";
 import { dirname, resolve } from "@tauri-apps/api/path";
-import { invoke } from "@tauri-apps/api/tauri";
 import {
 	ArrowLeft,
 	ArrowRight,

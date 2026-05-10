@@ -1,43 +1,25 @@
 import {
 	isPermissionGranted,
-	requestPermission,
 	sendNotification,
-} from "@tauri-apps/api/notification";
+} from "@tauri-apps/plugin-notification";
 import { useCallback, useEffect, useState } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
 function WindowControls() {
-	useEffect(() => {
-		const checkNotificationPermission = async () => {
-			let permissionGranted = await isPermissionGranted();
-			if (!permissionGranted) {
-				const permission = await requestPermission();
-				permissionGranted = permission === "granted";
-			}
-		};
-		checkNotificationPermission();
-	}, []);
-
 	const sendNotificationHandler = useCallback(
 		async (title: string, body: string) => {
 			try {
-				let permissionGranted = await isPermissionGranted();
-				if (!permissionGranted) {
-					const permission = await requestPermission();
-					permissionGranted = permission === "granted";
-				}
+				const permissionGranted = await isPermissionGranted();
 				if (permissionGranted) {
 					sendNotification({
 						title,
 						body,
-						icon: "icons/32x32.png",
+						autoCancel: true,
+						ongoing: false,
 					});
-					return;
 				}
-			} catch {
-				// Tauri通知が失敗した場合
-			}
+			} catch {}
 		},
 		[],
 	);
@@ -131,11 +113,13 @@ function WindowControls() {
 			} else {
 				setIsDownloading(false);
 				setProgressPercentage(0);
-				if (videoTitle !== "" && isSendNotification) {
-					sendNotificationHandler(
-						"ダウンロード完了",
-						`${videoTitle} のダウンロードが完了しました。`,
-					);
+				if (videoTitle !== "") {
+					if (isSendNotification) {
+						void sendNotificationHandler(
+							"ダウンロード完了",
+							`${videoTitle} のダウンロードが完了しました。`,
+						);
+					}
 					eventEmitter.emit("refreshFiles");
 				}
 				setVideoTitle("");

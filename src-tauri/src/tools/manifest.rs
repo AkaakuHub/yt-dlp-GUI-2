@@ -33,12 +33,10 @@ pub(crate) fn find_tool_artifact<'a>(
     os: &'a str,
     arch: &'a str,
 ) -> Result<&'a ToolArtifact, String> {
-    let tool = manifest.tools.get(tool_name).ok_or_else(|| {
-        format!(
-            "tools-manifest.jsonに{}の定義がありません",
-            tool_name
-        )
-    })?;
+    let tool = manifest
+        .tools
+        .get(tool_name)
+        .ok_or_else(|| format!("tools-manifest.jsonに{}の定義がありません", tool_name))?;
 
     tool.artifacts
         .iter()
@@ -57,10 +55,7 @@ pub(crate) fn artifact_filename(artifact: &ToolArtifact) -> Result<String, Strin
     }
 
     let without_query = artifact.url.split('?').next().unwrap_or(&artifact.url);
-    let name = without_query
-        .rsplit('/')
-        .next()
-        .unwrap_or("download");
+    let name = without_query.rsplit('/').next().unwrap_or("download");
     if name.is_empty() {
         return Err("アーティファクトのファイル名が取得できません".to_string());
     }
@@ -68,8 +63,7 @@ pub(crate) fn artifact_filename(artifact: &ToolArtifact) -> Result<String, Strin
 }
 
 pub(crate) fn sha256_file(path: &Path) -> Result<String, String> {
-    let mut file =
-        std::fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut file = std::fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
     let mut hasher = Sha256::new();
     let mut buffer = [0u8; 1024 * 1024];
     loop {

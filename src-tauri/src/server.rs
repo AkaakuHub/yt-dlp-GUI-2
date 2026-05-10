@@ -1,4 +1,4 @@
-use tauri::Window;
+use tauri::{Emitter, Window};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader as TokioBufReader;

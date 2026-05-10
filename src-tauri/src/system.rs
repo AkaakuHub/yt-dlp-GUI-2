@@ -1,7 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tauri::api::shell::open;
-use tauri::Manager;
-use tauri::Window;
 
 use open as open_path;
 
@@ -60,8 +57,8 @@ pub fn get_os_type() -> String {
 }
 
 #[tauri::command]
-pub async fn open_url_and_exit(window: Window, url: String) {
-    if open(&window.shell_scope(), url, None).is_ok() {
+pub async fn open_url_and_exit(url: String) {
+    if open_path::that(url).is_ok() {
         std::process::exit(0x0);
     }
 }

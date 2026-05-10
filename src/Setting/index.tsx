@@ -1,13 +1,12 @@
-import { dialog } from "@tauri-apps/api";
-import { open } from "@tauri-apps/api/dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { message, open } from "@tauri-apps/plugin-dialog";
 import {
 	isPermissionGranted,
 	requestPermission,
-} from "@tauri-apps/api/notification";
-import { relaunch } from "@tauri-apps/api/process";
-import { invoke } from "@tauri-apps/api/tauri";
-import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
+} from "@tauri-apps/plugin-notification";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import {
 	Bell,
 	Download,
@@ -132,8 +131,12 @@ export default function Settings() {
 	};
 
 	const executeUpdate = useCallback(async () => {
-		await installUpdate();
-		await dialog.message(
+		const update = await check();
+		if (update === null) {
+			return;
+		}
+		await update.downloadAndInstall();
+		await message(
 			"アップデートが完了しました。アプリケーションを再起動します。",
 		);
 		await relaunch();
@@ -150,11 +153,11 @@ export default function Settings() {
 			const [version, granted, update] = await Promise.all([
 				invoke<string>("get_current_version"),
 				isPermissionGranted().catch(() => false),
-				checkUpdate().catch(() => ({ shouldUpdate: false })),
+				check().catch(() => null),
 			]);
 			setCurrentVersion(version);
 			setNotificationPermission(granted);
-			setIsUpdateAvailable(update.shouldUpdate);
+			setIsUpdateAvailable(update !== null);
 		};
 
 		const unlistenPromise = setupDownloadProgressListener();

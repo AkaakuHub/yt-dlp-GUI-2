@@ -41,8 +41,8 @@ fn get_tools_root() -> Result<PathBuf, String> {
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn get_tools_root() -> Result<PathBuf, String> {
-    let home = std::env::var("HOME")
-        .map_err(|_| "HOME environment variable is not set".to_string())?;
+    let home =
+        std::env::var("HOME").map_err(|_| "HOME environment variable is not set".to_string())?;
     Ok(PathBuf::from(home).join(".yt-dlp-GUI"))
 }
 
@@ -95,8 +95,7 @@ fn command_name_candidates(command_name: &str) -> Vec<String> {
 #[cfg(target_os = "windows")]
 fn command_name_candidates(command_name: &str) -> Vec<String> {
     let mut candidates = vec![command_name.to_string()];
-    let exts = std::env::var_os("PATHEXT")
-        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
+    let exts = std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
     for ext in exts.to_string_lossy().split(';') {
         let ext = ext.trim();
         if ext.is_empty() {

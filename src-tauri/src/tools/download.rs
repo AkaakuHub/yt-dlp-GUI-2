@@ -1,9 +1,11 @@
 use crate::tools::manifest::{
     artifact_filename, find_tool_artifact, load_tools_manifest_from_release, sha256_file,
 };
-use crate::tools::path::{find_ffmpeg_recursive, get_tools_dir, resolve_tool_paths, run_tool_version};
 use crate::tools::path::DownloadProgress;
-use tauri::Window;
+use crate::tools::path::{
+    find_ffmpeg_recursive, get_tools_dir, resolve_tool_paths, run_tool_version,
+};
+use tauri::{Emitter, Window};
 use tokio::fs as TokioFs;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command as TokioCommand;
@@ -191,14 +193,8 @@ pub async fn ensure_bundle_tools(
             } else {
                 "yt-dlp"
             });
-            download_file_with_progress(
-                &art.url,
-                &dst,
-                &window,
-                "yt-dlp",
-                Some(&art.sha256),
-            )
-            .await?;
+            download_file_with_progress(&art.url, &dst, &window, "yt-dlp", Some(&art.sha256))
+                .await?;
         }
     }
 
@@ -393,7 +389,10 @@ async fn download_file_with_progress(
     Ok(())
 }
 
-fn extract_zip(archive_path: &std::path::Path, extract_dir: &std::path::Path) -> Result<(), String> {
+fn extract_zip(
+    archive_path: &std::path::Path,
+    extract_dir: &std::path::Path,
+) -> Result<(), String> {
     use zip::ZipArchive;
 
     let file =
@@ -429,7 +428,10 @@ fn extract_zip(archive_path: &std::path::Path, extract_dir: &std::path::Path) ->
     Ok(())
 }
 
-async fn extract_tar_xz(archive_path: &std::path::Path, extract_dir: &std::path::Path) -> Result<(), String> {
+async fn extract_tar_xz(
+    archive_path: &std::path::Path,
+    extract_dir: &std::path::Path,
+) -> Result<(), String> {
     let output = TokioCommand::new("tar")
         .arg("-xf")
         .arg(archive_path)

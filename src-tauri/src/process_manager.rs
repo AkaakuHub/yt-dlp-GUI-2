@@ -1,7 +1,7 @@
 use std::process::Stdio;
 use std::sync::Arc;
 
-use tauri::Window;
+use tauri::{Emitter, Window};
 use tokio::io::AsyncReadExt;
 use tokio::io::BufReader as TokioBufReader;
 use tokio::process::Command as TokioCommand;

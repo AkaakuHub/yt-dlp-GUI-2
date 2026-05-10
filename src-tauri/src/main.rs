@@ -9,23 +9,18 @@ mod system;
 mod tools;
 
 use std::sync::Arc;
-use tauri::Manager;
 
 use command_handlers::{run_command, stop_command};
 use process_manager::CommandManager;
 use server::ServerManager;
 use system::{
-    get_current_version,
-    get_os_type,
-    get_sorted_directory_contents,
-    open_directory,
-    open_file,
+    get_current_version, get_os_type, get_sorted_directory_contents, open_directory, open_file,
     open_url_and_exit,
 };
 use tools::{check_tools_status, download_bundle_tools, ensure_bundle_tools};
 
 #[cfg(any(windows, target_os = "macos"))]
-use window_shadows::set_shadow;
+use window_shadows_v2::set_shadows;
 
 fn main() {
     let _ = fix_path_env::fix();
@@ -35,9 +30,8 @@ fn main() {
 
     tauri::Builder::default()
         .setup(|app| {
-            let main_window = app.get_window("main").unwrap();
             #[cfg(any(windows, target_os = "macos"))]
-            set_shadow(main_window, true).unwrap();
+            set_shadows(app, true);
             Ok(())
         })
         .manage(app_state)
@@ -69,7 +63,12 @@ fn main() {
             config::commands::set_ffmpeg_path,
             config::commands::set_deno_path
         ])
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

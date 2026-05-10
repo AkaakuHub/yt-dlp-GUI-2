@@ -1,0 +1,22 @@
+{
+  "identifier": "default",
+  "description": "Permissions required by the main window",
+  "local": true,
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "clipboard-manager:allow-read-text",
+    "dialog:allow-message",
+    "dialog:allow-open",
+    "drag:allow-start-drag",
+    "notification:allow-is-permission-granted",
+    "notification:allow-notify",
+    "notification:allow-request-permission",
+    "process:allow-restart",
+    "updater:allow-check",
+    "updater:allow-download-and-install"
+  ]
+}
