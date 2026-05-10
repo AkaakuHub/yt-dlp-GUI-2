@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { message, open } from "@tauri-apps/plugin-dialog";
 import {
 	isPermissionGranted,
@@ -10,9 +11,11 @@ import { check } from "@tauri-apps/plugin-updater";
 import {
 	Bell,
 	CheckCircle2,
+	Copy,
 	Download,
 	FolderOpen,
 	HardDrive,
+	KeyRound,
 	Loader2,
 	Network,
 	Package,
@@ -21,7 +24,6 @@ import {
 	Save,
 	Server,
 	Settings2,
-	Shield,
 	StopCircle,
 	Terminal,
 	X,
@@ -29,6 +31,8 @@ import {
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
+import { AppInput, AppTextarea } from "../_components/FormControls";
+import { SurfaceIsland, SurfacePanel } from "../_components/Surface";
 import ThemeSelector from "../_components/ThemeSelector";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 import type { ConfigProps } from "../types";
@@ -123,6 +127,9 @@ export default function Settings() {
 	const [isTestingRemoteServer, setIsTestingRemoteServer] = useState(false);
 	const [serverCliStatus, setServerCliStatus] =
 		useState<ServerCliStatus | null>(null);
+	const [generatedToken, setGeneratedToken] = useState("");
+	const [showTokenModal, setShowTokenModal] = useState(false);
+	const [showRemoteSettingsModal, setShowRemoteSettingsModal] = useState(false);
 
 	const updateSaveDir = async (nextSaveDir: string) => {
 		setSaveDir(nextSaveDir);
@@ -409,9 +416,40 @@ export default function Settings() {
 		}
 	};
 
-	const generateRemoteToken = async () => {
+	const generateServerToken = async () => {
 		const token = await invoke<string>("generate_remote_auth_token");
 		await updateRemoteAuthToken(token);
+		setGeneratedToken(token);
+		setShowTokenModal(true);
+	};
+
+	const copyGeneratedToken = async () => {
+		const token = generatedToken || remoteAuthToken;
+		if (token.trim() === "") {
+			toast.error("コピーするトークンがありません");
+			return;
+		}
+		await writeText(token);
+		toast.success("トークンをコピーしました");
+		setShowTokenModal(false);
+	};
+
+	const copyRemoteAuthToken = async () => {
+		if (remoteAuthToken.trim() === "") {
+			toast.error("コピーするトークンがありません");
+			return;
+		}
+		await writeText(remoteAuthToken);
+		toast.success("トークンをコピーしました");
+		setShowRemoteSettingsModal(false);
+	};
+
+	const deleteRemoteAuthToken = async () => {
+		await updateRemoteAuthToken("");
+		setGeneratedToken("");
+		setShowTokenModal(false);
+		setShowRemoteSettingsModal(false);
+		toast.success("トークンを削除しました");
 	};
 
 	const testRemoteServer = async () => {
@@ -429,272 +467,282 @@ export default function Settings() {
 		}
 	};
 
+	const visibleToken = generatedToken || remoteAuthToken;
+	const tokenStatus = remoteAuthToken.trim() === "" ? "未登録" : "登録済み";
+
 	return (
-		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-3 text-base-content">
-			<div className="mx-auto grid h-full max-w-5xl content-start gap-3">
-				<section className="grid gap-3 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-[minmax(0,1fr)_9rem] md:items-end">
-					<ThemeSelector />
-					<div className="flex h-10 items-end">
-						<button
-							className="btn btn-ghost h-10 min-h-10 w-full rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							onClick={openToolsModal}
-						>
-							<Settings2 size={16} />
-							ツールを管理
-						</button>
-					</div>
-				</section>
+		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-2 text-base-content">
+			<div className="mx-auto grid h-full min-w-0 max-w-5xl grid-rows-[minmax(0,1fr)_auto] gap-2">
+				<div className="grid min-h-0 min-w-0 grid-rows-[5.125rem_4.625rem_11.875rem_7.875rem_3.625rem] gap-2 overflow-hidden">
+					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_7rem] md:items-end">
+						<ThemeSelector />
+						<div className="flex h-9 items-end">
+							<button
+								className="btn btn-ghost h-9 min-h-9 w-full rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
+								type="button"
+								onClick={openToolsModal}
+							>
+								<Settings2 size={16} />
+								ツール
+							</button>
+						</div>
+					</SurfaceIsland>
 
-				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300">
-					<div className="flex items-center gap-2 text-sm font-semibold">
-						<HardDrive size={16} className="text-primary" />
-						保存先
-					</div>
-					<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-						<input
-							className="input input-bordered h-11 min-h-11 rounded-md bg-base-100 text-sm"
-							value={saveDir}
-							onChange={(event) => void updateSaveDir(event.target.value)}
-							placeholder="/Users/name/Movies/yt-dlp-data"
-						/>
-						<button
-							className="btn btn-ghost h-11 min-h-11 rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							onClick={() => void chooseSaveDirectory()}
-							aria-label="保存先を選択"
-						>
-							<FolderOpen size={18} />
-						</button>
-					</div>
-				</section>
-
-				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300">
-					<div className="grid gap-2 md:grid-cols-2">
-						<label className="grid gap-1">
-							<span className="label pb-1 text-xs font-semibold text-base-content/65">
-								Cookie取得元のブラウザ
-							</span>
-							<input
-								className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
-								value={browser}
-								onChange={(event) => void updateBrowser(event.target.value)}
-								placeholder="firefox"
-							/>
-						</label>
-						<label className="grid gap-1">
-							<span className="label pb-1 text-xs font-semibold text-base-content/65">
-								使用するポート番号
-							</span>
-							<input
-								className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
-								value={serverPort}
-								disabled={isServerEnabled}
-								inputMode="numeric"
-								onChange={(event) => void changeServerPort(event)}
-							/>
-						</label>
-					</div>
-				</section>
-
-				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300">
-					<div className="flex items-center gap-2 text-sm font-semibold">
-						<Network size={16} className="text-primary" />
-						実行先
-						{serverCliStatus ? (
-							<span className="ml-auto text-xs font-normal text-base-content/60">
-								{serverCliStatus.running ? "CLI起動中" : "CLI停止中"} /{" "}
-								{serverCliStatus.registered ? "登録済み" : "未登録"}
-							</span>
-						) : null}
-					</div>
-					<div className="grid gap-2 md:grid-cols-2">
-						<button
-							className={`btn h-11 min-h-11 justify-start rounded-md ${
-								executionTarget === "local"
-									? "btn-primary"
-									: "btn-ghost bg-base-100 hover:bg-base-300"
-							}`}
-							type="button"
-							onClick={() => void updateExecutionTarget("local")}
-						>
-							<HardDrive size={16} />
-							このPC
-						</button>
-						<button
-							className={`btn h-11 min-h-11 justify-start rounded-md ${
-								executionTarget === "remote"
-									? "btn-primary"
-									: "btn-ghost bg-base-100 hover:bg-base-300"
-							}`}
-							type="button"
-							onClick={() => void updateExecutionTarget("remote")}
-						>
-							<Server size={16} />
-							サーバー
-						</button>
-					</div>
-					{executionTarget === "remote" ? (
-						<div className="grid gap-2 md:grid-cols-2">
-							<label className="grid gap-1">
-								<span className="label pb-1 text-xs font-semibold text-base-content/65">
-									サーバーURL
+					<SurfaceIsland className="grid min-h-0 gap-2">
+						<div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)]">
+							<label className="grid min-w-0 gap-1">
+								<span className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
+									<HardDrive size={14} className="text-primary" />
+									保存先
 								</span>
-								<input
-									className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
-									value={remoteServerUrl}
-									onChange={(event) =>
-										void updateRemoteServerUrl(event.target.value)
-									}
-									placeholder="http://100.x.y.z:50000"
-									type="url"
-								/>
-							</label>
-							<label className="grid gap-1">
-								<span className="label pb-1 text-xs font-semibold text-base-content/65">
-									トークン
-								</span>
-								<div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-									<input
-										className="input input-bordered h-11 min-h-11 rounded-md bg-base-100"
-										value={remoteAuthToken}
-										onChange={(event) =>
-											void updateRemoteAuthToken(event.target.value)
-										}
-										type="password"
+								<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
+									<AppInput
+										value={saveDir}
+										onChange={(event) => void updateSaveDir(event.target.value)}
+										placeholder="/Users/name/Movies/yt-dlp-data"
 									/>
 									<button
-										className="btn btn-ghost h-11 min-h-11 rounded-md bg-base-100 hover:bg-base-300"
+										className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
 										type="button"
-										onClick={() => void generateRemoteToken()}
-										aria-label="トークンを生成"
+										onClick={() => void chooseSaveDirectory()}
+										aria-label="保存先を選択"
 									>
-										<Shield size={16} />
+										<FolderOpen size={18} />
 									</button>
 								</div>
 							</label>
+							<label className="grid min-w-0 gap-1">
+								<span className="text-xs font-semibold text-base-content/65">
+									Cookieブラウザ
+								</span>
+								<AppInput
+									value={browser}
+									onChange={(event) => void updateBrowser(event.target.value)}
+									placeholder="firefox"
+								/>
+							</label>
+							<label className="grid min-w-0 gap-1">
+								<span className="text-xs font-semibold text-base-content/65">
+									ポート
+								</span>
+								<AppInput
+									value={serverPort}
+									disabled={isServerEnabled}
+									inputMode="numeric"
+									onChange={(event) => void changeServerPort(event)}
+								/>
+							</label>
 						</div>
-					) : null}
-					<div className="grid gap-2 md:grid-cols-3">
-						<button
-							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							disabled={isOperatingServerCli}
-							onClick={() =>
-								void (serverCliStatus?.running
-									? stopServerCli()
-									: startServerCli())
-							}
-						>
-							{isOperatingServerCli ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : serverCliStatus?.running ? (
-								<StopCircle size={16} />
-							) : (
-								<Play size={16} />
-							)}
-							{serverCliStatus?.running ? "CLIを停止" : "CLIを起動"}
-						</button>
-						<button
-							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							disabled={isRegisteringServerCli}
-							onClick={() => void registerServerCli()}
-						>
-							{isRegisteringServerCli ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								<Server size={16} />
-							)}
-							サーバーCLIを登録
-						</button>
-						<button
-							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							disabled={isRegisteringServerCli}
-							onClick={() => void unregisterServerCli()}
-						>
-							<X size={16} />
-							登録を解除
-						</button>
-					</div>
-					<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
-						<div className="min-w-0 truncate rounded-md bg-base-100 px-3 py-2 text-xs text-base-content/55">
-							{serverCliStatus?.path || "サーバーCLIの場所を確認中"}
+					</SurfaceIsland>
+
+					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_3.5rem_5rem] gap-2">
+						<div className="flex items-center gap-2 text-sm font-semibold">
+							<Network size={16} className="text-primary" />
+							実行先
 						</div>
-						<button
-							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							onClick={() => void refreshServerCliStatus()}
-							aria-label="サーバーCLI状態を更新"
-						>
-							<RefreshCw size={16} />
-						</button>
-						<button
-							className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							disabled={isTestingRemoteServer}
-							onClick={() => void testRemoteServer()}
-						>
-							{isTestingRemoteServer ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								<CheckCircle2 size={16} />
-							)}
-							接続確認
-						</button>
-					</div>
-				</section>
-
-				<section className="grid gap-2 rounded-lg bg-base-200 p-3 shadow-sm ring-1 ring-base-300 md:grid-cols-2">
-					<label className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-base-100 px-3">
-						<span className="flex min-w-0 items-center gap-3">
-							<Bell size={18} className="shrink-0 text-primary" />
-							<span className="min-w-0 text-sm font-semibold">
-								ダウンロード完了通知
-							</span>
-						</span>
-						<input
-							className="toggle toggle-primary"
-							type="checkbox"
-							checked={isSendNotification}
-							onChange={(event) =>
-								void updateNotification(event.target.checked)
-							}
-						/>
-					</label>
-
-					{isSendNotification && notificationPermission === false ? (
-						<div className="alert border-warning/35 bg-warning/10 py-2 text-sm md:col-span-2">
-							<Bell size={16} />
-							<span>通知権限が許可されていません。</span>
+						<div className="grid min-h-0 min-w-0 grid-cols-2 gap-2">
 							<button
-								className="btn btn-warning btn-sm rounded-md"
+								className={`btn h-14 min-h-14 min-w-0 justify-start rounded-lg px-4 text-base ${
+									executionTarget === "local"
+										? "btn-primary"
+										: "btn-ghost bg-base-100 hover:bg-base-300"
+								}`}
 								type="button"
-								onClick={() => void requestNotificationAccess()}
+								onClick={() => void updateExecutionTarget("local")}
 							>
-								権限を要求
+								<HardDrive size={16} />
+								このPC
+							</button>
+							<button
+								className={`btn h-14 min-h-14 min-w-0 justify-start rounded-lg px-4 text-base ${
+									executionTarget === "remote"
+										? "btn-primary"
+										: "btn-ghost bg-base-100 hover:bg-base-300"
+								}`}
+								type="button"
+								onClick={() => void updateExecutionTarget("remote")}
+							>
+								<Server size={16} />
+								サーバー
 							</button>
 						</div>
-					) : null}
+						<SurfacePanel className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8.5rem] md:items-end">
+							{executionTarget === "remote" ? (
+								<>
+									<div className="grid min-w-0 gap-1">
+										<span className="text-xs font-semibold text-base-content/65">
+											接続先
+										</span>
+										<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-200 px-3 text-sm">
+											{remoteServerUrl || "未設定"}
+										</div>
+									</div>
+									<button
+										className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 px-2 text-sm hover:bg-base-300"
+										type="button"
+										onClick={() => setShowRemoteSettingsModal(true)}
+									>
+										<Settings2 size={16} />
+										接続設定
+									</button>
+									<button
+										className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 px-2 text-sm hover:bg-base-300"
+										type="button"
+										disabled={isTestingRemoteServer}
+										onClick={() => void testRemoteServer()}
+									>
+										{isTestingRemoteServer ? (
+											<Loader2 size={16} className="animate-spin" />
+										) : (
+											<CheckCircle2 size={16} />
+										)}
+										接続確認
+									</button>
+								</>
+							) : (
+								<div className="flex h-full items-center gap-2 rounded-md bg-base-200 px-3 text-sm font-semibold md:col-span-3">
+									<HardDrive size={16} className="text-primary" />
+									このPCで実行
+								</div>
+							)}
+						</SurfacePanel>
+					</SurfaceIsland>
 
-					<label className="flex min-h-12 items-center justify-between gap-3 rounded-md bg-base-100 px-3">
-						<span className="flex items-center gap-3 text-sm font-semibold">
-							<Server size={18} className="text-primary" />
-							サーバー機能を有効にする
-						</span>
-						<input
-							className="toggle toggle-primary"
-							type="checkbox"
-							checked={isServerEnabled}
-							onChange={(event) =>
-								void updateServerEnabled(event.target.checked)
-							}
-						/>
-					</label>
-				</section>
+					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_2.25rem_2.25rem] gap-2">
+						<div className="flex items-center gap-2 text-sm font-semibold">
+							<Server size={16} className="text-primary" />
+							このPCをサーバーにする
+							{serverCliStatus ? (
+								<span className="ml-auto text-xs font-normal text-base-content/60">
+									{serverCliStatus.running ? "起動中" : "停止中"} /{" "}
+									{serverCliStatus.registered ? "登録済み" : "未登録"}
+								</span>
+							) : null}
+						</div>
+						<div className="grid min-w-0 gap-2 md:grid-cols-[auto_minmax(0,1fr)]">
+							<div className="grid grid-cols-3 gap-2">
+								<button
+									className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
+									type="button"
+									disabled={isOperatingServerCli}
+									title={serverCliStatus?.running ? "停止" : "起動"}
+									aria-label={serverCliStatus?.running ? "停止" : "起動"}
+									onClick={() =>
+										void (serverCliStatus?.running
+											? stopServerCli()
+											: startServerCli())
+									}
+								>
+									{isOperatingServerCli ? (
+										<Loader2 size={16} className="animate-spin" />
+									) : serverCliStatus?.running ? (
+										<StopCircle size={16} />
+									) : (
+										<Play size={16} />
+									)}
+								</button>
+								<button
+									className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
+									type="button"
+									disabled={isRegisteringServerCli}
+									title="常駐登録"
+									aria-label="常駐登録"
+									onClick={() => void registerServerCli()}
+								>
+									{isRegisteringServerCli ? (
+										<Loader2 size={16} className="animate-spin" />
+									) : (
+										<Server size={16} />
+									)}
+								</button>
+								<button
+									className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
+									type="button"
+									disabled={isRegisteringServerCli}
+									title="登録解除"
+									aria-label="登録解除"
+									onClick={() => void unregisterServerCli()}
+								>
+									<X size={16} />
+								</button>
+							</div>
+							<button
+								className="btn btn-ghost h-9 min-h-9 min-w-0 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
+								type="button"
+								onClick={() => {
+									setGeneratedToken(remoteAuthToken);
+									setShowTokenModal(true);
+								}}
+							>
+								<KeyRound size={16} />
+								<span className="whitespace-nowrap">トークン管理</span>
+							</button>
+						</div>
+						<div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+							<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-100 px-3 text-xs text-base-content/55">
+								{serverCliStatus?.path || "サーバーCLIの場所を確認中"}
+							</div>
+							<button
+								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-100 hover:bg-base-300"
+								type="button"
+								onClick={() => void refreshServerCliStatus()}
+								aria-label="サーバーCLI状態を更新"
+							>
+								<RefreshCw size={16} />
+							</button>
+						</div>
+					</SurfaceIsland>
 
-				<footer className="flex h-8 items-center justify-center gap-2 text-sm text-base-content/60">
+					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-2">
+						<label className="flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
+							<span className="flex min-w-0 items-center gap-2">
+								<Bell size={18} className="shrink-0 text-primary" />
+								<span className="min-w-0 whitespace-nowrap text-xs font-semibold">
+									完了通知
+								</span>
+							</span>
+							<input
+								className="toggle toggle-primary toggle-sm shrink-0"
+								type="checkbox"
+								checked={isSendNotification}
+								onChange={(event) =>
+									void updateNotification(event.target.checked)
+								}
+							/>
+						</label>
+
+						{isSendNotification && notificationPermission === false ? (
+							<div className="alert border-warning/35 bg-warning/10 py-2 text-sm md:col-span-2">
+								<Bell size={16} />
+								<span>通知権限が許可されていません。</span>
+								<button
+									className="btn btn-warning btn-sm rounded-md"
+									type="button"
+									onClick={() => void requestNotificationAccess()}
+								>
+									権限を要求
+								</button>
+							</div>
+						) : null}
+
+						<label className="flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
+							<span className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs font-semibold">
+								<Server size={18} className="text-primary" />
+								サーバー機能
+							</span>
+							<input
+								className="toggle toggle-primary toggle-sm shrink-0"
+								type="checkbox"
+								checked={isServerEnabled}
+								onChange={(event) =>
+									void updateServerEnabled(event.target.checked)
+								}
+							/>
+						</label>
+					</SurfaceIsland>
+				</div>
+
+				<footer className="flex h-6 items-center justify-center gap-2 text-xs text-base-content/60">
 					<a
 						className="link link-primary inline-flex items-center gap-1"
 						href="https://github.com/AkaakuHub/yt-dlp-GUI-2"
@@ -717,6 +765,156 @@ export default function Settings() {
 					)}
 				</footer>
 			</div>
+
+			{showRemoteSettingsModal ? (
+				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
+					<section className="grid w-full max-w-lg gap-3 rounded-lg border border-base-300 bg-base-100 p-4 shadow-xl">
+						<header className="flex items-center justify-between">
+							<h2 className="text-lg font-bold">接続設定</h2>
+							<button
+								className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+								type="button"
+								onClick={() => setShowRemoteSettingsModal(false)}
+								aria-label="閉じる"
+							>
+								<X size={18} />
+							</button>
+						</header>
+						<label className="grid gap-1">
+							<span className="label py-0 text-xs font-semibold text-base-content/65">
+								サーバーURL
+							</span>
+							<AppInput
+								value={remoteServerUrl}
+								onChange={(event) =>
+									void updateRemoteServerUrl(event.target.value)
+								}
+								placeholder="http://100.x.y.z:50000"
+								type="url"
+							/>
+						</label>
+						<label className="grid gap-1">
+							<span className="label py-0 text-xs font-semibold text-base-content/65">
+								トークン
+							</span>
+							<AppTextarea
+								value={remoteAuthToken}
+								onChange={(event) =>
+									void updateRemoteAuthToken(event.target.value)
+								}
+							/>
+						</label>
+						<div className="grid gap-2 rounded-md bg-base-200 p-3 text-sm">
+							<div className="flex items-center justify-between gap-3">
+								<span className="text-base-content/65">状態</span>
+								<span className="font-semibold">{tokenStatus}</span>
+							</div>
+							<div className="flex items-center justify-between gap-3">
+								<span className="text-base-content/65">期限</span>
+								<span className="font-semibold">期限なし</span>
+							</div>
+						</div>
+						<footer className="flex justify-end gap-2">
+							<button
+								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
+								type="button"
+								disabled={remoteAuthToken.trim() === ""}
+								onClick={() => void copyRemoteAuthToken()}
+							>
+								<Copy size={16} />
+								コピー
+							</button>
+							<button
+								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
+								type="button"
+								disabled={remoteAuthToken.trim() === ""}
+								onClick={() => void deleteRemoteAuthToken()}
+							>
+								<X size={16} />
+								削除
+							</button>
+							<button
+								className="btn btn-primary h-9 min-h-9 rounded-md text-sm"
+								type="button"
+								onClick={() => setShowRemoteSettingsModal(false)}
+							>
+								閉じる
+							</button>
+						</footer>
+					</section>
+				</div>
+			) : null}
+
+			{showTokenModal ? (
+				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
+					<section className="grid w-full max-w-lg gap-3 rounded-lg border border-base-300 bg-base-100 p-4 shadow-xl">
+						<header className="flex items-center justify-between">
+							<h2 className="text-lg font-bold">トークン管理</h2>
+							<button
+								className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
+								type="button"
+								onClick={() => setShowTokenModal(false)}
+								aria-label="閉じる"
+							>
+								<X size={18} />
+							</button>
+						</header>
+						<div className="grid gap-1">
+							<span className="label py-0 text-xs font-semibold text-base-content/65">
+								トークン
+							</span>
+							<div className="min-h-20 rounded-md border border-base-300 bg-base-200 p-3 font-mono text-xs break-all text-base-content">
+								{visibleToken || "未登録"}
+							</div>
+						</div>
+						<div className="grid gap-2 rounded-md bg-base-200 p-3 text-sm">
+							<div className="flex items-center justify-between gap-3">
+								<span className="text-base-content/65">状態</span>
+								<span className="font-semibold">{tokenStatus}</span>
+							</div>
+							<div className="flex items-center justify-between gap-3">
+								<span className="text-base-content/65">期限</span>
+								<span className="font-semibold">期限なし</span>
+							</div>
+						</div>
+						<footer className="flex flex-wrap justify-end gap-2">
+							<button
+								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
+								type="button"
+								onClick={() => setShowTokenModal(false)}
+							>
+								閉じる
+							</button>
+							<button
+								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
+								type="button"
+								disabled={visibleToken.trim() === ""}
+								onClick={() => void deleteRemoteAuthToken()}
+							>
+								<X size={16} />
+								削除
+							</button>
+							<button
+								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
+								type="button"
+								onClick={() => void generateServerToken()}
+							>
+								<KeyRound size={16} />
+								再生成
+							</button>
+							<button
+								className="btn btn-primary h-9 min-h-9 rounded-md text-sm"
+								type="button"
+								disabled={visibleToken.trim() === ""}
+								onClick={() => void copyGeneratedToken()}
+							>
+								<Copy size={16} />
+								コピー
+							</button>
+						</footer>
+					</section>
+				</div>
+			) : null}
 
 			{showToolsModal ? (
 				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
@@ -778,8 +976,7 @@ export default function Settings() {
 											<span className="label pb-1 text-xs font-semibold text-base-content/65">
 												yt-dlpのパス
 											</span>
-											<input
-												className="input input-bordered h-10 min-h-10 rounded-md bg-base-100"
+											<AppInput
 												value={tempYtDlpPath}
 												onChange={(event) =>
 													setTempYtDlpPath(event.target.value)
@@ -791,8 +988,7 @@ export default function Settings() {
 											<span className="label pb-1 text-xs font-semibold text-base-content/65">
 												FFmpegのパス
 											</span>
-											<input
-												className="input input-bordered h-10 min-h-10 rounded-md bg-base-100"
+											<AppInput
 												value={tempFfmpegPath}
 												onChange={(event) =>
 													setTempFfmpegPath(event.target.value)
@@ -804,8 +1000,7 @@ export default function Settings() {
 											<span className="label pb-1 text-xs font-semibold text-base-content/65">
 												Denoのパス
 											</span>
-											<input
-												className="input input-bordered h-10 min-h-10 rounded-md bg-base-100"
+											<AppInput
 												value={tempDenoPath}
 												onChange={(event) =>
 													setTempDenoPath(event.target.value)

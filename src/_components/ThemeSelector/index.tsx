@@ -13,13 +13,13 @@ const ThemeSelector: React.FC = () => {
 		];
 
 	return (
-		<div className="grid gap-2">
+		<div className="grid min-w-0 gap-2">
 			<label className="text-sm font-semibold text-base-content">テーマ</label>
-			<div className="grid grid-cols-3 gap-2">
+			<div className="grid min-w-0 grid-cols-3 gap-2">
 				{themes.map((theme) => (
 					<button
 						key={theme.mode}
-						className={`btn h-10 min-h-10 rounded-md text-sm ${
+						className={`btn h-9 min-h-9 min-w-0 rounded-md px-2 text-xs ${
 							themeMode === theme.mode
 								? "btn-primary"
 								: "btn-ghost bg-base-100 text-base-content hover:bg-base-300"
@@ -28,7 +28,7 @@ const ThemeSelector: React.FC = () => {
 						type="button"
 					>
 						{theme.icon}
-						<span>{theme.label}</span>
+						<span className="whitespace-nowrap">{theme.label}</span>
 					</button>
 				))}
 			</div>
