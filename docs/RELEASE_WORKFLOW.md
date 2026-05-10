@@ -1,54 +1,46 @@
 # GitHub Actions Release Workflow
 
-このプロジェクトでは、完全自動化されたリリースワークフローを設定しています。
+このプロジェクトは`release`ブランチを使いません。
 
-## ワークフローの概要
+## ワークフロー
 
-### 1. `tag-version.yml` - バージョンタグ作成
-- **トリガー**: `release`ブランチへのプッシュ
-- **機能**:
-  - `src-tauri/Cargo.toml`からバージョンを自動抽出
-  - 全ファイル（`Cargo.toml`, `tauri.conf.json`, `package.json`）でバージョンの整合性をチェック
-  - `v1.0.5`形式のタグを自動作成・プッシュ
-  - 既存タグがある場合はスキップ
+### `build.yml`
 
-### 2. `build.yml` - ビルドとリリース
-- **トリガー**: バージョンタグ（`v*.*.*`）のプッシュ
-- **機能**:
-  - macOS (ARM/Intel), Ubuntu, Windows向けにビルド
-  - GitHub Releaseを自動作成
-  - アーティファクトのアップロード
+- **トリガー**:`v*`形式のタグpush、または手動実行
+- **処理**:
+  - macOS(ARM/Intel)、Ubuntu、Windows向けにビルド
+  - GitHub Releaseを作成
+  - `tools-manifest.json`をRelease assetへアップロード
 
-## 使用方法（完全自動化）
+## リリース手順
 
-### 新しいリリースを作成するには
 ```bash
-# 新しいバージョンを指定してスクリプトを実行
-./scripts/update-version.sh 1.0.9
-
-# 以降は全て自動で実行されます:
-# 1. バージョンファイルの更新
-# 2. releaseブランチへの切り替え
-# 3. 変更のコミット・プッシュ
-# 4. GitHub Actionsによるタグ作成
-# 5. ビルドとリリースの自動実行
+./scripts/update-version.sh 2.0.0
 ```
 
-## ワークフローの流れ
+このスクリプトは`main`ブランチ上でだけ実行できます。
 
-1. **開発者**: `./scripts/update-version.sh X.Y.Z` を実行
-2. **スクリプト**: 自動でバージョン更新 → `release`ブランチ切り替え → コミット・プッシュ
-3. **自動**: `tag-version.yml`がバージョンタグを作成
-4. **自動**: `build.yml`がタグに反応してビルド・リリースを実行
+1. `src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`package.json`のversionを更新します。
+2. `v2.0.0`形式でcommitします。
+3. `v2.0.0`形式のannotated tagを作成します。
+4. `main`とtagをpushします。
+5. tag pushに反応して`build.yml`が走ります。
 
-## 必要な設定
+## 必要なGitHub Secrets
 
-以下のシークレットが設定されている必要があります：
-- `BUILD_SECRET_KEY`: Tauriのプライベートキー
-- `BUILD_PASSWORD`: Tauriキーのパスワード
+- `BUILD_SECRET_KEY`:Tauriのプライベートキー
+- `BUILD_PASSWORD`:Tauriキーのパスワード
+
+## 再実行
+
+既存タグでビルドを再実行する場合は、対象のタグを作り直します。
+
+```bash
+./scripts/retag.sh 2.0.0
+```
 
 ## 注意事項
 
-- 全バージョンファイルで整合性が取れていない場合、ワークフローは失敗します
-- 既存のタグと同じバージョンの場合、タグ作成はスキップされます
-- `main`ブランチで作業していても、スクリプトが自動で`release`ブランチに切り替えます
+- `release`ブランチは使いません。
+- 既存のタグと同じバージョンでは`update-version.sh`は停止します。
+- バージョンファイルだけをCI内で更新する場合は、`CI=1`を設定して`update-version.sh`を実行します。
