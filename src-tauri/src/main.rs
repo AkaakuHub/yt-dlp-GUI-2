@@ -5,7 +5,6 @@ mod command_handlers;
 mod config;
 mod download_command;
 mod process_manager;
-mod server;
 #[path = "server_cli/service.rs"]
 mod server_cli_service;
 mod system;
@@ -15,7 +14,6 @@ use std::sync::Arc;
 
 use command_handlers::{start_download, stop_download};
 use process_manager::CommandManager;
-use server::ServerManager;
 use system::{
     get_current_version, get_os_type, get_sorted_directory_contents, open_directory, open_file,
     open_url_and_exit,
@@ -29,7 +27,6 @@ fn main() {
     let _ = fix_path_env::fix();
     let app_state = config::AppState::new();
     let command_manager = Arc::new(tokio::sync::Mutex::new(CommandManager::new()));
-    let server_manager = Arc::new(tokio::sync::Mutex::new(ServerManager::new()));
 
     tauri::Builder::default()
         .setup(|app| {
@@ -39,13 +36,11 @@ fn main() {
         })
         .manage(app_state)
         .manage(command_manager)
-        .manage(server_manager)
         .invoke_handler(tauri::generate_handler![
             start_download,
             stop_download,
             open_directory,
             open_url_and_exit,
-            server::toggle_server,
             get_sorted_directory_contents,
             open_file,
             get_current_version,
@@ -58,7 +53,6 @@ fn main() {
             config::commands::set_server_port,
             config::commands::set_is_send_notification,
             config::commands::set_index,
-            config::commands::set_is_server_enabled,
             config::commands::set_theme_mode,
             config::commands::get_settings,
             config::commands::set_use_bundle_tools,

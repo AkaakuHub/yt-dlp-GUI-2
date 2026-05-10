@@ -40,7 +40,6 @@ pub struct Settings {
     pub server_port: u16,
     pub is_send_notification: bool,
     pub index: u32,
-    pub is_server_enabled: bool,
     pub theme_mode: String,
     pub use_bundle_tools: bool, // true: バンドル版使用, false: パス版使用
     pub yt_dlp_path: String,    // バンドル版またはカスタムパスのyt-dlp
@@ -64,7 +63,6 @@ impl Default for Settings {
             server_port: 50000,
             is_send_notification: true,
             index: 3,
-            is_server_enabled: false,
             theme_mode: "system".to_string(),
             use_bundle_tools: true, // デフォルトはバンドル版（初心者向け）
             yt_dlp_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
@@ -136,11 +134,6 @@ impl Settings {
 
     pub fn set_index(&mut self, new_index: u32) {
         self.index = new_index;
-        self.write_file();
-    }
-
-    pub fn set_is_server_enabled(&mut self, new_is_server_enabled: bool) {
-        self.is_server_enabled = new_is_server_enabled;
         self.write_file();
     }
 
@@ -288,16 +281,6 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_is_send_notification(new_is_send_notification);
-        Ok(())
-    }
-
-    #[tauri::command]
-    pub async fn set_is_server_enabled(
-        state: State<'_, AppState>,
-        new_is_server_enabled: bool,
-    ) -> Result<(), String> {
-        let mut settings = state.settings.lock().await;
-        settings.set_is_server_enabled(new_is_server_enabled);
         Ok(())
     }
 

@@ -88,8 +88,6 @@ export default function Settings() {
 		setServerPort,
 		isSendNotification,
 		setIsSendNotification,
-		isServerEnabled,
-		setIsServerEnabled,
 		useBundleTools,
 		setUseBundleTools,
 		ytDlpPath,
@@ -98,7 +96,6 @@ export default function Settings() {
 		setFfmpegPath,
 		denoPath,
 		setDenoPath,
-		isSettingLoaded,
 		executionTarget,
 		setExecutionTarget,
 		remoteServerUrl,
@@ -154,13 +151,6 @@ export default function Settings() {
 		setIsSendNotification(nextIsSendNotification);
 		await invoke("set_is_send_notification", {
 			newIsSendNotification: nextIsSendNotification,
-		});
-	};
-
-	const updateServerEnabled = async (nextIsServerEnabled: boolean) => {
-		setIsServerEnabled(nextIsServerEnabled);
-		await invoke("set_is_server_enabled", {
-			newIsServerEnabled: nextIsServerEnabled,
 		});
 	};
 
@@ -237,38 +227,6 @@ export default function Settings() {
 			unlistenPromise.then((unlisten) => unlisten());
 		};
 	}, [refreshServerCliStatus]);
-
-	useEffect(() => {
-		if (!isSettingLoaded || serverPort === 0 || Number.isNaN(serverPort)) {
-			return;
-		}
-		void invoke("toggle_server", {
-			enable: isServerEnabled,
-			port: serverPort,
-		});
-	}, [isServerEnabled, isSettingLoaded, serverPort]);
-
-	useEffect(() => {
-		const unlistenPromise = listen<string>("start-server-output", (event) => {
-			if (event.payload !== "失敗") {
-				void invoke("set_is_server_enabled", {
-					newIsServerEnabled: true,
-				});
-				return;
-			}
-			toast.error(
-				"サーバーの起動に失敗しました。ポート番号が他のプログラムで使用されています。",
-			);
-			setIsServerEnabled(false);
-			void invoke("set_is_server_enabled", {
-				newIsServerEnabled: false,
-			});
-		});
-
-		return () => {
-			unlistenPromise.then((unlisten) => unlisten());
-		};
-	}, [setIsServerEnabled]);
 
 	const requestNotificationAccess = async () => {
 		const permission = await requestPermission();
@@ -375,27 +333,20 @@ export default function Settings() {
 		toast.success("ツール設定を保存しました");
 	};
 
-	const registerServerCli = async () => {
+	const updateServerCliRegistration = async (registered: boolean) => {
 		setIsRegisteringServerCli(true);
 		try {
-			await invoke("register_server_cli");
+			await invoke(
+				registered ? "register_server_cli" : "unregister_server_cli",
+			);
 			await refreshServerCliStatus();
-			toast.success("サーバーCLIを常駐登録しました");
+			toast.success(
+				registered
+					? "このPCのサーバーを常駐登録しました"
+					: "このPCのサーバーの常駐登録を解除しました",
+			);
 		} catch (error) {
-			toast.error(`サーバーCLIの常駐登録に失敗しました:${String(error)}`);
-		} finally {
-			setIsRegisteringServerCli(false);
-		}
-	};
-
-	const unregisterServerCli = async () => {
-		setIsRegisteringServerCli(true);
-		try {
-			await invoke("unregister_server_cli");
-			await refreshServerCliStatus();
-			toast.success("サーバーCLIの常駐登録を解除しました");
-		} catch (error) {
-			toast.error(`サーバーCLIの常駐登録解除に失敗しました:${String(error)}`);
+			toast.error(`常駐設定の更新に失敗しました:${String(error)}`);
 		} finally {
 			setIsRegisteringServerCli(false);
 		}
@@ -406,9 +357,9 @@ export default function Settings() {
 		try {
 			await invoke("start_server_cli");
 			await refreshServerCliStatus();
-			toast.success("サーバーCLIを起動しました");
+			toast.success("このPCのサーバーを起動しました");
 		} catch (error) {
-			toast.error(`サーバーCLIの起動に失敗しました:${String(error)}`);
+			toast.error(`このPCのサーバーの起動に失敗しました:${String(error)}`);
 		} finally {
 			setIsOperatingServerCli(false);
 		}
@@ -419,9 +370,9 @@ export default function Settings() {
 		try {
 			await invoke("stop_server_cli");
 			await refreshServerCliStatus();
-			toast.success("サーバーCLIを停止しました");
+			toast.success("このPCのサーバーを停止しました");
 		} catch (error) {
-			toast.error(`サーバーCLIの停止に失敗しました:${String(error)}`);
+			toast.error(`このPCのサーバーの停止に失敗しました:${String(error)}`);
 		} finally {
 			setIsOperatingServerCli(false);
 		}
@@ -440,9 +391,13 @@ export default function Settings() {
 			toast.error("コピーするトークンがありません");
 			return;
 		}
-		await writeText(token);
-		toast.success("トークンをコピーしました");
-		setShowTokenModal(false);
+		try {
+			await writeText(token);
+			toast.success("トークンをコピーしました");
+			setShowTokenModal(false);
+		} catch (error) {
+			toast.error(`トークンのコピーに失敗しました:${String(error)}`);
+		}
 	};
 
 	const copyRemoteAuthToken = async () => {
@@ -450,9 +405,13 @@ export default function Settings() {
 			toast.error("コピーするトークンがありません");
 			return;
 		}
-		await writeText(remoteAuthToken);
-		toast.success("トークンをコピーしました");
-		setShowRemoteSettingsModal(false);
+		try {
+			await writeText(remoteAuthToken);
+			toast.success("トークンをコピーしました");
+			setShowRemoteSettingsModal(false);
+		} catch (error) {
+			toast.error(`トークンのコピーに失敗しました:${String(error)}`);
+		}
 	};
 
 	const deleteRemoteAuthToken = async () => {
@@ -491,7 +450,7 @@ export default function Settings() {
 	return (
 		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-2 text-base-content">
 			<div className="mx-auto grid h-full min-w-0 max-w-5xl grid-rows-[minmax(0,1fr)_auto] gap-2">
-				<div className="grid min-h-0 min-w-0 grid-rows-[5.125rem_4.625rem_7rem_7.875rem_3.625rem] gap-2 overflow-hidden">
+				<div className="grid min-h-0 min-w-0 grid-rows-[5.125rem_4.625rem_7rem_8.5rem_3.625rem] gap-2 overflow-hidden">
 					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_7rem] md:items-end">
 						<ThemeSelector />
 						<div className="flex h-9 items-end">
@@ -507,7 +466,7 @@ export default function Settings() {
 					</SurfaceIsland>
 
 					<SurfaceIsland className="grid min-h-0 gap-2">
-						<div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)]">
+						<div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
 							<label className="grid min-w-0 gap-1">
 								<span className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
 									<HardDrive size={14} className="text-primary" />
@@ -538,18 +497,6 @@ export default function Settings() {
 									value={browser}
 									onChange={(event) => void updateBrowser(event.target.value)}
 									placeholder="firefox"
-								/>
-							</label>
-							<label className="grid min-w-0 gap-1">
-								<span className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
-									<Hash size={14} className="text-primary" />
-									ポート
-								</span>
-								<AppInput
-									value={serverPort}
-									disabled={isServerEnabled}
-									inputMode="numeric"
-									onChange={(event) => void changeServerPort(event)}
 								/>
 							</label>
 						</div>
@@ -627,7 +574,7 @@ export default function Settings() {
 						</SurfacePanel>
 					</SurfaceIsland>
 
-					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_2.25rem_2.25rem] gap-2">
+					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_2.5rem_2.25rem] gap-3">
 						<div className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
 							<Server size={16} className="text-primary" />
 							このPCをサーバーにする
@@ -638,10 +585,10 @@ export default function Settings() {
 								</span>
 							) : null}
 						</div>
-						<div className="grid min-w-0 gap-2 md:grid-cols-[auto_minmax(0,1fr)]">
-							<div className="grid grid-cols-3 gap-2">
+						<div className="grid min-w-0 gap-3 md:grid-cols-[auto_minmax(0,1fr)_9.5rem_10rem]">
+							<div className="grid grid-cols-2 gap-2">
 								<button
-									className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
+									className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
 									type="button"
 									disabled={isOperatingServerCli}
 									title={serverCliStatus?.running ? "停止" : "起動"}
@@ -661,32 +608,16 @@ export default function Settings() {
 									)}
 								</button>
 								<button
-									className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
+									className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
 									type="button"
-									disabled={isRegisteringServerCli}
-									title="常駐登録"
-									aria-label="常駐登録"
-									onClick={() => void registerServerCli()}
+									onClick={() => void refreshServerCliStatus()}
+									aria-label="このPCのサーバー状態を更新"
 								>
-									{isRegisteringServerCli ? (
-										<Loader2 size={16} className="animate-spin" />
-									) : (
-										<Server size={16} />
-									)}
-								</button>
-								<button
-									className="btn btn-ghost h-9 min-h-9 w-10 rounded-md bg-base-100 p-0 hover:bg-base-300"
-									type="button"
-									disabled={isRegisteringServerCli}
-									title="登録解除"
-									aria-label="登録解除"
-									onClick={() => void unregisterServerCli()}
-								>
-									<X size={16} />
+									<RefreshCw size={16} />
 								</button>
 							</div>
 							<button
-								className="btn btn-ghost h-9 min-h-9 min-w-0 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
+								className="btn btn-ghost h-10 min-h-10 min-w-0 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
 								type="button"
 								onClick={() => {
 									setGeneratedToken(serverAuthToken);
@@ -696,23 +627,46 @@ export default function Settings() {
 								<KeyRound size={16} />
 								<span className="whitespace-nowrap">トークン管理</span>
 							</button>
+							<label className="grid h-10 min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-md bg-base-100 px-3">
+								<span className="flex items-center gap-1 text-xs font-semibold text-base-content/65">
+									<Hash size={14} className="text-primary" />
+									ポート
+								</span>
+								<input
+									className="h-7 min-w-0 rounded border border-base-300 bg-base-100 px-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									value={serverPort}
+									disabled={serverCliStatus?.running ?? false}
+									inputMode="numeric"
+									onChange={(event) => void changeServerPort(event)}
+								/>
+							</label>
+							<label className="flex h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
+								<span className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs font-semibold">
+									<Server size={16} className="text-primary" />
+									常駐
+								</span>
+								{isRegisteringServerCli ? (
+									<Loader2 size={16} className="animate-spin" />
+								) : (
+									<input
+										className="toggle toggle-primary toggle-sm shrink-0"
+										type="checkbox"
+										checked={serverCliStatus?.registered ?? false}
+										onChange={(event) =>
+											void updateServerCliRegistration(event.target.checked)
+										}
+									/>
+								)}
+							</label>
 						</div>
-						<div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+						<div className="grid min-w-0 gap-2">
 							<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-100 px-3 text-xs text-base-content/55">
-								{serverCliStatus?.path || "サーバーCLIの場所を確認中"}
+								{serverCliStatus?.path || "実行ファイルの場所を確認中"}
 							</div>
-							<button
-								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-100 hover:bg-base-300"
-								type="button"
-								onClick={() => void refreshServerCliStatus()}
-								aria-label="サーバーCLI状態を更新"
-							>
-								<RefreshCw size={16} />
-							</button>
 						</div>
 					</SurfaceIsland>
 
-					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-2">
+					<SurfaceIsland className="grid min-h-0 gap-2">
 						<label className="flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
 							<span className="flex min-w-0 items-center gap-2">
 								<Bell size={18} className="shrink-0 text-primary" />
@@ -743,21 +697,6 @@ export default function Settings() {
 								</button>
 							</div>
 						) : null}
-
-						<label className="flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
-							<span className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs font-semibold">
-								<Server size={18} className="text-primary" />
-								サーバー機能
-							</span>
-							<input
-								className="toggle toggle-primary toggle-sm shrink-0"
-								type="checkbox"
-								checked={isServerEnabled}
-								onChange={(event) =>
-									void updateServerEnabled(event.target.checked)
-								}
-							/>
-						</label>
 					</SurfaceIsland>
 				</div>
 

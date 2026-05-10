@@ -25,8 +25,6 @@ interface AppContextProps {
 	setIsSendNotification: React.Dispatch<React.SetStateAction<boolean>>;
 	selectedIndexNumber: number;
 	setSelectedIndexNumber: React.Dispatch<React.SetStateAction<number>>;
-	isServerEnabled: boolean;
-	setIsServerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
 	useBundleTools: boolean;
 	setUseBundleTools: React.Dispatch<React.SetStateAction<boolean>>;
 	ytDlpPath: string;
@@ -59,7 +57,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const [serverPort, setServerPort] = useState<number>(0);
 	const [isSendNotification, setIsSendNotification] = useState(true);
 	const [selectedIndexNumber, setSelectedIndexNumber] = useState<number>(1);
-	const [isServerEnabled, setIsServerEnabled] = useState(true);
 	const [useBundleTools, setUseBundleTools] = useState(true);
 	const [ytDlpPath, setYtDlpPath] = useState("");
 	const [ffmpegPath, setFfmpegPath] = useState("");
@@ -79,7 +76,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setServerPort(config.server_port);
 				setIsSendNotification(config.is_send_notification);
 				setSelectedIndexNumber(config.index);
-				setIsServerEnabled(config.is_server_enabled);
 				setUseBundleTools(config.use_bundle_tools);
 				setYtDlpPath(config.yt_dlp_path);
 				setFfmpegPath(config.ffmpeg_path);
@@ -112,8 +108,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					setIsSendNotification,
 					selectedIndexNumber,
 					setSelectedIndexNumber,
-					isServerEnabled,
-					setIsServerEnabled,
 					useBundleTools,
 					setUseBundleTools,
 					ytDlpPath,

@@ -9,6 +9,7 @@
     "core:default",
     "core:window:allow-start-dragging",
     "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text",
     "dialog:allow-message",
     "dialog:allow-open",
     "drag:allow-start-drag",

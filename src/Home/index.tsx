@@ -297,21 +297,11 @@ export default function Home() {
 			runQueueNext();
 		});
 
-		const unlistenServerOutput = listen<string>("server-output", (event) => {
-			try {
-				const dataJson = JSON.parse(event.payload);
-				void executeButtonOnClick(dataJson.url);
-			} catch (err) {
-				toast.error(`エラー:${err}`);
-			}
-		});
-
 		return () => {
 			unlistenOutput.then((fn) => fn());
 			unlistenExit.then((fn) => fn());
-			unlistenServerOutput.then((fn) => fn());
 		};
-	}, [executeButtonOnClick, runQueueNext, setLatestConsoleText]);
+	}, [runQueueNext, setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
 		const manualUrl = urlInput.trim();

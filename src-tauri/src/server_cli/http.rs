@@ -141,7 +141,8 @@ fn content_length(headers: &[(String, String)]) -> Result<usize, String> {
 }
 
 fn is_authorized(request: &HttpRequest, token: &str) -> bool {
-    if token.trim().is_empty() {
+    let token = token.trim();
+    if token.is_empty() {
         return false;
     }
     request
@@ -169,6 +170,34 @@ async fn write_json_response(
         .write_all(response.as_bytes())
         .await
         .map_err(|e| format!("レスポンスの送信に失敗しました: {}", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_authorized, HttpRequest};
+
+    fn request_with_authorization(value: &str) -> HttpRequest {
+        HttpRequest {
+            method: "GET".to_string(),
+            path: "/health".to_string(),
+            headers: vec![("Authorization".to_string(), value.to_string())],
+            body: String::new(),
+        }
+    }
+
+    #[test]
+    fn authorizes_trimmed_saved_token() {
+        let request = request_with_authorization("Bearer abc123");
+
+        assert!(is_authorized(&request, " abc123\n"));
+    }
+
+    #[test]
+    fn rejects_empty_token() {
+        let request = request_with_authorization("Bearer abc123");
+
+        assert!(!is_authorized(&request, " \n"));
+    }
 }
 
 async fn write_response(
