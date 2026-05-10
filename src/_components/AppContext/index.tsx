@@ -35,6 +35,12 @@ interface AppContextProps {
 	setFfmpegPath: React.Dispatch<React.SetStateAction<string>>;
 	denoPath: string;
 	setDenoPath: React.Dispatch<React.SetStateAction<string>>;
+	executionTarget: "local" | "remote";
+	setExecutionTarget: React.Dispatch<React.SetStateAction<"local" | "remote">>;
+	remoteServerUrl: string;
+	setRemoteServerUrl: React.Dispatch<React.SetStateAction<string>>;
+	remoteAuthToken: string;
+	setRemoteAuthToken: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -56,6 +62,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const [ytDlpPath, setYtDlpPath] = useState("");
 	const [ffmpegPath, setFfmpegPath] = useState("");
 	const [denoPath, setDenoPath] = useState("");
+	const [executionTarget, setExecutionTarget] = useState<"local" | "remote">(
+		"local",
+	);
+	const [remoteServerUrl, setRemoteServerUrl] = useState("");
+	const [remoteAuthToken, setRemoteAuthToken] = useState("");
 
 	useEffect(() => {
 		invoke<ConfigProps>("get_settings")
@@ -70,6 +81,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setYtDlpPath(config.yt_dlp_path);
 				setFfmpegPath(config.ffmpeg_path);
 				setDenoPath(config.deno_path);
+				setExecutionTarget(config.execution_target);
+				setRemoteServerUrl(config.remote_server_url);
+				setRemoteAuthToken(config.remote_auth_token);
 			})
 			.finally(() => {
 				setIsSettingLoaded(true);
@@ -104,6 +118,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					setFfmpegPath,
 					denoPath,
 					setDenoPath,
+					executionTarget,
+					setExecutionTarget,
+					remoteServerUrl,
+					setRemoteServerUrl,
+					remoteAuthToken,
+					setRemoteAuthToken,
 				}}
 			>
 				{children}

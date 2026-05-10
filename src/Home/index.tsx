@@ -158,7 +158,9 @@ export default function Home() {
 			arbitrary_code: arbitraryCode,
 			kind: currentSelectedIndex,
 		};
-		const processId = await invoke<number>("run_command", { param: runParam });
+		const processId = await invoke<number>("start_download", {
+			param: runParam,
+		});
 		setPid(processId);
 	}, [arbitraryCode, hasInvalidTimestamp, param]);
 
@@ -194,7 +196,7 @@ export default function Home() {
 				url,
 				kind: currentSelectedIndex,
 			};
-			const processId = await invoke<number>("run_command", {
+			const processId = await invoke<number>("start_download", {
 				param: runParam,
 			});
 			setPid(processId);
@@ -323,7 +325,7 @@ export default function Home() {
 
 	const stopProcess = async () => {
 		resetQueueState();
-		await invoke("stop_command", { pid });
+		await invoke("stop_download");
 		setPid(null);
 	};
 

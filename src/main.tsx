@@ -36,6 +36,10 @@ const App = () => {
 		const boot = async () => {
 			try {
 				const settings = await invoke<ConfigProps>("get_settings");
+				if (settings.execution_target === "remote") {
+					setShowSetup(false);
+					return;
+				}
 				if (settings.use_bundle_tools) {
 					await invoke("ensure_bundle_tools");
 				}

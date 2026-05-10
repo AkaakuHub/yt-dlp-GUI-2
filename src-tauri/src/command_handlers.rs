@@ -1,4 +1,5 @@
 use crate::{
+    client::remote::{start_remote_download, stop_remote_download},
     config::AppState,
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::CommandManager,
@@ -9,14 +10,19 @@ use tauri::State;
 use tauri::Window;
 use tokio::sync::Mutex;
 
+const REMOTE_EXECUTION_TARGET: &str = "remote";
+
 #[tauri::command]
-pub async fn run_command(
+pub async fn start_download(
     command_manager: State<'_, Arc<Mutex<CommandManager>>>,
     window: tauri::Window,
     param: RunCommandParam,
     app_state: State<'_, AppState>,
 ) -> Result<u32, String> {
-    let settings = app_state.settings.lock().await;
+    let settings = app_state.settings.lock().await.clone();
+    if settings.execution_target == REMOTE_EXECUTION_TARGET {
+        return start_remote_download(param, &settings).await;
+    }
 
     let mut manager = command_manager.lock().await;
     let (yt_dlp_path, _ffmpeg_path, _deno_path) = resolve_tool_paths(
@@ -41,10 +47,16 @@ pub async fn run_command(
 }
 
 #[tauri::command]
-pub async fn stop_command(
+pub async fn stop_download(
     command_manager: State<'_, Arc<Mutex<CommandManager>>>,
     window: Window,
+    app_state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let settings = app_state.settings.lock().await.clone();
+    if settings.execution_target == REMOTE_EXECUTION_TARGET {
+        return stop_remote_download(&settings).await;
+    }
+
     let mut manager = command_manager.lock().await;
     manager.stop_command(window).await
 }

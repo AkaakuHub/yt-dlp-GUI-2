@@ -6,6 +6,7 @@ use std::{io::Write, mem};
 use tokio::sync::Mutex;
 
 const SETTINGS_FILENAME: &str = "settings.json";
+const LOCAL_EXECUTION_TARGET: &str = "local";
 
 #[cfg(target_os = "windows")]
 fn get_config_root() -> PathBuf {
@@ -45,6 +46,9 @@ pub struct Settings {
     pub yt_dlp_path: String,    // バンドル版またはカスタムパスのyt-dlp
     pub ffmpeg_path: String,    // バンドル版またはカスタムパスのffmpeg
     pub deno_path: String,      // バンドル版またはカスタムパスのdeno
+    pub execution_target: String,
+    pub remote_server_url: String,
+    pub remote_auth_token: String,
     pub yt_dlp_cache: Option<VerifyCache>,
     pub ffmpeg_cache: Option<VerifyCache>,
     pub deno_cache: Option<VerifyCache>,
@@ -65,6 +69,9 @@ impl Default for Settings {
             yt_dlp_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             ffmpeg_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
             deno_path: "".to_string(), // 初回起動時は空文字列にしてセットアップを強制
+            execution_target: LOCAL_EXECUTION_TARGET.to_string(),
+            remote_server_url: "".to_string(),
+            remote_auth_token: "".to_string(),
             yt_dlp_cache: None,
             ffmpeg_cache: None,
             deno_cache: None,
@@ -160,6 +167,21 @@ impl Settings {
 
     pub fn set_deno_path(&mut self, deno_path: String) {
         self.deno_path = deno_path;
+        self.write_file();
+    }
+
+    pub fn set_execution_target(&mut self, execution_target: String) {
+        self.execution_target = execution_target;
+        self.write_file();
+    }
+
+    pub fn set_remote_server_url(&mut self, remote_server_url: String) {
+        self.remote_server_url = remote_server_url;
+        self.write_file();
+    }
+
+    pub fn set_remote_auth_token(&mut self, remote_auth_token: String) {
+        self.remote_auth_token = remote_auth_token;
         self.write_file();
     }
 
@@ -325,6 +347,36 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_deno_path(deno_path);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_execution_target(
+        state: State<'_, AppState>,
+        execution_target: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_execution_target(execution_target);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_remote_server_url(
+        state: State<'_, AppState>,
+        remote_server_url: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_remote_server_url(remote_server_url);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_remote_auth_token(
+        state: State<'_, AppState>,
+        remote_auth_token: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_remote_auth_token(remote_auth_token);
         Ok(())
     }
 }
