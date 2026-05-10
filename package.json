@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "pretauri": "node scripts/copy-tools-manifest.cjs",
+    "pretauri": "node scripts/copy-tools-manifest.cjs && node scripts/build-server-cli-sidecar.cjs",
     "check": "biome check --fix ./src",
     "knip": "knip",
     "typecheck": "tsc --noEmit",

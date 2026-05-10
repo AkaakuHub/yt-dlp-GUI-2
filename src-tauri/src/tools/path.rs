@@ -294,7 +294,7 @@ pub(crate) fn run_tool_version(path: &str, arg: &str) -> Option<String> {
     Some(s)
 }
 
-pub(crate) fn resolve_tool_paths(
+pub fn resolve_tool_paths(
     use_bundle_tools: bool,
     yt_dlp_path: &str,
     ffmpeg_path: &str,

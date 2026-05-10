@@ -1,8 +1,8 @@
 use crate::config::Settings;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
-pub(crate) struct RunCommandParam {
+#[derive(Deserialize, Serialize)]
+pub struct RunCommandParam {
     pub url: Option<String>,
     pub kind: DownloadMode,
     pub codec_id: Option<String>,
@@ -14,9 +14,9 @@ pub(crate) struct RunCommandParam {
     pub arbitrary_code: Option<String>,
 }
 
-#[derive(Clone, Copy, Deserialize)]
-#[serde(try_from = "i32")]
-pub(crate) enum DownloadMode {
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(try_from = "i32", into = "i32")]
+pub enum DownloadMode {
     Normal,
     AudioOnly,
     Video1080p,
@@ -51,6 +51,26 @@ impl TryFrom<i32> for DownloadMode {
             12 => Ok(Self::Subtitle),
             13 => Ok(Self::ArbitraryCode),
             _ => Err("不正な種類です".into()),
+        }
+    }
+}
+
+impl From<DownloadMode> for i32 {
+    fn from(value: DownloadMode) -> Self {
+        match value {
+            DownloadMode::Normal => 1,
+            DownloadMode::AudioOnly => 2,
+            DownloadMode::Video1080p => 3,
+            DownloadMode::Video720p => 4,
+            DownloadMode::Video480p => 5,
+            DownloadMode::Video360p => 6,
+            DownloadMode::ListFormats => 7,
+            DownloadMode::CodecId => 8,
+            DownloadMode::LiveFromStart => 9,
+            DownloadMode::LiveFromNow => 10,
+            DownloadMode::Thumbnail => 11,
+            DownloadMode::Subtitle => 12,
+            DownloadMode::ArbitraryCode => 13,
         }
     }
 }

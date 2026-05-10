@@ -29,3 +29,4 @@ todo.txt
 null
 .playwright-mcp
 src-tauri/tools-manifest.json
+src-tauri/binaries/server_cli-*
