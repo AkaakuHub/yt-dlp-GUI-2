@@ -42,10 +42,27 @@
 	border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
 }
 
+.dark .dark-control-border {
+	border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
+}
+
+.dark .dark-control-ring {
+	--tw-ring-color: color-mix(
+		in oklch,
+		var(--color-base-content) 18%,
+		transparent
+	);
+}
+
 .dark .input.input-bordered:not(:focus),
 .dark .textarea.textarea-bordered:not(:focus),
 .dark .select.select-bordered:not(:focus),
 .dark .toggle:not(:checked) {
+	--input-color: color-mix(
+		in oklch,
+		var(--color-base-content) 18%,
+		transparent
+	);
 	border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
 }
 

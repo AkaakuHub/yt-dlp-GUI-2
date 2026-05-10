@@ -649,7 +649,7 @@ export default function Settings() {
 									onChange={(event) => void changeServerPort(event)}
 								/>
 							</label>
-							<label className="flex h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
+							<label className="dark-control-border flex h-10 min-w-0 items-center justify-between gap-2 rounded-md border border-base-300 bg-base-100 px-3">
 								<span className="flex min-w-0 items-center gap-2 whitespace-nowrap text-xs font-semibold">
 									<Server size={16} className="text-primary" />
 									常駐
@@ -676,7 +676,7 @@ export default function Settings() {
 					</SurfaceIsland>
 
 					<SurfaceIsland className="grid min-h-0 gap-2">
-						<label className="flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md bg-base-100 px-3">
+						<label className="dark-control-border flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md border border-base-300 bg-base-100 px-3">
 							<span className="flex min-w-0 items-center gap-2">
 								<Bell size={18} className="shrink-0 text-primary" />
 								<span className="min-w-0 whitespace-nowrap text-xs font-semibold">

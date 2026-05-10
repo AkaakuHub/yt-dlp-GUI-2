@@ -454,7 +454,7 @@ export default function Home() {
 								<FolderOpen size={16} />
 								<span className="hidden lg:inline">保存先</span>
 							</button>
-							<label className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-md bg-base-200 px-3 text-sm">
+							<label className="dark-control-border flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
 								<input
 									className="toggle toggle-primary toggle-sm"
 									checked={param.is_cookie}
@@ -471,7 +471,7 @@ export default function Home() {
 								className={`flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 text-left text-xs font-semibold ring-1 transition ${
 									showQueuePanel
 										? "text-primary ring-primary/40"
-										: "text-base-content/65 ring-transparent hover:bg-base-300"
+										: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300"
 								}`}
 								type="button"
 								onClick={() => setShowQueuePanel((prev) => !prev)}
@@ -520,7 +520,7 @@ export default function Home() {
 							className={`flex h-10 w-full items-center gap-2 rounded-md bg-base-100 px-3 text-left text-xs font-semibold ring-1 transition ${
 								showAdvancedPanel
 									? "text-primary ring-primary/40"
-									: "text-base-content/65 ring-transparent hover:bg-base-300"
+									: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300"
 							}`}
 							type="button"
 							onClick={() => setShowAdvancedPanel((prev) => !prev)}
