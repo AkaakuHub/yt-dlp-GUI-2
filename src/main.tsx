@@ -1,5 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import React, { useEffect, useState } from "react";
+import {
+	isPermissionGranted,
+	requestPermission,
+	sendNotification,
+} from "@tauri-apps/plugin-notification";
+import { check } from "@tauri-apps/plugin-updater";
+import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -24,6 +30,32 @@ const App = () => {
 		setShowSetup(false);
 	};
 
+	const notifyUpdateIfAvailable = useCallback(async (settings: ConfigProps) => {
+		if (!settings.is_send_notification) {
+			return;
+		}
+		const update = await check().catch(() => null);
+		if (update === null) {
+			return;
+		}
+
+		let permissionGranted = await isPermissionGranted().catch(() => false);
+		if (!permissionGranted) {
+			const permission = await requestPermission().catch(() => "denied");
+			permissionGranted = permission === "granted";
+		}
+		if (!permissionGranted) {
+			return;
+		}
+
+		sendNotification({
+			title: "アップデートがあります",
+			body: `バージョン${update.version}を利用できます。`,
+			autoCancel: true,
+			ongoing: false,
+		});
+	}, []);
+
 	useEffect(() => {
 		const preventReload = (event: KeyboardEvent) => {
 			if (event.key === "F5") {
@@ -36,6 +68,7 @@ const App = () => {
 		const boot = async () => {
 			try {
 				const settings = await invoke<ConfigProps>("get_settings");
+				void notifyUpdateIfAvailable(settings);
 				if (settings.execution_target === "remote") {
 					setShowSetup(false);
 					return;
@@ -61,7 +94,7 @@ const App = () => {
 		return () => {
 			document.removeEventListener("keydown", preventReload);
 		};
-	}, []);
+	}, [notifyUpdateIfAvailable]);
 
 	if (showSetup) {
 		return (
