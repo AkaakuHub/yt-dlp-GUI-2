@@ -632,8 +632,8 @@ export default function Settings() {
 									<Hash size={14} className="text-primary" />
 									ポート
 								</span>
-								<input
-									className="h-7 min-w-0 rounded border border-base-300 bg-base-100 px-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+								<AppInput
+									className="h-7 min-h-7 bg-base-100 px-2"
 									value={serverPort}
 									disabled={serverCliStatus?.running ?? false}
 									inputMode="numeric"

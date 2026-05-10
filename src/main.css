@@ -37,3 +37,11 @@
 	--depth: 1;
 	--noise: 0;
 }
+
+.dark .btn.btn-ghost {
+	border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
+}
+
+.dark .btn.btn-ghost:hover {
+	border-color: color-mix(in oklch, var(--color-base-content) 30%, transparent);
+}

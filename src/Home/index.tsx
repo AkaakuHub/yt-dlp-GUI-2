@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import Workspace from "../_components/BottomTab";
+import { AppInput, AppSelect, AppTextarea } from "../_components/FormControls";
 import PrimaryCircleButton from "../_components/PrimaryCircleButton";
 import { SurfaceIsland, SurfacePanel } from "../_components/Surface";
 import {
@@ -395,8 +396,8 @@ export default function Home() {
 									</span>
 								)}
 							</div>
-							<input
-								className="input input-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+							<AppInput
+								className="h-10 min-h-10 w-full bg-base-200"
 								value={urlInput}
 								onChange={(event) => setUrlInput(event.target.value)}
 								onKeyDown={(event) => {
@@ -409,8 +410,8 @@ export default function Home() {
 							/>
 
 							<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-								<select
-									className="select select-bordered h-10 min-h-10 w-full rounded-md bg-base-200 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+								<AppSelect
+									className="h-10 min-h-10 w-full bg-base-200"
 									disabled={!isSettingLoaded}
 									value={selectedIndexNumber}
 									onChange={(event) => {
@@ -422,10 +423,10 @@ export default function Home() {
 											{mode.label}
 										</option>
 									))}
-								</select>
+								</AppSelect>
 								<button
 									aria-label="前のモード"
-									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md border border-base-300 bg-base-200 p-0 hover:border-base-content/25 hover:bg-base-300 focus:border-primary focus:outline-none"
 									disabled={!isSettingLoaded}
 									type="button"
 									onClick={() => moveDownloadMode(-1)}
@@ -434,7 +435,7 @@ export default function Home() {
 								</button>
 								<button
 									aria-label="次のモード"
-									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md bg-base-200 p-0 hover:bg-base-300 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md border border-base-300 bg-base-200 p-0 hover:border-base-content/25 hover:bg-base-300 focus:border-primary focus:outline-none"
 									disabled={!isSettingLoaded}
 									type="button"
 									onClick={() => moveDownloadMode(1)}
@@ -485,8 +486,8 @@ export default function Home() {
 											改行またはカンマ区切り
 										</span>
 									</div>
-									<textarea
-										className="textarea textarea-bordered h-28 min-h-28 w-full resize-none rounded-md bg-base-200 text-sm leading-5 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+									<AppTextarea
+										className="h-28 min-h-28 w-full text-sm leading-5 break-normal"
 										value={urlQueueText}
 										onChange={(event) => setUrlQueueText(event.target.value)}
 										placeholder="https://example.com/video1&#10;https://example.com/video2"
@@ -535,8 +536,8 @@ export default function Home() {
 											<Clock size={13} />
 											開始
 										</span>
-										<input
-											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+										<AppInput
+											className="w-full bg-base-200"
 											value={param.start_time || ""}
 											onChange={(event) => {
 												const value = event.target.value;
@@ -552,8 +553,8 @@ export default function Home() {
 											<Clock size={13} />
 											終了
 										</span>
-										<input
-											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+										<AppInput
+											className="w-full bg-base-200"
 											value={param.end_time || ""}
 											onChange={(event) => {
 												const value = event.target.value;
@@ -569,8 +570,8 @@ export default function Home() {
 											<FileText size={13} />
 											出力ファイル名
 										</span>
-										<input
-											className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+										<AppInput
+											className="w-full bg-base-200"
 											value={param.output_name || ""}
 											onChange={(event) =>
 												setParam((prev) => ({
@@ -587,8 +588,8 @@ export default function Home() {
 											<span className="text-xs text-base-content/60">
 												コーデックID
 											</span>
-											<input
-												className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+											<AppInput
+												className="w-full bg-base-200"
 												value={param.codec_id || ""}
 												onChange={(event) =>
 													setParam({ ...param, codec_id: event.target.value })
@@ -602,8 +603,8 @@ export default function Home() {
 											<span className="text-xs text-base-content/60">
 												字幕言語
 											</span>
-											<input
-												className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+											<AppInput
+												className="w-full bg-base-200"
 												value={param.subtitle_lang || ""}
 												onChange={(event) =>
 													setParam({
@@ -621,8 +622,8 @@ export default function Home() {
 												<Terminal size={13} />
 												任意コード
 											</span>
-											<input
-												className="input input-bordered h-9 w-full rounded-md bg-base-200 text-sm"
+											<AppInput
+												className="w-full bg-base-200"
 												value={arbitraryCode}
 												onChange={(event) =>
 													setArbitraryCode(event.target.value)

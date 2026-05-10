@@ -11,6 +11,7 @@ import {
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
+import { AppInput } from "../_components/FormControls";
 import PrimaryCircleButton from "../_components/PrimaryCircleButton";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 
@@ -251,8 +252,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								<span className="label pb-1 text-xs font-semibold text-base-content/65">
 									yt-dlpのパス
 								</span>
-								<input
-									className="input input-bordered h-10 min-h-10 rounded-md"
+								<AppInput
+									className="h-10 min-h-10"
 									value={ytDlpPath}
 									onChange={(event) => setYtDlpPath(event.target.value)}
 									placeholder="yt-dlp"
@@ -272,8 +273,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									<span className="label pb-1 text-xs font-semibold text-base-content/65">
 										FFmpegのパス
 									</span>
-									<input
-										className="input input-bordered h-10 min-h-10 rounded-md"
+									<AppInput
+										className="h-10 min-h-10"
 										value={ffmpegPath}
 										onChange={(event) => setFfmpegPath(event.target.value)}
 										placeholder="ffmpeg"
@@ -283,8 +284,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 									<span className="label pb-1 text-xs font-semibold text-base-content/65">
 										Denoのパス
 									</span>
-									<input
-										className="input input-bordered h-10 min-h-10 rounded-md"
+									<AppInput
+										className="h-10 min-h-10"
 										value={denoPath}
 										onChange={(event) => setDenoPath(event.target.value)}
 										placeholder="deno"

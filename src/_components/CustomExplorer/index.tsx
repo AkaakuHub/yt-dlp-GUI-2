@@ -20,6 +20,7 @@ import {
 } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
+import { AppInput } from "../FormControls";
 
 interface FileInfo {
 	name: string;
@@ -255,8 +256,8 @@ export default function CustomExplorer() {
 						<Home size={17} />
 					</button>
 				</div>
-				<input
-					className="input input-bordered h-9 min-h-9 w-full rounded-md bg-base-200 font-mono text-sm"
+				<AppInput
+					className="h-9 min-h-9 w-full bg-base-200 font-mono"
 					value={currentPath}
 					onChange={changePath}
 					onKeyDown={submitPath}
