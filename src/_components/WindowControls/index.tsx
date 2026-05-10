@@ -2,7 +2,7 @@ import {
 	isPermissionGranted,
 	sendNotification,
 } from "@tauri-apps/plugin-notification";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
@@ -131,43 +131,97 @@ function WindowControls() {
 			videoTitle,
 		]);
 
+		const [shouldScroll, setShouldScroll] = useState(false);
+		const [scrollDuration, setScrollDuration] = useState(0);
+		const scrollingTextRef = useRef<HTMLSpanElement | null>(null);
+
+		useEffect(() => {
+			if (!videoTitle) {
+				setShouldScroll(false);
+				setScrollDuration(0);
+				return;
+			}
+			if (scrollingTextRef.current) {
+				const textElement: HTMLElement = scrollingTextRef.current;
+
+				const wrapper = textElement?.parentElement;
+				const textWidth = textElement?.offsetWidth;
+				const wrapperWidth = wrapper?.offsetWidth;
+
+				if (wrapperWidth && textWidth > wrapperWidth) {
+					setShouldScroll(true);
+					setScrollDuration(textWidth / 50);
+				} else {
+					setShouldScroll(false);
+				}
+			}
+		}, [videoTitle]);
+
+		useEffect(() => {
+			const textElement = scrollingTextRef.current;
+			if (!textElement || !shouldScroll || scrollDuration <= 0) {
+				return;
+			}
+
+			const animation = textElement.animate(
+				[{ transform: "translateX(100%)" }, { transform: "translateX(-100%)" }],
+				{
+					duration: scrollDuration * 1000,
+					iterations: Infinity,
+					easing: "linear",
+				},
+			);
+
+			return () => {
+				animation.cancel();
+			};
+		}, [scrollDuration, shouldScroll]);
+
 		return (
 			<>
 				{isDownloading ? (
 					<div
 						data-tauri-drag-region
-						className="relative h-7 overflow-hidden bg-base-300"
+						className="relative z-[4] h-[29px] w-full overflow-hidden bg-[#223]"
 					>
 						<div
 							data-tauri-drag-region
-							className="h-full bg-success transition-[width] duration-300"
-							style={{ width: `${progressPercentage}%` }}
+							className="h-full bg-[linear-gradient(90deg,#4caf50_25%,#81c784_50%,#4caf50_75%)] bg-[length:400%_100%] transition-[width] duration-[400ms] ease-in-out"
+							style={{
+								width: `${progressPercentage}%`,
+							}}
 						/>
 						<div
 							data-tauri-drag-region
-							className="absolute inset-0 flex items-center gap-3 px-3 font-mono text-sm text-success-content"
+							className="absolute top-[3px] left-0 z-[5] flex w-full items-center gap-[10px] px-[10px] font-mono text-[18px] text-white"
 						>
 							<span data-tauri-drag-region className="shrink-0">
 								{progressText}
 							</span>
-							<div
-								data-tauri-drag-region
-								className="min-w-0 truncate"
-								key={scrollKey}
-							>
-								{videoTitle}
+							<div className="relative min-w-0 flex-grow overflow-hidden whitespace-nowrap">
+								<span
+									data-tauri-drag-region
+									className="inline-block whitespace-nowrap"
+									key={scrollKey}
+									ref={scrollingTextRef}
+								>
+									{videoTitle}
+								</span>
 							</div>
 						</div>
 					</div>
 				) : (
-					<div data-tauri-drag-region className="h-7 bg-base-300"></div>
+					<div
+						data-tauri-drag-region
+						className="relative z-[4] h-[29px] w-full overflow-hidden bg-[#223]"
+					/>
 				)}
 			</>
 		);
 	};
 
 	return (
-		<div data-tauri-drag-region className="h-7 shrink-0">
+		<div data-tauri-drag-region className="h-[28px] shrink-0">
 			<DownloadProgress />
 		</div>
 	);
