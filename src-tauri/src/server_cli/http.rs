@@ -25,44 +25,71 @@ struct HttpRequest {
     body: String,
 }
 
+struct HttpResponse {
+    status: u16,
+    reason: &'static str,
+    content_type: Option<&'static str>,
+    body: String,
+    should_shutdown: bool,
+}
+
 pub(super) async fn handle_connection(
     mut stream: TcpStream,
     download_process: SharedDownloadProcess,
 ) -> Result<(), String> {
     let request = read_http_request(&mut stream).await?;
     let settings = Settings::new();
-    if !is_authorized(&request, &settings.server_auth_token) {
-        return write_response(&mut stream, 401, "Unauthorized", "unauthorized").await;
+    let response =
+        handle_http_request(request, settings.server_auth_token.trim(), download_process).await?;
+    let should_shutdown = response.should_shutdown;
+    write_response(&mut stream, response).await?;
+    if should_shutdown {
+        std::thread::spawn(|| {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::process::exit(0);
+        });
+    }
+    Ok(())
+}
+
+async fn handle_http_request(
+    request: HttpRequest,
+    token: &str,
+    download_process: SharedDownloadProcess,
+) -> Result<HttpResponse, String> {
+    if !is_authorized(&request, token) {
+        return Ok(text_response(401, "Unauthorized", "unauthorized"));
     }
 
     match (request.method.as_str(), request.path.as_str()) {
-        ("GET", "/health") => write_response(&mut stream, 200, "OK", "ok").await,
+        ("GET", "/health") => Ok(text_response(200, "OK", "ok")),
         ("POST", "/run") => {
-            let run_request = serde_json::from_str::<RunRequest>(&request.body)
-                .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
+            let run_request = match serde_json::from_str::<RunRequest>(&request.body) {
+                Ok(run_request) => run_request,
+                Err(err) => {
+                    return Ok(text_response(
+                        400,
+                        "Bad Request",
+                        &format!("リクエストの解析に失敗しました: {}", err),
+                    ));
+                }
+            };
             let pid = match download_process.start(run_request.param).await {
                 Ok(pid) => pid,
-                Err(err) => return write_response(&mut stream, 400, "Bad Request", &err).await,
+                Err(err) => return Ok(text_response(400, "Bad Request", &err)),
             };
             let body = serde_json::to_string(&RunResponse { pid })
                 .map_err(|e| format!("レスポンスの作成に失敗しました: {}", e))?;
-            write_json_response(&mut stream, 200, "OK", &body).await
+            Ok(json_response(200, "OK", body))
         }
         ("POST", "/stop") => {
             if let Err(err) = download_process.stop().await {
-                return write_response(&mut stream, 400, "Bad Request", &err).await;
+                return Ok(text_response(400, "Bad Request", &err));
             }
-            write_response(&mut stream, 200, "OK", "stopped").await
+            Ok(text_response(200, "OK", "stopped"))
         }
-        ("POST", "/shutdown") => {
-            let response = write_response(&mut stream, 200, "OK", "shutdown").await;
-            std::thread::spawn(|| {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                std::process::exit(0);
-            });
-            response
-        }
-        _ => write_response(&mut stream, 404, "Not Found", "not found").await,
+        ("POST", "/shutdown") => Ok(shutdown_response()),
+        _ => Ok(text_response(404, "Not Found", "not found")),
     }
 }
 
@@ -153,28 +180,59 @@ fn is_authorized(request: &HttpRequest, token: &str) -> bool {
         .unwrap_or(false)
 }
 
-async fn write_json_response(
-    stream: &mut TcpStream,
-    status: u16,
-    reason: &str,
-    body: &str,
-) -> Result<(), String> {
-    let response = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+fn text_response(status: u16, reason: &'static str, body: &str) -> HttpResponse {
+    HttpResponse {
         status,
         reason,
-        body.len(),
-        body
+        content_type: None,
+        body: body.to_string(),
+        should_shutdown: false,
+    }
+}
+
+fn json_response(status: u16, reason: &'static str, body: String) -> HttpResponse {
+    HttpResponse {
+        status,
+        reason,
+        content_type: Some("application/json"),
+        body,
+        should_shutdown: false,
+    }
+}
+
+fn shutdown_response() -> HttpResponse {
+    HttpResponse {
+        status: 200,
+        reason: "OK",
+        content_type: None,
+        body: "shutdown".to_string(),
+        should_shutdown: true,
+    }
+}
+
+async fn write_response(stream: &mut TcpStream, response: HttpResponse) -> Result<(), String> {
+    let content_type = response
+        .content_type
+        .map(|value| format!("Content-Type: {}\r\n", value))
+        .unwrap_or_default();
+    let http_response = format!(
+        "HTTP/1.1 {} {}\r\n{}Content-Length: {}\r\n\r\n{}",
+        response.status,
+        response.reason,
+        content_type,
+        response.body.len(),
+        response.body
     );
     stream
-        .write_all(response.as_bytes())
+        .write_all(http_response.as_bytes())
         .await
         .map_err(|e| format!("レスポンスの送信に失敗しました: {}", e))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{is_authorized, HttpRequest};
+    use super::{handle_http_request, is_authorized, HttpRequest};
+    use crate::server_cli::process::SharedDownloadProcess;
 
     fn request_with_authorization(value: &str) -> HttpRequest {
         HttpRequest {
@@ -183,6 +241,24 @@ mod tests {
             headers: vec![("Authorization".to_string(), value.to_string())],
             body: String::new(),
         }
+    }
+
+    fn request(method: &str, path: &str, token: Option<&str>, body: &str) -> HttpRequest {
+        let headers = token
+            .map(|token| vec![("Authorization".to_string(), format!("Bearer {}", token))])
+            .unwrap_or_default();
+        HttpRequest {
+            method: method.to_string(),
+            path: path.to_string(),
+            headers,
+            body: body.to_string(),
+        }
+    }
+
+    async fn response_for(request: HttpRequest, saved_token: &str) -> super::HttpResponse {
+        handle_http_request(request, saved_token, SharedDownloadProcess::new())
+            .await
+            .expect("HTTPレスポンスを作成できる")
     }
 
     #[test]
@@ -198,23 +274,62 @@ mod tests {
 
         assert!(!is_authorized(&request, " \n"));
     }
-}
 
-async fn write_response(
-    stream: &mut TcpStream,
-    status: u16,
-    reason: &str,
-    body: &str,
-) -> Result<(), String> {
-    let response = format!(
-        "HTTP/1.1 {} {}\r\nContent-Length: {}\r\n\r\n{}",
-        status,
-        reason,
-        body.len(),
-        body
-    );
-    stream
-        .write_all(response.as_bytes())
-        .await
-        .map_err(|e| format!("レスポンスの送信に失敗しました: {}", e))
+    #[tokio::test]
+    async fn health_returns_ok_with_valid_token() {
+        let response = response_for(request("GET", "/health", Some("abc123"), ""), "abc123").await;
+
+        assert_eq!(response.status, 200);
+        assert_eq!(response.body, "ok");
+    }
+
+    #[tokio::test]
+    async fn request_without_token_returns_unauthorized() {
+        let response = response_for(request("GET", "/health", None, ""), "abc123").await;
+
+        assert_eq!(response.status, 401);
+        assert_eq!(response.body, "unauthorized");
+    }
+
+    #[tokio::test]
+    async fn request_with_wrong_token_returns_unauthorized() {
+        let response = response_for(request("GET", "/health", Some("wrong"), ""), "abc123").await;
+
+        assert_eq!(response.status, 401);
+        assert_eq!(response.body, "unauthorized");
+    }
+
+    #[tokio::test]
+    async fn unknown_path_returns_not_found() {
+        let response = response_for(request("GET", "/missing", Some("abc123"), ""), "abc123").await;
+
+        assert_eq!(response.status, 404);
+        assert_eq!(response.body, "not found");
+    }
+
+    #[tokio::test]
+    async fn stop_without_process_returns_bad_request() {
+        let response = response_for(request("POST", "/stop", Some("abc123"), ""), "abc123").await;
+
+        assert_eq!(response.status, 400);
+        assert_eq!(response.body, "プロセスは実行されていません");
+    }
+
+    #[tokio::test]
+    async fn malformed_run_request_returns_bad_request() {
+        let response = response_for(request("POST", "/run", Some("abc123"), "{"), "abc123").await;
+
+        assert_eq!(response.status, 400);
+        assert!(response.body.starts_with("リクエストの解析に失敗しました:"));
+    }
+
+    #[tokio::test]
+    async fn shutdown_marks_response_without_exiting_test_process() {
+        let response =
+            response_for(request("POST", "/shutdown", Some("abc123"), ""), "abc123").await;
+
+        assert_eq!(response.status, 200);
+        assert_eq!(response.body, "shutdown");
+        assert!(response.should_shutdown);
+    }
 }
