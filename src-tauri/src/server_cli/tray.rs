@@ -26,8 +26,14 @@ pub(super) fn run_tray(
     let quit_id = MenuId::new("quit");
     let stop_id = MenuId::new("stop");
     let menu = Menu::new();
+    let status_item = MenuItem::new("yt-dlp-GUIサーバー起動中", false, None);
+    let address_item = MenuItem::new(&address, false, None);
     let stop_item = MenuItem::with_id(stop_id.clone(), "実行中のyt-dlpを停止", true, None);
     let quit_item = MenuItem::with_id(quit_id.clone(), "終了", true, None);
+    menu.append(&status_item)
+        .map_err(|e| format!("trayメニューの作成に失敗しました: {}", e))?;
+    menu.append(&address_item)
+        .map_err(|e| format!("trayメニューの作成に失敗しました: {}", e))?;
     menu.append(&stop_item)
         .map_err(|e| format!("trayメニューの作成に失敗しました: {}", e))?;
     menu.append(&quit_item)
@@ -35,7 +41,8 @@ pub(super) fn run_tray(
 
     let _tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
-        .with_tooltip(format!("yt-dlp-GUI server-cli {}", address))
+        .with_tooltip(format!("yt-dlp-GUIサーバー起動中 {}", address))
+        .with_title("yt-dlp-GUI")
         .with_icon(tray_icon())
         .build()
         .map_err(|e| format!("trayアイコンの作成に失敗しました: {}", e))?;
