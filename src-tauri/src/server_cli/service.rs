@@ -2,6 +2,8 @@ use crate::config::Settings;
 use auto_launch::{AutoLaunchBuilder, MacOSLaunchMode};
 use rand::distr::{Alphanumeric, SampleString};
 use serde::Serialize;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::sync::OnceLock;
 use tokio::{process::Child, sync::Mutex};
 
@@ -42,8 +44,11 @@ pub async fn start_server_cli() -> Result<(), String> {
     }
 
     let server_cli_path = server_cli_path()?;
-    let child = tokio::process::Command::new(server_cli_path)
-        .args(["--host", "0.0.0.0"])
+    let mut command = tokio::process::Command::new(server_cli_path);
+    command.args(["--host", "0.0.0.0"]);
+    #[cfg(target_os = "windows")]
+    command.creation_flags(0x08000000);
+    let child = command
         .spawn()
         .map_err(|e| format!("サーバーCLIの起動に失敗しました: {}", e))?;
     *process = Some(child);

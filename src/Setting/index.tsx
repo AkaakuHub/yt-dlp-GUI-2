@@ -776,11 +776,9 @@ export default function Settings() {
 							<button
 								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
 								type="button"
-								disabled={remoteAuthToken.trim() === ""}
-								onClick={() => void copyRemoteAuthToken()}
+								onClick={() => setShowRemoteSettingsModal(false)}
 							>
-								<Copy size={16} />
-								コピー
+								閉じる
 							</button>
 							<button
 								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
@@ -794,9 +792,11 @@ export default function Settings() {
 							<button
 								className="btn btn-primary h-9 min-h-9 rounded-md text-sm"
 								type="button"
-								onClick={() => setShowRemoteSettingsModal(false)}
+								disabled={remoteAuthToken.trim() === ""}
+								onClick={() => void copyRemoteAuthToken()}
 							>
-								閉じる
+								<Copy size={16} />
+								コピー
 							</button>
 						</footer>
 					</section>

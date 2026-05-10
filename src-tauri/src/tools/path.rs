@@ -287,7 +287,16 @@ pub(crate) fn run_tool_version(path: &str, arg: &str) -> Option<String> {
     if !Path::new(path).exists() {
         return None;
     }
+    #[cfg(target_os = "windows")]
+    let out = Command::new(path)
+        .arg(arg)
+        .creation_flags(0x08000000)
+        .output()
+        .ok()?;
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     let out = Command::new(path).arg(arg).output().ok()?;
+
     let mut s = String::new();
     s.push_str(&String::from_utf8_lossy(&out.stdout));
     s.push_str(&String::from_utf8_lossy(&out.stderr));

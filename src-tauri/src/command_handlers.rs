@@ -21,7 +21,7 @@ pub async fn start_download(
 ) -> Result<u32, String> {
     let settings = app_state.settings.lock().await.clone();
     if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        return start_remote_download(param, &settings).await;
+        return start_remote_download(param, &settings, window).await;
     }
 
     let mut manager = command_manager.lock().await;

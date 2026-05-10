@@ -18,6 +18,19 @@ struct RunResponse {
     pid: u32,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OutputResponse {
+    running: bool,
+    outputs: Vec<OutputLine>,
+}
+
+#[derive(Serialize)]
+struct OutputLine {
+    id: u64,
+    line: String,
+}
+
 struct HttpRequest {
     method: String,
     path: String,
@@ -61,8 +74,29 @@ async fn handle_http_request(
         return Ok(text_response(401, "Unauthorized", "unauthorized"));
     }
 
-    match (request.method.as_str(), request.path.as_str()) {
+    let (path, query) = split_path_query(&request.path);
+
+    match (request.method.as_str(), path) {
         ("GET", "/health") => Ok(text_response(200, "OK", "ok")),
+        ("GET", "/output") => {
+            let since = query_param(query, "since")
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(0);
+            let snapshot = download_process.snapshot_since(since).await;
+            let body = serde_json::to_string(&OutputResponse {
+                running: snapshot.running,
+                outputs: snapshot
+                    .outputs
+                    .into_iter()
+                    .map(|output| OutputLine {
+                        id: output.id,
+                        line: output.line,
+                    })
+                    .collect(),
+            })
+            .map_err(|e| format!("レスポンスの作成に失敗しました: {}", e))?;
+            Ok(json_response(200, "OK", body))
+        }
         ("POST", "/run") => {
             let run_request = match serde_json::from_str::<RunRequest>(&request.body) {
                 Ok(run_request) => run_request,
@@ -91,6 +125,22 @@ async fn handle_http_request(
         ("POST", "/shutdown") => Ok(shutdown_response()),
         _ => Ok(text_response(404, "Not Found", "not found")),
     }
+}
+
+fn split_path_query(path: &str) -> (&str, Option<&str>) {
+    path.split_once('?')
+        .map(|(path, query)| (path, Some(query)))
+        .unwrap_or((path, None))
+}
+
+fn query_param<'a>(query: Option<&'a str>, key: &str) -> Option<&'a str> {
+    query?.split('&').find_map(|pair| {
+        let (name, value) = pair.split_once('=')?;
+        if name == key {
+            return Some(value);
+        }
+        None
+    })
 }
 
 async fn read_http_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
@@ -321,6 +371,19 @@ mod tests {
 
         assert_eq!(response.status, 400);
         assert!(response.body.starts_with("リクエストの解析に失敗しました:"));
+    }
+
+    #[tokio::test]
+    async fn output_returns_json_with_running_state() {
+        let response = response_for(
+            request("GET", "/output?since=0", Some("abc123"), ""),
+            "abc123",
+        )
+        .await;
+
+        assert_eq!(response.status, 200);
+        assert_eq!(response.content_type, Some("application/json"));
+        assert_eq!(response.body, "{\"running\":false,\"outputs\":[]}");
     }
 
     #[tokio::test]
