@@ -144,7 +144,12 @@ const App = () => {
 				activeIndex={activeIndex}
 			/>
 			<div className="min-h-0 flex-1 overflow-hidden">
-				{activeIndex === 0 ? <Home /> : <Setting />}
+				<div className={activeIndex === 0 ? "h-full min-h-0" : "hidden"}>
+					<Home />
+				</div>
+				<div className={activeIndex === 1 ? "h-full min-h-0" : "hidden"}>
+					<Setting />
+				</div>
 			</div>
 		</div>
 	);
