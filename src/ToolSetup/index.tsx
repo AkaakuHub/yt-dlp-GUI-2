@@ -33,6 +33,9 @@ const toolLabels = [
 	["Deno", "deno"],
 ] as const;
 
+const toolNameMatches = (progressToolName: string, label: string) =>
+	progressToolName.toLowerCase() === label.toLowerCase();
+
 export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	const {
 		useBundleTools,
@@ -322,35 +325,58 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 					<div className="grid min-h-0 content-start gap-2">
 						<div className="grid gap-2">
-							{toolLabels.map(([label, key]) => (
-								<div
-									key={key}
-									className="flex h-11 items-center justify-between rounded-md bg-base-100 px-3 text-sm"
-								>
-									<span>{label}</span>
-									<span
-										className={
-											checkResults[key]
-												? "inline-flex items-center gap-1 text-success"
-												: "text-base-content/45"
-										}
+							{toolLabels.map(([label, key]) => {
+								const progress =
+									downloadProgress &&
+									toolNameMatches(downloadProgress.tool_name, label)
+										? downloadProgress
+										: null;
+								return (
+									<div
+										key={key}
+										className="grid h-20 content-center gap-2 rounded-md bg-base-100 px-3 text-sm"
 									>
-										{checkResults[key] ? (
-											<>
-												<CheckCircle2 size={14} />
-												OK
-											</>
-										) : (
-											"未確認"
-										)}
-									</span>
-								</div>
-							))}
+										<div className="flex items-center justify-between gap-3">
+											<span>{label}</span>
+											<span
+												className={
+													checkResults[key]
+														? "inline-flex items-center gap-1 text-success"
+														: "text-base-content/45"
+												}
+											>
+												{progress ? (
+													`${progress.progress.toFixed(1)}%`
+												) : checkResults[key] ? (
+													<>
+														<CheckCircle2 size={14} />
+														OK
+													</>
+												) : (
+													"未確認"
+												)}
+											</span>
+										</div>
+										<div className="grid h-7 grid-rows-[0.5rem_1rem] gap-1">
+											<progress
+												className={`progress progress-primary h-2 w-full ${
+													progress ? "" : "invisible"
+												}`}
+												value={progress?.progress ?? 0}
+												max={100}
+											/>
+											<p
+												className={`truncate text-xs text-base-content/55 ${
+													progress ? "" : "invisible"
+												}`}
+											>
+												{progress?.status ?? "未確認"}
+											</p>
+										</div>
+									</div>
+								);
+							})}
 						</div>
-
-						{downloadProgress ? (
-							<ToolDownloadProgress progress={downloadProgress} />
-						) : null}
 					</div>
 				</section>
 			</main>
