@@ -92,16 +92,28 @@ const App = () => {
 					setShowSetup(false);
 					return;
 				}
-				if (settings.use_bundle_tools) {
-					await invoke("ensure_bundle_tools");
-				}
-				const status = await checkToolAvailability(
+				const currentStatus = await checkToolAvailability(
 					settings.use_bundle_tools,
 					settings.yt_dlp_path,
 					settings.ffmpeg_path,
 					settings.deno_path,
 				);
-				setShowSetup(!status.ok);
+				if (!currentStatus.ok) {
+					setShowSetup(true);
+					return;
+				}
+				if (settings.use_bundle_tools) {
+					await invoke("ensure_bundle_tools");
+					const updatedStatus = await checkToolAvailability(
+						settings.use_bundle_tools,
+						settings.yt_dlp_path,
+						settings.ffmpeg_path,
+						settings.deno_path,
+					);
+					setShowSetup(!updatedStatus.ok);
+					return;
+				}
+				setShowSetup(false);
 			} catch (error) {
 				console.error("Failed to boot app:", error);
 				setShowSetup(true);
