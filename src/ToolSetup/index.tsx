@@ -1,14 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import {
-	CheckCircle2,
-	Download,
-	Loader2,
-	Package,
-	Play,
-	Terminal,
-} from "lucide-react";
-import { type ChangeEvent, useCallback, useEffect, useState } from "react";
+import { CheckCircle2, Loader2, Package, Play, Terminal } from "lucide-react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import { AppInput } from "../_components/FormControls";
@@ -51,7 +44,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		denoPath,
 		setDenoPath,
 		isSettingLoaded,
-		setIsSettingLoaded,
 	} = useAppContext();
 
 	const [isChecking, setIsChecking] = useState(false);
@@ -62,32 +54,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		useState<ToolDownloadProgressValue | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
-	const checkInitialSetup = useCallback(async () => {
-		const status = await checkToolAvailability(
-			useBundleTools,
-			ytDlpPath,
-			ffmpegPath,
-			denoPath,
-		);
-		if (status.ok) {
-			setCheckResults({ ytDlp: true, ffmpeg: true, deno: true });
-			setIsSettingLoaded(true);
-			onComplete();
-			return;
-		}
-		setIsLoading(false);
-	}, [
-		denoPath,
-		ffmpegPath,
-		onComplete,
-		setIsSettingLoaded,
-		useBundleTools,
-		ytDlpPath,
-	]);
-
 	useEffect(() => {
 		if (isSettingLoaded) {
-			void checkInitialSetup();
+			setIsLoading(false);
 		}
 
 		const unlistenPromise = listen<ToolDownloadProgressValue>(
@@ -100,22 +69,51 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		return () => {
 			unlistenPromise.then((unlisten) => unlisten());
 		};
-	}, [checkInitialSetup, isSettingLoaded]);
+	}, [isSettingLoaded]);
 
-	const changeMode = (event: ChangeEvent<HTMLInputElement>) => {
-		setUseBundleTools(event.target.value === "bundle");
-		setCheckResults(emptyToolResults);
+	const detectCustomPathTools = async () => {
+		try {
+			const status = await checkToolAvailability(false, "", "", "");
+			setCheckResults({
+				ytDlp: status.ytDlpFound,
+				ffmpeg: status.ffmpegFound,
+				deno: status.denoFound,
+			});
+			if (status.ok) {
+				setYtDlpPath(status.ytDlpPath);
+				setFfmpegPath(status.ffmpegPath);
+				setDenoPath(status.denoPath);
+			}
+		} catch {
+			setCheckResults(emptyToolResults);
+		}
 	};
 
-	const checkTools = async (): Promise<boolean> => {
+	const changeMode = (event: ChangeEvent<HTMLInputElement>) => {
+		const nextUseBundleTools = event.target.value === "bundle";
+		setUseBundleTools(nextUseBundleTools);
+		setCheckResults(emptyToolResults);
+		if (!nextUseBundleTools) {
+			void detectCustomPathTools();
+		}
+	};
+
+	const checkTools = async (
+		targetUseBundleTools = useBundleTools,
+	): Promise<boolean> => {
 		setIsChecking(true);
 		try {
 			const status = await checkToolAvailability(
-				useBundleTools,
+				targetUseBundleTools,
 				ytDlpPath,
 				ffmpegPath,
 				denoPath,
 			);
+			if (!targetUseBundleTools && status.ok) {
+				setYtDlpPath(status.ytDlpPath);
+				setFfmpegPath(status.ffmpegPath);
+				setDenoPath(status.denoPath);
+			}
 			setCheckResults({
 				ytDlp: status.ytDlpFound,
 				ffmpeg: status.ffmpegFound,
@@ -141,15 +139,16 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		}
 	};
 
-	const downloadBundleTools = async () => {
+	const downloadBundleTools = async (): Promise<boolean> => {
 		setIsDownloading(true);
 		setDownloadProgress(null);
 		try {
 			await invoke<string>("download_bundle_tools");
 			toast.success("ツールのダウンロードが完了しました");
-			await checkTools();
+			return await checkTools(true);
 		} catch (error) {
 			toast.error(`ツールのダウンロードに失敗しました:${String(error)}`);
+			return false;
 		} finally {
 			setIsDownloading(false);
 			setDownloadProgress(null);
@@ -169,7 +168,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	};
 
 	const verifyAndStart = async () => {
-		const isReady = canStart || (await checkTools());
+		const isReady =
+			canStart ||
+			(useBundleTools ? await downloadBundleTools() : await checkTools(false));
 		if (isReady) {
 			await saveSettings();
 		}
@@ -194,7 +195,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 	return (
 		<div className="h-screen overflow-hidden bg-base-100 p-3 text-base-content">
-			<main className="mx-auto grid h-full max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-2">
+			<main className="mx-auto grid h-full max-w-5xl grid-rows-[auto_minmax(0,1fr)] gap-2">
 				<section className="grid gap-2 rounded-lg bg-base-200 p-2 shadow-sm ring-1 ring-base-300 sm:grid-cols-2">
 					<div className="contents">
 						<label
@@ -216,6 +217,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								<span className="flex items-center gap-2 font-semibold">
 									<Package size={18} />
 									バンドル版
+									<span className="rounded bg-primary-content/20 px-2 py-0.5 text-xs">
+										初心者向け
+									</span>
 								</span>
 							</span>
 						</label>
@@ -239,6 +243,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								<span className="flex items-center gap-2 font-semibold">
 									<Terminal size={18} />
 									カスタムパス
+									<span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+										技術者向け
+									</span>
 								</span>
 							</span>
 						</label>
@@ -264,6 +271,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 								<div className="flex items-center gap-2 text-sm font-semibold">
 									<Package size={17} className="text-primary" />
 									バンドル版
+									<span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+										初心者向け
+									</span>
 								</div>
 							</div>
 						)}
@@ -299,7 +309,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						<PrimaryCircleButton
 							label="開始"
 							icon={
-								isChecking ? (
+								isChecking || isDownloading ? (
 									<Loader2 size={30} className="animate-spin" />
 								) : (
 									<Play size={30} />
@@ -343,24 +353,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						) : null}
 					</div>
 				</section>
-
-				{useBundleTools ? (
-					<footer className="grid gap-2 rounded-lg bg-base-200 p-2 shadow-sm ring-1 ring-base-300 sm:grid-cols-[auto_minmax(0,1fr)]">
-						<button
-							className="btn btn-ghost rounded-md bg-base-100 hover:bg-base-300"
-							type="button"
-							disabled={isDownloading || isChecking}
-							onClick={() => void downloadBundleTools()}
-						>
-							{isDownloading ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								<Download size={16} />
-							)}
-							ダウンロード
-						</button>
-					</footer>
-				) : null}
 			</main>
 		</div>
 	);
