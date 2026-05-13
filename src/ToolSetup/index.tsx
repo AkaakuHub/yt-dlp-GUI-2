@@ -13,6 +13,9 @@ import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import { AppInput } from "../_components/FormControls";
 import PrimaryCircleButton from "../_components/PrimaryCircleButton";
+import ToolDownloadProgress, {
+	type ToolDownloadProgressValue,
+} from "../_components/ToolDownloadProgress";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 
 interface ToolSetupProps {
@@ -23,12 +26,6 @@ type ToolCheckResults = {
 	ytDlp: boolean;
 	ffmpeg: boolean;
 	deno: boolean;
-};
-
-type DownloadProgress = {
-	tool_name: string;
-	progress: number;
-	status: string;
 };
 
 const emptyToolResults: ToolCheckResults = {
@@ -62,7 +59,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		useState<ToolCheckResults>(emptyToolResults);
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [downloadProgress, setDownloadProgress] =
-		useState<DownloadProgress | null>(null);
+		useState<ToolDownloadProgressValue | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
 	const checkInitialSetup = useCallback(async () => {
@@ -93,7 +90,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 			void checkInitialSetup();
 		}
 
-		const unlistenPromise = listen<DownloadProgress>(
+		const unlistenPromise = listen<ToolDownloadProgressValue>(
 			"download-progress",
 			(event) => {
 				setDownloadProgress(event.payload);
@@ -184,6 +181,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				<section className="m-auto grid w-full max-w-sm gap-3 rounded-lg bg-base-200 p-5 text-center shadow-sm ring-1 ring-base-300">
 					<Loader2 className="mx-auto animate-spin text-primary" size={28} />
 					<h1 className="text-lg font-bold">ツール確認中</h1>
+					{downloadProgress ? (
+						<ToolDownloadProgress progress={downloadProgress} />
+					) : null}
 				</section>
 			</div>
 		);
@@ -339,20 +339,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						</div>
 
 						{downloadProgress ? (
-							<div className="rounded-md bg-base-100 p-3">
-								<div className="flex justify-between gap-3 text-sm">
-									<span>{downloadProgress.tool_name}</span>
-									<span>{downloadProgress.progress.toFixed(1)}%</span>
-								</div>
-								<progress
-									className="progress progress-primary mt-2 w-full"
-									value={downloadProgress.progress}
-									max={100}
-								/>
-								<p className="mt-1 truncate text-xs text-base-content/55">
-									{downloadProgress.status}
-								</p>
-							</div>
+							<ToolDownloadProgress progress={downloadProgress} />
 						) : null}
 					</div>
 				</section>

@@ -36,6 +36,9 @@ import { useAppContext } from "../_components/AppContext";
 import { AppInput, AppTextarea } from "../_components/FormControls";
 import { SurfaceIsland, SurfacePanel } from "../_components/Surface";
 import ThemeSelector from "../_components/ThemeSelector";
+import ToolDownloadProgress, {
+	type ToolDownloadProgressValue,
+} from "../_components/ToolDownloadProgress";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 import type { ConfigProps } from "../types";
 
@@ -43,12 +46,6 @@ type ToolCheckResults = {
 	ytDlp: boolean;
 	ffmpeg: boolean;
 	deno: boolean;
-};
-
-type DownloadProgress = {
-	tool_name: string;
-	progress: number;
-	status: string;
 };
 
 type ServerCliStatus = {
@@ -121,7 +118,7 @@ export default function Settings() {
 		useState<ToolCheckResults>(emptyToolResults);
 	const [isDownloadingTools, setIsDownloadingTools] = useState(false);
 	const [downloadProgress, setDownloadProgress] =
-		useState<DownloadProgress | null>(null);
+		useState<ToolDownloadProgressValue | null>(null);
 	const [downloadedOnce, setDownloadedOnce] = useState(false);
 	const [isRegisteringServerCli, setIsRegisteringServerCli] = useState(false);
 	const [isOperatingServerCli, setIsOperatingServerCli] = useState(false);
@@ -203,7 +200,7 @@ export default function Settings() {
 
 	useEffect(() => {
 		const setupDownloadProgressListener = async () => {
-			return listen<DownloadProgress>("download-progress", (event) => {
+			return listen<ToolDownloadProgressValue>("download-progress", (event) => {
 				setDownloadProgress(event.payload);
 			});
 		};
@@ -979,20 +976,11 @@ export default function Settings() {
 								) : null}
 
 								{downloadProgress ? (
-									<div className="rounded-md border border-base-300 bg-base-200 p-3">
-										<div className="flex justify-between gap-3 text-sm">
-											<span>{downloadProgress.tool_name}</span>
-											<span>{downloadProgress.progress.toFixed(1)}%</span>
-										</div>
-										<progress
-											className="progress progress-primary mt-2 w-full"
-											value={downloadProgress.progress}
-											max={100}
-										/>
-										<p className="mt-1 text-xs text-base-content/55">
-											{downloadProgress.status}
-										</p>
-									</div>
+									<ToolDownloadProgress
+										className="border border-base-300"
+										progress={downloadProgress}
+										tone="muted"
+									/>
 								) : null}
 
 								<div className="grid gap-2 sm:grid-cols-3">

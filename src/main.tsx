@@ -1,17 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
 	isPermissionGranted,
 	requestPermission,
 	sendNotification,
 } from "@tauri-apps/plugin-notification";
 import { check } from "@tauri-apps/plugin-updater";
+import { Loader2, Package } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AppProvider } from "./_components/AppContext";
+import { SurfaceIsland, SurfacePanel } from "./_components/Surface";
 import { TabComponent } from "./_components/TabComponent";
 import { useTheme } from "./_components/ThemeContext";
+import ToolDownloadProgress, {
+	type ToolDownloadProgressValue,
+} from "./_components/ToolDownloadProgress";
 import WindowControls from "./_components/WindowControls";
 import { checkToolAvailability } from "./_utils/toolAvailability";
 import Home from "./Home";
@@ -24,6 +30,10 @@ import "./main.css";
 const App = () => {
 	const [activeIndex, setActiveIndex] = useState<number>(0);
 	const [showSetup, setShowSetup] = useState<boolean>(true);
+	const [isBooting, setIsBooting] = useState<boolean>(true);
+	const [isBootExiting, setIsBootExiting] = useState<boolean>(false);
+	const [bootDownloadProgress, setBootDownloadProgress] =
+		useState<ToolDownloadProgressValue | null>(null);
 	const { actualTheme } = useTheme();
 
 	const handleSetupComplete = () => {
@@ -64,9 +74,18 @@ const App = () => {
 		};
 
 		document.addEventListener("keydown", preventReload);
+		let unlistenDownloadProgress: UnlistenFn | null = null;
+		let isCanceled = false;
+		let bootFadeTimeout: number | null = null;
 
 		const boot = async () => {
 			try {
+				unlistenDownloadProgress = await listen<ToolDownloadProgressValue>(
+					"download-progress",
+					(event) => {
+						setBootDownloadProgress(event.payload);
+					},
+				);
 				const settings = await invoke<ConfigProps>("get_settings");
 				void notifyUpdateIfAvailable(settings);
 				if (settings.execution_target === "remote") {
@@ -86,15 +105,66 @@ const App = () => {
 			} catch (error) {
 				console.error("Failed to boot app:", error);
 				setShowSetup(true);
+			} finally {
+				if (unlistenDownloadProgress !== null) {
+					unlistenDownloadProgress();
+					unlistenDownloadProgress = null;
+				}
+				if (!isCanceled) {
+					setIsBootExiting(true);
+					bootFadeTimeout = window.setTimeout(() => {
+						setIsBooting(false);
+					}, 220);
+				}
 			}
 		};
 
 		boot();
 
 		return () => {
+			isCanceled = true;
 			document.removeEventListener("keydown", preventReload);
+			if (unlistenDownloadProgress !== null) {
+				unlistenDownloadProgress();
+				unlistenDownloadProgress = null;
+			}
+			if (bootFadeTimeout !== null) {
+				window.clearTimeout(bootFadeTimeout);
+			}
 		};
 	}, [notifyUpdateIfAvailable]);
+
+	if (isBooting) {
+		return (
+			<div
+				className={`grid h-screen overflow-hidden bg-base-100 p-3 text-base-content transition-opacity duration-200 ease-out ${
+					isBootExiting ? "opacity-0" : "opacity-100"
+				}`}
+			>
+				<SurfaceIsland className="m-auto grid w-full max-w-sm gap-3 p-3 text-center">
+					<SurfacePanel className="grid gap-3">
+						{bootDownloadProgress ? (
+							<Package className="mx-auto text-primary" size={28} />
+						) : (
+							<Loader2
+								className="mx-auto animate-spin text-primary"
+								size={28}
+							/>
+						)}
+						<h1 className="text-lg font-bold">
+							{bootDownloadProgress ? "ツール更新中" : "ツール確認中"}
+						</h1>
+						{bootDownloadProgress ? (
+							<ToolDownloadProgress
+								progress={bootDownloadProgress}
+								tone="muted"
+							/>
+						) : null}
+					</SurfacePanel>
+				</SurfaceIsland>
+			</div>
+		);
+	}
 
 	if (showSetup) {
 		return (
