@@ -20,6 +20,7 @@ pub struct ToolStatus {
     yt_dlp_found: bool,
     ffmpeg_found: bool,
     deno_found: bool,
+    bundle_tool_residue_found: bool,
     yt_dlp_error: Option<String>,
     ffmpeg_error: Option<String>,
     deno_error: Option<String>,
@@ -48,6 +49,13 @@ fn get_tools_root() -> Result<PathBuf, String> {
 
 pub(crate) fn get_tools_dir() -> Result<PathBuf, String> {
     Ok(get_tools_root()?.join("binaries"))
+}
+
+fn has_bundle_tool_residue() -> bool {
+    get_tools_dir()
+        .ok()
+        .and_then(|dir| std::fs::read_dir(dir).ok())
+        .is_some_and(|mut entries| entries.any(|entry| entry.is_ok()))
 }
 
 pub(crate) fn find_ffmpeg_recursive(dir: &Path) -> Result<String, String> {
@@ -416,6 +424,7 @@ pub async fn check_tools_status(
         yt_dlp_found: yt_found,
         ffmpeg_found: ff_found,
         deno_found,
+        bundle_tool_residue_found: use_bundle && has_bundle_tool_residue(),
         yt_dlp_error: yt_check.err(),
         ffmpeg_error: ff_check.err(),
         deno_error: deno_check.err(),

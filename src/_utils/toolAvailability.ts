@@ -8,6 +8,7 @@ export type ToolStatus = {
 	ytDlpFound: boolean;
 	ffmpegFound: boolean;
 	denoFound: boolean;
+	bundleToolResidueFound: boolean;
 	ytDlpError?: string | null;
 	ffmpegError?: string | null;
 	denoError?: string | null;
