@@ -220,18 +220,18 @@ function DownloadProgress() {
 			{isDownloading ? (
 				<div
 					data-tauri-drag-region
-					className="relative z-[4] h-[29px] w-full overflow-hidden bg-[#223]"
+					className="relative z-[4] h-[29px] w-full overflow-hidden border-b border-base-300 bg-base-200"
 				>
 					<div
 						data-tauri-drag-region
-						className="h-full bg-[linear-gradient(90deg,#4caf50_25%,#81c784_50%,#4caf50_75%)] bg-[length:400%_100%] transition-[width] duration-[400ms] ease-in-out"
+						className="h-full bg-primary/35 transition-[width] duration-[400ms] ease-in-out"
 						style={{
 							width: `${progressPercentage}%`,
 						}}
 					/>
 					<div
 						data-tauri-drag-region
-						className="absolute top-[3px] left-0 z-[5] flex w-full items-center gap-[10px] px-[10px] font-mono text-[18px] text-white"
+						className="absolute top-[3px] left-0 z-[5] flex w-full items-center gap-[10px] px-[10px] font-mono text-[18px] font-semibold text-base-content"
 					>
 						<span data-tauri-drag-region className="shrink-0">
 							{progressText}
@@ -251,7 +251,7 @@ function DownloadProgress() {
 			) : (
 				<div
 					data-tauri-drag-region
-					className="relative z-[4] h-[29px] w-full overflow-hidden bg-[#223]"
+					className="relative z-[4] h-[29px] w-full overflow-hidden border-b border-base-300 bg-base-200"
 				/>
 			)}
 		</>
