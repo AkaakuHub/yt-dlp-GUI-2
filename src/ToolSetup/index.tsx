@@ -6,9 +6,7 @@ import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import { AppInput } from "../_components/FormControls";
 import PrimaryCircleButton from "../_components/PrimaryCircleButton";
-import ToolDownloadProgress, {
-	type ToolDownloadProgressValue,
-} from "../_components/ToolDownloadProgress";
+import type { ToolDownloadProgressValue } from "../_components/ToolDownloadProgress";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 
 interface ToolSetupProps {
@@ -33,8 +31,22 @@ const toolLabels = [
 	["Deno", "deno"],
 ] as const;
 
+type ToolKey = (typeof toolLabels)[number][1];
+type ToolDownloadProgressByKey = Partial<
+	Record<ToolKey, ToolDownloadProgressValue>
+>;
+
 const toolNameMatches = (progressToolName: string, label: string) =>
 	progressToolName.toLowerCase() === label.toLowerCase();
+
+const getToolKeyFromProgressName = (
+	progressToolName: string,
+): ToolKey | null => {
+	const found = toolLabels.find(([label]) =>
+		toolNameMatches(progressToolName, label),
+	);
+	return found?.[1] ?? null;
+};
 
 export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	const {
@@ -53,8 +65,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	const [checkResults, setCheckResults] =
 		useState<ToolCheckResults>(emptyToolResults);
 	const [isDownloading, setIsDownloading] = useState(false);
-	const [downloadProgress, setDownloadProgress] =
-		useState<ToolDownloadProgressValue | null>(null);
+	const [downloadProgressByKey, setDownloadProgressByKey] =
+		useState<ToolDownloadProgressByKey>({});
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
@@ -65,7 +77,16 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		const unlistenPromise = listen<ToolDownloadProgressValue>(
 			"download-progress",
 			(event) => {
-				setDownloadProgress(event.payload);
+				const currentToolKey = getToolKeyFromProgressName(
+					event.payload.tool_name,
+				);
+				if (currentToolKey === null) {
+					return;
+				}
+				setDownloadProgressByKey((prev) => ({
+					...prev,
+					[currentToolKey]: event.payload,
+				}));
 			},
 		);
 
@@ -144,7 +165,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 
 	const downloadBundleTools = async (): Promise<boolean> => {
 		setIsDownloading(true);
-		setDownloadProgress(null);
+		setDownloadProgressByKey({});
+		setCheckResults(emptyToolResults);
 		try {
 			await invoke<string>("download_bundle_tools");
 			toast.success("ツールのダウンロードが完了しました");
@@ -154,7 +176,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 			return false;
 		} finally {
 			setIsDownloading(false);
-			setDownloadProgress(null);
 		}
 	};
 
@@ -185,9 +206,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				<section className="m-auto grid w-full max-w-sm gap-3 rounded-lg bg-base-200 p-5 text-center shadow-sm ring-1 ring-base-300">
 					<Loader2 className="mx-auto animate-spin text-primary" size={28} />
 					<h1 className="text-lg font-bold">ツール確認中</h1>
-					{downloadProgress ? (
-						<ToolDownloadProgress progress={downloadProgress} />
-					) : null}
 				</section>
 			</div>
 		);
@@ -326,11 +344,9 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 					<div className="grid min-h-0 content-start gap-2">
 						<div className="grid gap-2">
 							{toolLabels.map(([label, key]) => {
-								const progress =
-									downloadProgress &&
-									toolNameMatches(downloadProgress.tool_name, label)
-										? downloadProgress
-										: null;
+								const progress = downloadProgressByKey[key] ?? null;
+								const isProgressComplete =
+									progress?.progress === 100 && progress.status === "完了";
 								return (
 									<div
 										key={key}
@@ -340,18 +356,18 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 											<span>{label}</span>
 											<span
 												className={
-													checkResults[key]
+													checkResults[key] || isProgressComplete
 														? "inline-flex items-center gap-1 text-success"
 														: "text-base-content/45"
 												}
 											>
-												{progress ? (
-													`${progress.progress.toFixed(1)}%`
-												) : checkResults[key] ? (
+												{checkResults[key] || isProgressComplete ? (
 													<>
 														<CheckCircle2 size={14} />
 														OK
 													</>
+												) : progress ? (
+													`${progress.progress.toFixed(1)}%`
 												) : (
 													"未確認"
 												)}

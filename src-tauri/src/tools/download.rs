@@ -52,6 +52,7 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
         Some(&yt_dlp_artifact.sha256),
     )
     .await?;
+    emit_download_progress(&window, "yt-dlp", 100.0, "完了");
 
     window
         .emit(
@@ -99,6 +100,7 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
     }
 
     TokioFs::remove_file(ffmpeg_archive_path).await.ok();
+    emit_download_progress(&window, "ffmpeg", 100.0, "完了");
 
     window
         .emit(
@@ -136,6 +138,7 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
             std::fs::set_permissions(&deno_path, perms).unwrap();
         }
     }
+    emit_download_progress(&window, "deno", 100.0, "完了");
 
     Ok("All tools downloaded successfully".to_string())
 }
@@ -195,6 +198,7 @@ pub async fn ensure_bundle_tools(
             });
             download_file_with_progress(&art.url, &dst, &window, "yt-dlp", Some(&art.sha256))
                 .await?;
+            emit_download_progress(&window, "yt-dlp", 100.0, "完了");
         }
     }
 
@@ -234,6 +238,7 @@ pub async fn ensure_bundle_tools(
             .await?;
             extract_zip(&archive_path, &binaries_dir)?;
             TokioFs::remove_file(archive_path).await.ok();
+            emit_download_progress(&window, "deno", 100.0, "完了");
         }
     }
 
@@ -293,6 +298,7 @@ pub async fn ensure_bundle_tools(
                     }
                 }
             }
+            emit_download_progress(&window, "ffmpeg", 100.0, "完了");
         }
     }
 
@@ -395,6 +401,19 @@ async fn download_file_with_progress(
     }
 
     Ok(())
+}
+
+fn emit_download_progress(window: &Window, tool_name: &str, progress: f64, status: &str) {
+    window
+        .emit(
+            "download-progress",
+            DownloadProgress {
+                tool_name: tool_name.to_string(),
+                progress,
+                status: status.to_string(),
+            },
+        )
+        .ok();
 }
 
 fn extract_zip(
