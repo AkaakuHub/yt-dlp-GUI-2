@@ -315,6 +315,9 @@ async fn download_file_with_progress(
     tool_name: &str,
     expected_sha256: Option<&str>,
 ) -> Result<(), String> {
+    let download_path = temporary_download_path(path);
+    TokioFs::remove_file(&download_path).await.ok();
+
     let response = reqwest::get(url)
         .await
         .map_err(|e| format!("Failed to download {}: {}", tool_name, e))?;
@@ -331,7 +334,7 @@ async fn download_file_with_progress(
     let mut downloaded = 0u64;
     let mut stream = response.bytes_stream();
 
-    let mut file = TokioFs::File::create(path)
+    let mut file = TokioFs::File::create(&download_path)
         .await
         .map_err(|e| format!("Failed to create file: {}", e))?;
 
@@ -367,17 +370,6 @@ async fn download_file_with_progress(
         .map_err(|e| format!("Failed to flush {}: {}", tool_name, e))?;
     drop(file);
 
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(path)
-            .map_err(|e| format!("Failed to read metadata for {}: {}", tool_name, e))?
-            .permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(path, perms)
-            .map_err(|e| format!("Failed to set permissions for {}: {}", tool_name, e))?;
-    }
-
     if let Some(expected) = expected_sha256 {
         window
             .emit(
@@ -390,9 +382,9 @@ async fn download_file_with_progress(
             )
             .unwrap();
 
-        let actual = sha256_file(path)?;
+        let actual = sha256_file(&download_path)?;
         if actual.to_lowercase() != expected.to_lowercase() {
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::remove_file(&download_path);
             return Err(format!(
                 "{}のSHA256が一致しません。expected={}, actual={}",
                 tool_name, expected, actual
@@ -400,7 +392,28 @@ async fn download_file_with_progress(
         }
     }
 
+    TokioFs::remove_file(path).await.ok();
+    TokioFs::rename(&download_path, path)
+        .await
+        .map_err(|e| format!("Failed to replace {}: {}", tool_name, e))?;
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(path)
+            .map_err(|e| format!("Failed to read metadata for {}: {}", tool_name, e))?
+            .permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(path, perms)
+            .map_err(|e| format!("Failed to set permissions for {}: {}", tool_name, e))?;
+    }
+
     Ok(())
+}
+
+fn temporary_download_path(path: &std::path::Path) -> std::path::PathBuf {
+    let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+    path.with_file_name(format!("{}.download", file_name))
 }
 
 fn emit_download_progress(window: &Window, tool_name: &str, progress: f64, status: &str) {
