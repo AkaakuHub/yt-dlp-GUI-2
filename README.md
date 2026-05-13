@@ -16,26 +16,31 @@ https://github.com/AkaakuHub/YDG-Helper
 
 ## インストール
 
+[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)を開き、表示されたページの「Assets」から使っているOSに合うファイルをダウンロードしてください。
+
 ### Windows
 
-1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)から、
-`yt-dlp-GUI_x.x.x_x64_ja-JP.msi`をダウンロードする。
+1.`yt-dlp-GUI_x.x.x_x64-setup.exe`をダウンロードする。
+2.ダウンロードしたファイルをダブルクリックしてインストールする。
 
 ### Mac
 
-1.[**ここ**](https://github.com/AkaakuHub/yt-dlp-GUI-2/releases/latest)にある最新バージョンのリリース("Latest"と書いてあるもの)から
-`yt-dlp-GUI_x.x.x_aarch64.dmg`をダウンロードする。
+Apple Silicon(M1/M2/M3/M4)の場合は、`yt-dlp-GUI_x.x.x_aarch64.dmg`をダウンロードする。
 
-2.ダブルクリックすると、このような画面が開くので、右のアイコンを左にドラッグアンドドロップする。
+Intel Macの場合は、`yt-dlp-GUI_x.x.x_x64.dmg`をダウンロードする。
+
+1.ダブルクリックすると、このような画面が開くので、右のアイコンを左にドラッグアンドドロップする。
    ![image](https://github.com/user-attachments/assets/5e7805aa-4ad8-49e9-9eba-d154554378fb)
 
-3.`"yt-dlp-GUI.app"は壊れているため開けません。`
+2.`"yt-dlp-GUI.app"は壊れているため開けません。`
 と表示される場合は、ターミナルで`xattr -rc [appファイルのパス]`を実行する。<br/>
 例: `xattr -rc /Applications/yt-dlp-GUI.app`
 
 ### Linux
 
-WIP
+- Ubuntu、Debian系:`yt-dlp-GUI_x.x.x_amd64.deb`
+- Fedora、RHEL系:`yt-dlp-GUI-x.x.x-1.x86_64.rpm`
+- 迷った場合:`yt-dlp-GUI_x.x.x_amd64.AppImage`
 
 ## 使い方
 
