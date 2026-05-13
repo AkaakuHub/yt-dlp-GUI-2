@@ -38,20 +38,7 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
         .unwrap();
 
     let yt_dlp_artifact = find_tool_artifact(&manifest, "yt-dlp", os_type, arch)?;
-    let yt_dlp_path = binaries_dir.join(if cfg!(target_os = "windows") {
-        "yt-dlp.exe"
-    } else {
-        "yt-dlp"
-    });
-
-    download_file_with_progress(
-        &yt_dlp_artifact.url,
-        &yt_dlp_path,
-        &window,
-        "yt-dlp",
-        Some(&yt_dlp_artifact.sha256),
-    )
-    .await?;
+    install_yt_dlp_artifact(yt_dlp_artifact, &binaries_dir, &window).await?;
     emit_download_progress(&window, "yt-dlp", 100.0, "完了");
 
     window
@@ -114,7 +101,7 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
         .unwrap();
 
     let deno_artifact = find_tool_artifact(&manifest, "deno", os_type, arch)?;
-    let deno_filename = artifact_filename(&deno_artifact)?;
+    let deno_filename = artifact_filename(deno_artifact)?;
     let deno_archive_path = binaries_dir.join(deno_filename);
     download_file_with_progress(
         &deno_artifact.url,
@@ -178,7 +165,9 @@ pub async fn ensure_bundle_tools(
         let current = run_tool_version(&yt_path, "--version")
             .and_then(|s| s.lines().next().map(|l| l.trim().to_string()))
             .unwrap_or_default();
-        if current != expected {
+        let needs_macos_onedir_migration =
+            cfg!(target_os = "macos") && !binaries_dir.join("yt-dlp_macos").exists();
+        if current != expected || needs_macos_onedir_migration {
             updated_any = true;
             window
                 .emit(
@@ -191,13 +180,7 @@ pub async fn ensure_bundle_tools(
                 )
                 .ok();
             let art = find_tool_artifact(&manifest, "yt-dlp", os_type, arch)?;
-            let dst = binaries_dir.join(if cfg!(target_os = "windows") {
-                "yt-dlp.exe"
-            } else {
-                "yt-dlp"
-            });
-            download_file_with_progress(&art.url, &dst, &window, "yt-dlp", Some(&art.sha256))
-                .await?;
+            install_yt_dlp_artifact(art, &binaries_dir, &window).await?;
             emit_download_progress(&window, "yt-dlp", 100.0, "完了");
         }
     }
@@ -226,7 +209,7 @@ pub async fn ensure_bundle_tools(
                 )
                 .ok();
             let art = find_tool_artifact(&manifest, "deno", os_type, arch)?;
-            let filename = artifact_filename(&art)?;
+            let filename = artifact_filename(art)?;
             let archive_path = binaries_dir.join(filename);
             download_file_with_progress(
                 &art.url,
@@ -260,7 +243,7 @@ pub async fn ensure_bundle_tools(
                 )
                 .ok();
             let art = find_tool_artifact(&manifest, "ffmpeg", os_type, arch)?;
-            let filename = artifact_filename(&art)?;
+            let filename = artifact_filename(art)?;
             let archive_path = binaries_dir.join(&filename);
             download_file_with_progress(
                 &art.url,
@@ -271,9 +254,7 @@ pub async fn ensure_bundle_tools(
             )
             .await?;
 
-            if cfg!(target_os = "windows") {
-                extract_zip(&archive_path, &binaries_dir)?;
-            } else if cfg!(target_os = "macos") {
+            if cfg!(any(target_os = "windows", target_os = "macos")) {
                 extract_zip(&archive_path, &binaries_dir)?;
             } else {
                 extract_tar_xz(&archive_path, &binaries_dir).await?;
@@ -287,7 +268,9 @@ pub async fn ensure_bundle_tools(
                 } else {
                     "ffmpeg"
                 });
-                let _ = std::fs::copy(&found, &stable);
+                if std::path::Path::new(&found) != stable {
+                    let _ = std::fs::copy(&found, &stable);
+                }
                 #[cfg(any(target_os = "linux", target_os = "macos"))]
                 {
                     use std::os::unix::fs::PermissionsExt;
@@ -411,6 +394,155 @@ async fn download_file_with_progress(
     Ok(())
 }
 
+async fn install_yt_dlp_artifact(
+    artifact: &crate::tools::manifest::ToolArtifact,
+    binaries_dir: &std::path::Path,
+    window: &Window,
+) -> Result<(), String> {
+    let filename = artifact_filename(artifact)?;
+
+    if cfg!(target_os = "macos") && filename.ends_with(".zip") {
+        let archive_path = binaries_dir.join(&filename);
+        let extract_dir = binaries_dir.join("yt-dlp_macos.extracting");
+        let next_internal_dir = binaries_dir.join("_internal.new");
+        let next_executable_path = binaries_dir.join("yt-dlp_macos.new");
+        download_file_with_progress(
+            &artifact.url,
+            &archive_path,
+            window,
+            "yt-dlp",
+            Some(&artifact.sha256),
+        )
+        .await?;
+        TokioFs::remove_dir_all(&extract_dir).await.ok();
+        TokioFs::create_dir_all(&extract_dir)
+            .await
+            .map_err(|e| format!("Failed to create yt-dlp extract directory: {}", e))?;
+        extract_zip(&archive_path, &extract_dir)?;
+        TokioFs::remove_file(&archive_path).await.ok();
+
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let executable_path = extract_dir.join("yt-dlp_macos");
+            let mut perms = std::fs::metadata(&executable_path)
+                .map_err(|e| format!("Failed to read metadata for yt-dlp: {}", e))?
+                .permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&executable_path, perms)
+                .map_err(|e| format!("Failed to set permissions for yt-dlp: {}", e))?;
+        }
+
+        TokioFs::remove_dir_all(&next_internal_dir).await.ok();
+        TokioFs::remove_file(&next_executable_path).await.ok();
+        TokioFs::rename(extract_dir.join("_internal"), &next_internal_dir)
+            .await
+            .map_err(|e| format!("Failed to prepare yt-dlp internal files: {}", e))?;
+        TokioFs::rename(extract_dir.join("yt-dlp_macos"), &next_executable_path)
+            .await
+            .map_err(|e| format!("Failed to prepare yt-dlp executable: {}", e))?;
+        TokioFs::remove_dir_all(&extract_dir).await.ok();
+
+        TokioFs::remove_dir_all(binaries_dir.join("_internal.old"))
+            .await
+            .ok();
+        TokioFs::remove_file(binaries_dir.join("yt-dlp_macos.old"))
+            .await
+            .ok();
+        if binaries_dir.join("_internal").exists() {
+            TokioFs::rename(
+                binaries_dir.join("_internal"),
+                binaries_dir.join("_internal.old"),
+            )
+            .await
+            .map_err(|e| format!("Failed to back up yt-dlp internal files: {}", e))?;
+        }
+        if binaries_dir.join("yt-dlp_macos").exists() {
+            if let Err(e) = TokioFs::rename(
+                binaries_dir.join("yt-dlp_macos"),
+                binaries_dir.join("yt-dlp_macos.old"),
+            )
+            .await
+            {
+                restore_yt_dlp_macos_internal_backup(binaries_dir).await;
+                return Err(format!("Failed to back up yt-dlp executable: {}", e));
+            }
+        }
+        if let Err(e) = TokioFs::rename(&next_internal_dir, binaries_dir.join("_internal")).await {
+            restore_yt_dlp_macos_backup(binaries_dir).await;
+            return Err(format!("Failed to install yt-dlp internal files: {}", e));
+        }
+        if let Err(e) =
+            TokioFs::rename(&next_executable_path, binaries_dir.join("yt-dlp_macos")).await
+        {
+            restore_yt_dlp_macos_backup(binaries_dir).await;
+            return Err(format!("Failed to install yt-dlp executable: {}", e));
+        }
+        TokioFs::remove_dir_all(binaries_dir.join("_internal.old"))
+            .await
+            .ok();
+        TokioFs::remove_file(binaries_dir.join("yt-dlp_macos.old"))
+            .await
+            .ok();
+        TokioFs::remove_file(binaries_dir.join("yt-dlp")).await.ok();
+
+        return Ok(());
+    }
+
+    let executable_path = binaries_dir.join(if cfg!(target_os = "windows") {
+        "yt-dlp.exe"
+    } else {
+        "yt-dlp"
+    });
+    download_file_with_progress(
+        &artifact.url,
+        &executable_path,
+        window,
+        "yt-dlp",
+        Some(&artifact.sha256),
+    )
+    .await
+}
+
+async fn restore_yt_dlp_macos_backup(binaries_dir: &std::path::Path) {
+    TokioFs::remove_dir_all(binaries_dir.join("_internal"))
+        .await
+        .ok();
+    TokioFs::remove_file(binaries_dir.join("yt-dlp_macos"))
+        .await
+        .ok();
+    if binaries_dir.join("_internal.old").exists() {
+        TokioFs::rename(
+            binaries_dir.join("_internal.old"),
+            binaries_dir.join("_internal"),
+        )
+        .await
+        .ok();
+    }
+    if binaries_dir.join("yt-dlp_macos.old").exists() {
+        TokioFs::rename(
+            binaries_dir.join("yt-dlp_macos.old"),
+            binaries_dir.join("yt-dlp_macos"),
+        )
+        .await
+        .ok();
+    }
+}
+
+async fn restore_yt_dlp_macos_internal_backup(binaries_dir: &std::path::Path) {
+    TokioFs::remove_dir_all(binaries_dir.join("_internal"))
+        .await
+        .ok();
+    if binaries_dir.join("_internal.old").exists() {
+        TokioFs::rename(
+            binaries_dir.join("_internal.old"),
+            binaries_dir.join("_internal"),
+        )
+        .await
+        .ok();
+    }
+}
+
 fn temporary_download_path(path: &std::path::Path) -> std::path::PathBuf {
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
     path.with_file_name(format!("{}.download", file_name))
@@ -446,7 +578,7 @@ fn extract_zip(
             .by_index(i)
             .map_err(|e| format!("Failed to get file from zip: {}", e))?;
 
-        let outpath = extract_dir.join(file.name());
+        let outpath = safe_zip_output_path(extract_dir, file.name())?;
 
         if file.name().ends_with('/') {
             std::fs::create_dir_all(&outpath)
@@ -466,6 +598,24 @@ fn extract_zip(
     }
 
     Ok(())
+}
+
+fn safe_zip_output_path(
+    extract_dir: &std::path::Path,
+    file_name: &str,
+) -> Result<std::path::PathBuf, String> {
+    let path = std::path::Path::new(file_name);
+    if path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!("Unsafe zip entry path: {}", file_name));
+    }
+    Ok(extract_dir.join(path))
 }
 
 async fn extract_tar_xz(

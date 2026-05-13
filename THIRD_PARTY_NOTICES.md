@@ -4,7 +4,7 @@
 
 ## yt-dlp
 
-- License: GPL-3.0-or-later (PyInstaller exe)
+- License: GPL-3.0-or-later (PyInstaller配布物)
 - Source: `tools-manifest.json` の `source.tagUrl` / `source.tarballUrl`
 - Third-party licenses: `tools-manifest.json` の `source.thirdPartyLicensesUrl`（THIRD_PARTY_LICENSES.txt）
 

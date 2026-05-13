@@ -184,6 +184,17 @@ fn check_program_available(program_name: &str, command_path: &str) -> Result<Str
     match output {
         Ok(output) => {
             if output.status.success() {
+                let output_text = format!(
+                    "{}{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                if output_text.trim().is_empty() {
+                    return Err(format!(
+                        "{} produced no version output at path: {}",
+                        program_name, command_path
+                    ));
+                }
                 Ok(format!("{} found at: {}", program_name, command_path))
             } else {
                 Err(format!(
@@ -213,13 +224,34 @@ fn file_mtime(path: &str) -> Result<u64, String> {
     Ok(duration.as_secs())
 }
 
+fn tool_cache_mtime(program_name: &str, command_path: &str) -> Result<u64, String> {
+    let executable_mtime = file_mtime(command_path)?;
+
+    if cfg!(target_os = "macos")
+        && program_name == "yt-dlp"
+        && Path::new(command_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            == Some("yt-dlp_macos")
+    {
+        let internal_dir = Path::new(command_path)
+            .parent()
+            .ok_or_else(|| format!("Failed to resolve yt-dlp parent path: {}", command_path))?
+            .join("_internal");
+        let internal_mtime = file_mtime(internal_dir.to_string_lossy().as_ref())?;
+        return Ok(executable_mtime.max(internal_mtime));
+    }
+
+    Ok(executable_mtime)
+}
+
 pub(crate) async fn check_program_cached(
     program_name: &str,
     command_path: &str,
     cache: &Mutex<HashMap<String, ToolCacheEntry>>,
     settings: &Mutex<crate::config::Settings>,
 ) -> Result<String, String> {
-    let mtime = match file_mtime(command_path) {
+    let mtime = match tool_cache_mtime(program_name, command_path) {
         Ok(m) => m,
         Err(e) => return Err(e),
     };
@@ -326,6 +358,8 @@ pub fn resolve_tool_paths(
 
         let yt_stable = binaries_dir.join(if cfg!(target_os = "windows") {
             "yt-dlp.exe"
+        } else if cfg!(target_os = "macos") {
+            "yt-dlp_macos"
         } else {
             "yt-dlp"
         });

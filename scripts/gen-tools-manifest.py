@@ -54,8 +54,8 @@ def build_artifacts_ytdlp(release: dict) -> list[dict]:
         ("windows", "x86", "yt-dlp_x86.exe"),
         ("linux", "x86_64", "yt-dlp_linux"),
         ("linux", "aarch64", "yt-dlp_linux_aarch64"),
-        ("macos", "x86_64", "yt-dlp_macos"),
-        ("macos", "aarch64", "yt-dlp_macos"),
+        ("macos", "x86_64", "yt-dlp_macos.zip"),
+        ("macos", "aarch64", "yt-dlp_macos.zip"),
     ]
     artifacts = []
     for os_name, arch, filename in targets:
