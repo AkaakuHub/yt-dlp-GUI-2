@@ -99,6 +99,21 @@ const App = () => {
 					settings.deno_path,
 				);
 				if (!currentStatus.ok) {
+					const hasBundleToolResidue =
+						currentStatus.ytDlpPath.trim() !== "" ||
+						currentStatus.ffmpegPath.trim() !== "" ||
+						currentStatus.denoPath.trim() !== "";
+					if (settings.use_bundle_tools && hasBundleToolResidue) {
+						await invoke("download_bundle_tools");
+						const repairedStatus = await checkToolAvailability(
+							settings.use_bundle_tools,
+							settings.yt_dlp_path,
+							settings.ffmpeg_path,
+							settings.deno_path,
+						);
+						setShowSetup(!repairedStatus.ok);
+						return;
+					}
 					setShowSetup(true);
 					return;
 				}
