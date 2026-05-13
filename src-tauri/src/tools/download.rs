@@ -356,12 +356,20 @@ async fn download_file_with_progress(
             .unwrap();
     }
 
+    file.flush()
+        .await
+        .map_err(|e| format!("Failed to flush {}: {}", tool_name, e))?;
+    drop(file);
+
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(path).unwrap().permissions();
+        let mut perms = std::fs::metadata(path)
+            .map_err(|e| format!("Failed to read metadata for {}: {}", tool_name, e))?
+            .permissions();
         perms.set_mode(0o755);
-        std::fs::set_permissions(path, perms).unwrap();
+        std::fs::set_permissions(path, perms)
+            .map_err(|e| format!("Failed to set permissions for {}: {}", tool_name, e))?;
     }
 
     if let Some(expected) = expected_sha256 {
