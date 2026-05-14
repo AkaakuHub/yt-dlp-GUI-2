@@ -10,6 +10,8 @@ import { toast } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
+const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
+
 const extractDestinationTitle = (consoleText: string): string | undefined => {
 	const destinationLine = consoleText
 		.split(/\r?\n/)
@@ -146,6 +148,12 @@ function DownloadProgress() {
 			setIsDownloading(true);
 			setProgressText("コンテナ処理中...");
 			setProgressPercentage(100);
+		} else if (latestConsoleText === DOWNLOAD_STOPPED_MESSAGE) {
+			setIsDownloading(false);
+			setProgressPercentage(0);
+			setProgressText("");
+			videoTitleRef.current = "";
+			setVideoTitle("");
 		} else if (latestConsoleText === "") {
 			setIsDownloading(false);
 			setProgressPercentage(0);

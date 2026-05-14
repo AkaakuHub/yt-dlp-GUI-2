@@ -50,6 +50,8 @@ const downloadModes = [
 	{ value: 13, label: "任意コード >yt-dlp" },
 ] as const;
 
+const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
+
 interface QueueState {
 	active: boolean;
 	index: number;
@@ -89,6 +91,7 @@ export default function Home() {
 		items: [],
 	});
 	const latestDownloadDestinationRef = useRef("");
+	const stopRequestedRef = useRef(false);
 	const selectedIndexRef = useRef(selectedIndexNumber);
 	const invalidTimestampRef = useRef({
 		start_time: false,
@@ -322,9 +325,14 @@ export default function Home() {
 		});
 
 		const unlistenExit = listen<string>("process-exit", () => {
+			const wasStopped = stopRequestedRef.current;
+			stopRequestedRef.current = false;
 			latestDownloadDestinationRef.current = "";
-			setLatestConsoleText("");
+			setLatestConsoleText(wasStopped ? DOWNLOAD_STOPPED_MESSAGE : "");
 			setPid(null);
+			if (wasStopped) {
+				return;
+			}
 			runQueueNext();
 		});
 
@@ -343,7 +351,13 @@ export default function Home() {
 
 	const stopProcess = async () => {
 		resetQueueState();
-		await invoke("stop_download");
+		stopRequestedRef.current = true;
+		try {
+			await invoke("stop_download");
+		} catch (error) {
+			stopRequestedRef.current = false;
+			throw error;
+		}
 		setPid(null);
 	};
 
