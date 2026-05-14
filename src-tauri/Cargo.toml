@@ -41,6 +41,8 @@ auto-launch = "0.6.0"
 rand = "0.9"
 tao = "0.35.2"
 tray-icon = "0.23.1"
+objc = "0.2.7"
+mac-notification-sys = "0.6.3"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

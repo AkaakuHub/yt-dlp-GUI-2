@@ -4,6 +4,7 @@ mod client;
 mod command_handlers;
 mod config;
 mod download_command;
+mod notification;
 mod process_manager;
 #[path = "server_cli/service.rs"]
 mod server_cli_service;
@@ -70,7 +71,8 @@ fn main() {
             server_cli_service::start_server_cli,
             server_cli_service::stop_server_cli,
             server_cli_service::get_server_cli_status,
-            server_cli_service::generate_remote_auth_token
+            server_cli_service::generate_remote_auth_token,
+            notification::send_download_complete_notification
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())

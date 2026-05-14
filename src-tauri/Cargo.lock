@@ -6786,6 +6786,8 @@ dependencies = [
  "fix-path-env",
  "futures-util",
  "hyper",
+ "mac-notification-sys",
+ "objc",
  "open",
  "rand",
  "reqwest 0.12.7",

@@ -1,8 +1,6 @@
-import {
-	isPermissionGranted,
-	sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
 
@@ -40,16 +38,11 @@ function DownloadProgress() {
 	const sendNotificationHandler = useCallback(
 		async (title: string, body: string) => {
 			try {
-				const permissionGranted = await isPermissionGranted();
-				if (permissionGranted) {
-					sendNotification({
-						title,
-						body,
-						autoCancel: true,
-						ongoing: false,
-					});
-				}
-			} catch {}
+				await invoke("send_download_complete_notification", { title, body });
+			} catch (error) {
+				console.error("Failed to send download notification:", error);
+				toast.error(`完了通知の送信に失敗しました:${String(error)}`);
+			}
 		},
 		[],
 	);
