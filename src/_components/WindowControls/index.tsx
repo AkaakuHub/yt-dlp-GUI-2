@@ -1,5 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../AppContext";
 import { eventEmitter } from "../EventEmitter";
@@ -188,14 +194,22 @@ function DownloadProgress() {
 		}
 	}, [videoTitle]);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		const textElement = scrollingTextRef.current;
 		if (!textElement || !shouldScroll || scrollDuration <= 0) {
+			if (textElement) {
+				textElement.style.transform = "";
+			}
 			return;
 		}
+		const wrapperWidth = textElement.parentElement?.offsetWidth ?? 0;
+		textElement.style.transform = `translateX(${wrapperWidth}px)`;
 
 		const animation = textElement.animate(
-			[{ transform: "translateX(100%)" }, { transform: "translateX(-100%)" }],
+			[
+				{ transform: `translateX(${wrapperWidth}px)` },
+				{ transform: "translateX(-100%)" },
+			],
 			{
 				duration: scrollDuration * 1000,
 				iterations: Infinity,
