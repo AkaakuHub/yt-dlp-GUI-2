@@ -1,17 +1,22 @@
+use crate::config::{AppState, VerifyCache};
 use crate::tools::manifest::{
     artifact_filename, find_tool_artifact, load_tools_manifest_from_release, sha256_file,
 };
 use crate::tools::path::DownloadProgress;
 use crate::tools::path::{
-    find_ffmpeg_recursive, get_tools_dir, resolve_tool_paths, run_tool_version,
+    find_ffmpeg_recursive, get_tools_dir, resolve_tool_paths, run_tool_version, tool_cache_mtime,
 };
+use tauri::State;
 use tauri::{Emitter, Window};
 use tokio::fs as TokioFs;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command as TokioCommand;
 
 #[tauri::command]
-pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, String> {
+pub async fn download_bundle_tools(
+    window: tauri::Window,
+    app_state: State<'_, AppState>,
+) -> Result<String, String> {
     let os_type = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
 
@@ -37,8 +42,14 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
         )
         .unwrap();
 
+    let yt_dlp_version = manifest
+        .tools
+        .get("yt-dlp")
+        .and_then(|tool| tool.version.as_deref());
     let yt_dlp_artifact = find_tool_artifact(&manifest, "yt-dlp", os_type, arch)?;
     install_yt_dlp_artifact(yt_dlp_artifact, &binaries_dir, &window).await?;
+    let (yt_path, _, _) = resolve_tool_paths(true, "", "", "")?;
+    write_tool_installed_version(&app_state, "yt-dlp", &yt_path, yt_dlp_version).await?;
     emit_download_progress(&window, "yt-dlp", 100.0, "完了");
 
     window
@@ -52,6 +63,10 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
         )
         .unwrap();
 
+    let ffmpeg_version = manifest
+        .tools
+        .get("ffmpeg")
+        .and_then(|tool| tool.version.as_deref());
     let ffmpeg_artifact = find_tool_artifact(&manifest, "ffmpeg", os_type, arch)?;
     let ffmpeg_filename = artifact_filename(ffmpeg_artifact)?;
     let ffmpeg_archive_path = binaries_dir.join(ffmpeg_filename);
@@ -87,6 +102,8 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
     }
 
     TokioFs::remove_file(ffmpeg_archive_path).await.ok();
+    let (_, ff_path, _) = resolve_tool_paths(true, "", "", "")?;
+    write_tool_installed_version(&app_state, "ffmpeg", &ff_path, ffmpeg_version).await?;
     emit_download_progress(&window, "ffmpeg", 100.0, "完了");
 
     window
@@ -100,6 +117,11 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
         )
         .unwrap();
 
+    let deno_version = manifest
+        .tools
+        .get("deno")
+        .and_then(|tool| tool.version.as_deref())
+        .map(|version| version.trim().trim_start_matches('v'));
     let deno_artifact = find_tool_artifact(&manifest, "deno", os_type, arch)?;
     let deno_filename = artifact_filename(deno_artifact)?;
     let deno_archive_path = binaries_dir.join(deno_filename);
@@ -125,6 +147,8 @@ pub async fn download_bundle_tools(window: tauri::Window) -> Result<String, Stri
             std::fs::set_permissions(&deno_path, perms).unwrap();
         }
     }
+    let (_, _, deno_path) = resolve_tool_paths(true, "", "", "")?;
+    write_tool_installed_version(&app_state, "deno", &deno_path, deno_version).await?;
     emit_download_progress(&window, "deno", 100.0, "完了");
 
     Ok("All tools downloaded successfully".to_string())
@@ -162,12 +186,25 @@ pub async fn ensure_bundle_tools(
 
     if let Some(tool) = manifest.tools.get("yt-dlp") {
         let expected = tool.version.as_deref().unwrap_or("").trim();
-        let current = run_tool_version(&yt_path, "--version")
-            .and_then(|s| s.lines().next().map(|l| l.trim().to_string()))
+        let current_output = run_tool_version(&yt_path, "--version").unwrap_or_default();
+        let current = current_output
+            .lines()
+            .next()
+            .map(|line| line.trim().to_string())
             .unwrap_or_default();
+        let current_runs = !current_output.trim().is_empty();
+        let version_matches_output = !expected.is_empty() && current == expected;
+        let installed_version_matches =
+            cached_tool_installed_version(&app_state, "yt-dlp", &yt_path)
+                .await
+                .as_deref()
+                == Some(expected);
         let needs_macos_onedir_migration =
             cfg!(target_os = "macos") && !binaries_dir.join("yt-dlp_macos").exists();
-        if current != expected || needs_macos_onedir_migration {
+        if !current_runs
+            || needs_macos_onedir_migration
+            || (!version_matches_output && !installed_version_matches)
+        {
             updated_any = true;
             window
                 .emit(
@@ -181,7 +218,13 @@ pub async fn ensure_bundle_tools(
                 .ok();
             let art = find_tool_artifact(&manifest, "yt-dlp", os_type, arch)?;
             install_yt_dlp_artifact(art, &binaries_dir, &window).await?;
+            let (yt_path, _, _) = resolve_tool_paths(true, "", "", "")?;
+            write_tool_installed_version(&app_state, "yt-dlp", &yt_path, tool.version.as_deref())
+                .await?;
             emit_download_progress(&window, "yt-dlp", 100.0, "完了");
+        } else if version_matches_output && !installed_version_matches {
+            write_tool_installed_version(&app_state, "yt-dlp", &yt_path, tool.version.as_deref())
+                .await?;
         }
     }
 
@@ -192,11 +235,21 @@ pub async fn ensure_bundle_tools(
             .unwrap_or("")
             .trim()
             .trim_start_matches('v');
-        let current = run_tool_version(&deno_path, "--version")
-            .and_then(|s| s.lines().next().map(|l| l.trim().to_string()))
+        let current_output = run_tool_version(&deno_path, "--version").unwrap_or_default();
+        let current = current_output
+            .lines()
+            .next()
+            .map(|line| line.trim().to_string())
             .and_then(|l| l.split_whitespace().nth(1).map(|v| v.to_string()))
             .unwrap_or_default();
-        if current != expected {
+        let current_runs = !current_output.trim().is_empty();
+        let version_matches_output = !expected.is_empty() && current == expected;
+        let installed_version_matches =
+            cached_tool_installed_version(&app_state, "deno", &deno_path)
+                .await
+                .as_deref()
+                == Some(expected);
+        if !current_runs || (!version_matches_output && !installed_version_matches) {
             updated_any = true;
             window
                 .emit(
@@ -221,16 +274,24 @@ pub async fn ensure_bundle_tools(
             .await?;
             extract_zip(&archive_path, &binaries_dir)?;
             TokioFs::remove_file(archive_path).await.ok();
+            write_tool_installed_version(&app_state, "deno", &deno_path, Some(expected)).await?;
             emit_download_progress(&window, "deno", 100.0, "完了");
+        } else if version_matches_output && !installed_version_matches {
+            write_tool_installed_version(&app_state, "deno", &deno_path, Some(expected)).await?;
         }
     }
 
     if let Some(tool) = manifest.tools.get("ffmpeg") {
         let expected = tool.version.as_deref().unwrap_or("").trim();
-        let current_ok = run_tool_version(&ff_path, "-version")
-            .map(|s| s.contains(expected))
-            .unwrap_or(false);
-        if !current_ok {
+        let current_output = run_tool_version(&ff_path, "-version").unwrap_or_default();
+        let current_runs = !current_output.trim().is_empty();
+        let version_matches_output = !expected.is_empty() && current_output.contains(expected);
+        let installed_version_matches =
+            cached_tool_installed_version(&app_state, "ffmpeg", &ff_path)
+                .await
+                .as_deref()
+                == Some(expected);
+        if !current_runs || (!version_matches_output && !installed_version_matches) {
             updated_any = true;
             window
                 .emit(
@@ -281,7 +342,13 @@ pub async fn ensure_bundle_tools(
                     }
                 }
             }
+            let (_, ff_path, _) = resolve_tool_paths(true, "", "", "")?;
+            write_tool_installed_version(&app_state, "ffmpeg", &ff_path, tool.version.as_deref())
+                .await?;
             emit_download_progress(&window, "ffmpeg", 100.0, "完了");
+        } else if version_matches_output && !installed_version_matches {
+            write_tool_installed_version(&app_state, "ffmpeg", &ff_path, tool.version.as_deref())
+                .await?;
         }
     }
 
@@ -546,6 +613,50 @@ async fn restore_yt_dlp_macos_internal_backup(binaries_dir: &std::path::Path) {
 fn temporary_download_path(path: &std::path::Path) -> std::path::PathBuf {
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
     path.with_file_name(format!("{}.download", file_name))
+}
+
+fn normalized_installed_version(version: Option<&str>) -> Option<String> {
+    let version = version?.trim();
+    if version.is_empty() {
+        return None;
+    }
+    Some(version.to_string())
+}
+
+async fn cached_tool_installed_version(
+    app_state: &State<'_, AppState>,
+    tool_name: &str,
+    tool_path: &str,
+) -> Option<String> {
+    let mtime = tool_cache_mtime(tool_name, tool_path).ok()?;
+    let settings = app_state.settings.lock().await;
+    settings
+        .get_verify_cache(tool_name)
+        .filter(|entry| entry.path == tool_path && entry.mtime == mtime && entry.ok)
+        .and_then(|entry| entry.installed_version)
+}
+
+async fn write_tool_installed_version(
+    app_state: &State<'_, AppState>,
+    tool_name: &str,
+    tool_path: &str,
+    version: Option<&str>,
+) -> Result<(), String> {
+    let Some(installed_version) = normalized_installed_version(version) else {
+        return Ok(());
+    };
+    let mtime = tool_cache_mtime(tool_name, tool_path)?;
+    let mut settings = app_state.settings.lock().await;
+    settings.set_verify_cache(
+        tool_name,
+        VerifyCache {
+            path: tool_path.to_string(),
+            mtime,
+            ok: true,
+            installed_version: Some(installed_version),
+        },
+    );
+    Ok(())
 }
 
 fn emit_download_progress(window: &Window, tool_name: &str, progress: f64, status: &str) {

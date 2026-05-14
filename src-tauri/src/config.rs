@@ -238,6 +238,7 @@ pub struct VerifyCache {
     pub path: String,
     pub mtime: u64,
     pub ok: bool,
+    pub installed_version: Option<String>,
 }
 
 pub mod commands {

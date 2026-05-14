@@ -224,7 +224,7 @@ fn file_mtime(path: &str) -> Result<u64, String> {
     Ok(duration.as_secs())
 }
 
-fn tool_cache_mtime(program_name: &str, command_path: &str) -> Result<u64, String> {
+pub(crate) fn tool_cache_mtime(program_name: &str, command_path: &str) -> Result<u64, String> {
     let executable_mtime = file_mtime(command_path)?;
 
     if cfg!(target_os = "macos")
@@ -307,12 +307,17 @@ pub(crate) async fn check_program_cached(
 
     {
         let mut s = settings.lock().await;
+        let installed_version = s
+            .get_verify_cache(program_name)
+            .filter(|entry| entry.path == command_path && entry.mtime == mtime)
+            .and_then(|entry| entry.installed_version);
         s.set_verify_cache(
             program_name,
             VerifyCache {
                 path: command_path.to_string(),
                 mtime,
                 ok: result.is_ok(),
+                installed_version,
             },
         );
     }
