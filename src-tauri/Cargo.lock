@@ -6778,7 +6778,7 @@ dependencies = [
 
 [[package]]
 name = "yt-dlp-GUI"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "auto-launch",
  "dirs 5.0.1",
