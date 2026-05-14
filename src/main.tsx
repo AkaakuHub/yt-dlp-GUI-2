@@ -27,9 +27,44 @@ import type { ConfigProps } from "./types";
 
 import "./main.css";
 
+type BootOverlayProps = {
+	isExiting: boolean;
+	progress: ToolDownloadProgressValue | null;
+};
+
+function BootOverlay({ isExiting, progress }: BootOverlayProps) {
+	return (
+		<div
+			className={`fixed inset-0 z-[100] grid place-items-center bg-base-content/20 p-4 text-base-content backdrop-blur-sm transition-opacity duration-200 ease-out ${
+				isExiting ? "opacity-0" : "opacity-100"
+			}`}
+		>
+			<SurfaceIsland className="w-full max-w-sm p-2 shadow-lg">
+				<SurfacePanel className="grid gap-4 p-5">
+					<div className="grid justify-items-center gap-3 text-center">
+						<div className="grid size-11 place-items-center rounded-lg bg-base-200 text-primary">
+							{progress ? (
+								<Package size={26} />
+							) : (
+								<Loader2 className="animate-spin" size={26} />
+							)}
+						</div>
+						<h1 className="text-lg font-bold">
+							{progress ? "ツール更新中" : "ツール確認中"}
+						</h1>
+					</div>
+					{progress ? (
+						<ToolDownloadProgress progress={progress} tone="muted" />
+					) : null}
+				</SurfacePanel>
+			</SurfaceIsland>
+		</div>
+	);
+}
+
 const App = () => {
 	const [activeIndex, setActiveIndex] = useState<number>(0);
-	const [showSetup, setShowSetup] = useState<boolean>(true);
+	const [showSetup, setShowSetup] = useState<boolean>(false);
 	const [isBooting, setIsBooting] = useState<boolean>(true);
 	const [isBootExiting, setIsBootExiting] = useState<boolean>(false);
 	const [bootDownloadProgress, setBootDownloadProgress] =
@@ -160,41 +195,9 @@ const App = () => {
 		};
 	}, [notifyUpdateIfAvailable]);
 
-	if (isBooting) {
-		return (
-			<div
-				className={`grid h-screen overflow-hidden bg-base-100 p-3 text-base-content transition-opacity duration-200 ease-out ${
-					isBootExiting ? "opacity-0" : "opacity-100"
-				}`}
-			>
-				<SurfaceIsland className="m-auto grid w-full max-w-sm gap-3 p-3 text-center">
-					<SurfacePanel className="grid gap-3">
-						{bootDownloadProgress ? (
-							<Package className="mx-auto text-primary" size={28} />
-						) : (
-							<Loader2
-								className="mx-auto animate-spin text-primary"
-								size={28}
-							/>
-						)}
-						<h1 className="text-lg font-bold">
-							{bootDownloadProgress ? "ツール更新中" : "ツール確認中"}
-						</h1>
-						{bootDownloadProgress ? (
-							<ToolDownloadProgress
-								progress={bootDownloadProgress}
-								tone="muted"
-							/>
-						) : null}
-					</SurfacePanel>
-				</SurfaceIsland>
-			</div>
-		);
-	}
-
 	if (showSetup) {
 		return (
-			<div className="flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
+			<div className="relative flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
 				<ToastContainer
 					position="top-left"
 					autoClose={5000}
@@ -210,12 +213,18 @@ const App = () => {
 					theme={actualTheme}
 				/>
 				<ToolSetup onComplete={handleSetupComplete} />
+				{isBooting ? (
+					<BootOverlay
+						isExiting={isBootExiting}
+						progress={bootDownloadProgress}
+					/>
+				) : null}
 			</div>
 		);
 	}
 
 	return (
-		<div className="flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
+		<div className="relative flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
 			<WindowControls />
 			<ToastContainer
 				position="top-left"
@@ -247,6 +256,12 @@ const App = () => {
 					<Setting />
 				</div>
 			</div>
+			{isBooting ? (
+				<BootOverlay
+					isExiting={isBootExiting}
+					progress={bootDownloadProgress}
+				/>
+			) : null}
 		</div>
 	);
 };

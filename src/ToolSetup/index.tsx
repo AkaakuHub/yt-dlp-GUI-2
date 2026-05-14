@@ -58,7 +58,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		setFfmpegPath,
 		denoPath,
 		setDenoPath,
-		isSettingLoaded,
 	} = useAppContext();
 
 	const [isChecking, setIsChecking] = useState(false);
@@ -67,13 +66,8 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [downloadProgressByKey, setDownloadProgressByKey] =
 		useState<ToolDownloadProgressByKey>({});
-	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		if (isSettingLoaded) {
-			setIsLoading(false);
-		}
-
 		const unlistenPromise = listen<ToolDownloadProgressValue>(
 			"download-progress",
 			(event) => {
@@ -93,7 +87,7 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 		return () => {
 			unlistenPromise.then((unlisten) => unlisten());
 		};
-	}, [isSettingLoaded]);
+	}, []);
 
 	const detectCustomPathTools = async () => {
 		try {
@@ -199,17 +193,6 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 			await saveSettings();
 		}
 	};
-
-	if (isLoading) {
-		return (
-			<div className="grid h-screen overflow-hidden bg-base-100 p-3 text-base-content">
-				<section className="m-auto grid w-full max-w-sm gap-3 rounded-lg bg-base-200 p-5 text-center shadow-sm ring-1 ring-base-300">
-					<Loader2 className="mx-auto animate-spin text-primary" size={28} />
-					<h1 className="text-lg font-bold">ツール確認中</h1>
-				</section>
-			</div>
-		);
-	}
 
 	const canStart =
 		checkResults.ytDlp && checkResults.ffmpeg && checkResults.deno;
