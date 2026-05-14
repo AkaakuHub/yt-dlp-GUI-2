@@ -1,10 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import {
-	isPermissionGranted,
-	requestPermission,
-	sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { ask, message } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Loader2, Package } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
@@ -75,30 +72,28 @@ const App = () => {
 		setShowSetup(false);
 	};
 
-	const notifyUpdateIfAvailable = useCallback(async (settings: ConfigProps) => {
-		if (!settings.is_send_notification) {
-			return;
-		}
+	const promptUpdateIfAvailable = useCallback(async () => {
 		const update = await check().catch(() => null);
 		if (update === null) {
 			return;
 		}
 
-		let permissionGranted = await isPermissionGranted().catch(() => false);
-		if (!permissionGranted) {
-			const permission = await requestPermission().catch(() => "denied");
-			permissionGranted = permission === "granted";
-		}
-		if (!permissionGranted) {
+		const shouldUpdate = await ask(
+			`最新バージョン(${update.version})があります！アップデートしますか？`,
+			{
+				okLabel: "はい",
+				cancelLabel: "いいえ",
+			},
+		);
+		if (!shouldUpdate) {
 			return;
 		}
 
-		sendNotification({
-			title: "アップデートがあります",
-			body: `バージョン${update.version}を利用できます。`,
-			autoCancel: true,
-			ongoing: false,
-		});
+		await update.downloadAndInstall();
+		await message(
+			"アップデートが完了しました。アプリケーションを再起動します。",
+		);
+		await relaunch();
 	}, []);
 
 	useEffect(() => {
@@ -122,7 +117,7 @@ const App = () => {
 					},
 				);
 				const settings = await invoke<ConfigProps>("get_settings");
-				void notifyUpdateIfAvailable(settings);
+				await promptUpdateIfAvailable();
 				if (settings.execution_target === "remote") {
 					setShowSetup(false);
 					return;
@@ -193,7 +188,7 @@ const App = () => {
 				window.clearTimeout(bootFadeTimeout);
 			}
 		};
-	}, [notifyUpdateIfAvailable]);
+	}, [promptUpdateIfAvailable]);
 
 	if (showSetup) {
 		return (
