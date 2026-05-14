@@ -231,7 +231,7 @@ function DownloadProgress() {
 					/>
 					<div
 						data-tauri-drag-region
-						className="absolute top-[3px] left-0 z-[5] flex w-full items-center gap-[10px] px-[10px] font-mono text-[18px] font-semibold text-base-content"
+						className="absolute inset-0 z-[5] flex w-full items-center gap-[10px] px-[10px] font-mono text-[18px] font-semibold leading-none text-base-content"
 					>
 						<span data-tauri-drag-region className="shrink-0">
 							{progressText}
