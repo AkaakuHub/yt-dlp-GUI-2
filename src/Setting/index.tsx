@@ -67,6 +67,8 @@ const toolLabels = [
 	["Deno", "deno"],
 ] as const;
 
+const MACOS_OS_TYPE = "macos";
+
 const parseServerPort = (value: string): number | null => {
 	const parsedPort = Number.parseInt(value, 10);
 	if (Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
@@ -108,6 +110,7 @@ export default function Settings() {
 	const [notificationPermission, setNotificationPermission] = useState<
 		boolean | null
 	>(null);
+	const [osType, setOsType] = useState("");
 	const [showToolsModal, setShowToolsModal] = useState(false);
 	const [tempUseBundle, setTempUseBundle] = useState(useBundleTools);
 	const [tempYtDlpPath, setTempYtDlpPath] = useState(ytDlpPath);
@@ -206,12 +209,17 @@ export default function Settings() {
 		};
 
 		const loadSettingsMetadata = async () => {
-			const [version, granted, update] = await Promise.all([
+			const [version, detectedOsType, update] = await Promise.all([
 				invoke<string>("get_current_version"),
-				isPermissionGranted().catch(() => false),
+				invoke<string>("get_os_type"),
 				check().catch(() => null),
 			]);
+			const granted =
+				detectedOsType === MACOS_OS_TYPE
+					? await isPermissionGranted().catch(() => false)
+					: null;
 			setCurrentVersion(version);
+			setOsType(detectedOsType);
 			setNotificationPermission(granted);
 			setIsUpdateAvailable(update !== null);
 		};
@@ -690,7 +698,9 @@ export default function Settings() {
 							/>
 						</label>
 
-						{isSendNotification && notificationPermission === false ? (
+						{isSendNotification &&
+						osType === MACOS_OS_TYPE &&
+						notificationPermission === false ? (
 							<div className="alert border-warning/35 bg-warning/10 py-2 text-sm md:col-span-2">
 								<Bell size={16} />
 								<span>通知権限が許可されていません。</span>
