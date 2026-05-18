@@ -35,6 +35,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -99,18 +101,37 @@ jobs:
         id: release_notes
         shell: bash
         run: |
+          set -euo pipefail
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
-          COMMIT_MESSAGE=$(git log --format=%B -n 1 ${{ github.sha }})
-          RELEASE_NOTES="Release $TAG_NAME
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -v "^${TAG_NAME}$" | head -n 1 || true)
 
-          Version: $VERSION
-          
-          Changes:
-          $COMMIT_MESSAGE"
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGE_RANGE="${PREVIOUS_TAG}..${TAG_NAME}"
+          else
+            CHANGE_RANGE="${TAG_NAME}"
+          fi
+
+          CHANGE_LOG=$(git log "$CHANGE_RANGE" --format='- %s' --no-merges --invert-grep --grep='^v[0-9]\+\.[0-9]\+\.[0-9]\+$')
+          if [ -z "$CHANGE_LOG" ]; then
+            CHANGE_LOG="- 変更なし"
+          fi
+
+          {
+            echo "Release $TAG_NAME"
+            echo
+            echo "Version: $VERSION"
+            echo
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "Changes since $PREVIOUS_TAG:"
+            else
+              echo "Changes:"
+            fi
+            echo "$CHANGE_LOG"
+          } > release-notes.md
           
           echo "release_notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          cat release-notes.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - uses: tauri-apps/tauri-action@v0
