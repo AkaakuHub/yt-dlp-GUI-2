@@ -52,6 +52,13 @@ const downloadModes = [
 
 const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
 
+const stringifyError = (error: unknown): string => {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
+};
+
 interface QueueState {
 	active: boolean;
 	index: number;
@@ -149,6 +156,11 @@ export default function Home() {
 		return false;
 	}, [param.start_time, param.end_time]);
 
+	const appendConsoleError = useCallback((error: unknown) => {
+		const message = `エラー:${stringifyError(error)}`;
+		setConsoleText((prev) => (prev === "" ? message : `${prev}\n${message}`));
+	}, []);
+
 	const runArbitraryCommand = useCallback(async () => {
 		const currentSelectedIndex = selectedIndexRef.current;
 		if (!isDownloadModeValue(currentSelectedIndex)) {
@@ -237,6 +249,7 @@ export default function Home() {
 					await runArbitraryCommand();
 				} catch (err) {
 					toast.error(`エラー:${err}`);
+					appendConsoleError(err);
 				}
 				return;
 			}
@@ -262,11 +275,13 @@ export default function Home() {
 
 			try {
 				await runCommandFromUrl(urls[0] ?? "", isQueueMode ? 0 : undefined);
-			} catch {
+			} catch (err) {
+				appendConsoleError(err);
 				resetQueueState();
 			}
 		},
 		[
+			appendConsoleError,
 			hasInvalidTimestamp,
 			resetQueueState,
 			runArbitraryCommand,
@@ -343,8 +358,16 @@ export default function Home() {
 	}, [runQueueNext, setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
-		const clipboardUrl = ((await readText()) || "").trim();
-		const targetUrl = clipboardUrl || urlInput.trim();
+		const inputUrl = urlInput.trim();
+		let clipboardUrl = "";
+		if (inputUrl === "") {
+			try {
+				clipboardUrl = ((await readText()) || "").trim();
+			} catch (err) {
+				appendConsoleError(err);
+			}
+		}
+		const targetUrl = clipboardUrl || inputUrl;
 		setUrlInput(targetUrl);
 		await executeButtonOnClick(targetUrl);
 	};
