@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { ask, message } from "@tauri-apps/plugin-dialog";
+import { message } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Loader2, Package } from "lucide-react";
@@ -73,25 +73,36 @@ const App = () => {
 	};
 
 	const promptUpdateIfAvailable = useCallback(async () => {
-		const update = await check().catch(() => null);
+		const update = await check();
 		if (update === null) {
 			return;
 		}
 
-		const shouldUpdate = await ask(
-			`最新バージョン(${update.version})があります！アップデートしますか？`,
+		const releaseNotes = update.body
+			? `\n\nリリースノート:\n${update.body}`
+			: "";
+		const updateAnswer = await message(
+			`最新バージョン(${update.version})があります。アップデートしますか？${releaseNotes}`,
 			{
-				okLabel: "はい",
-				cancelLabel: "いいえ",
+				title: "アップデートがあります",
+				kind: "info",
+				buttons: {
+					ok: "はい",
+					cancel: "いいえ",
+				},
 			},
 		);
-		if (!shouldUpdate) {
+		if (updateAnswer !== "はい") {
 			return;
 		}
 
 		await update.downloadAndInstall();
 		await message(
 			"アップデートが完了しました。アプリケーションを再起動します。",
+			{
+				title: "アップデート完了",
+				kind: "info",
+			},
 		);
 		await relaunch();
 	}, []);
