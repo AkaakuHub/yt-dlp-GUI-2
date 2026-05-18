@@ -96,7 +96,7 @@ const App = () => {
 			return;
 		}
 
-		await update.downloadAndInstall();
+		await invoke("install_available_update");
 		await message(
 			"アップデートが完了しました。アプリケーションを再起動します。",
 			{

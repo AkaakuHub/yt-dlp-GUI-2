@@ -5,9 +5,15 @@ use serde::Serialize;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::sync::OnceLock;
-use tokio::{process::Child, sync::Mutex};
+use tokio::{
+    process::Child,
+    sync::Mutex,
+    time::{sleep, timeout, Duration, Instant},
+};
 
 const APP_NAME: &str = "yt-dlp-GUI-server-cli";
+const SERVER_CLI_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+const SERVER_CLI_SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
 static SERVER_CLI_PROCESS: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 
 #[derive(Serialize)]
@@ -58,8 +64,8 @@ pub async fn start_server_cli() -> Result<(), String> {
 #[tauri::command]
 pub async fn stop_server_cli() -> Result<(), String> {
     if shutdown_local_server_cli().await? {
-        let mut process = server_cli_process().lock().await;
-        *process = None;
+        wait_for_local_server_cli_shutdown().await?;
+        wait_for_tracked_server_cli_exit().await?;
         return Ok(());
     }
 
@@ -72,6 +78,29 @@ pub async fn stop_server_cli() -> Result<(), String> {
         *process = None;
     }
     Ok(())
+}
+
+pub async fn stop_server_cli_for_update() -> Result<(), String> {
+    stop_server_cli().await
+}
+
+pub fn stop_server_cli_before_exit() {
+    match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => {
+            if let Err(err) = runtime.block_on(stop_server_cli()) {
+                eprintln!("アップデート前のサーバーCLI停止に失敗しました: {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!(
+                "アップデート前のサーバーCLI停止runtime作成に失敗しました: {}",
+                err
+            );
+        }
+    }
 }
 
 #[tauri::command]
@@ -212,4 +241,38 @@ async fn shutdown_local_server_cli() -> Result<bool, String> {
         return Ok(false);
     };
     Ok(response.status().is_success())
+}
+
+async fn wait_for_local_server_cli_shutdown() -> Result<(), String> {
+    let deadline = Instant::now() + SERVER_CLI_SHUTDOWN_TIMEOUT;
+    loop {
+        if !is_local_server_healthy().await? {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err("サーバーCLIの終了待機がタイムアウトしました".to_string());
+        }
+        sleep(SERVER_CLI_SHUTDOWN_POLL_INTERVAL).await;
+    }
+}
+
+async fn wait_for_tracked_server_cli_exit() -> Result<(), String> {
+    let mut process = server_cli_process().lock().await;
+    let Some(child) = process.as_mut() else {
+        return Ok(());
+    };
+    if child
+        .try_wait()
+        .map_err(|e| format!("サーバーCLIの状態確認に失敗しました: {}", e))?
+        .is_some()
+    {
+        *process = None;
+        return Ok(());
+    }
+    timeout(SERVER_CLI_SHUTDOWN_TIMEOUT, child.wait())
+        .await
+        .map_err(|_| "サーバーCLIの終了待機がタイムアウトしました".to_string())?
+        .map_err(|e| format!("サーバーCLIの終了待機に失敗しました: {}", e))?;
+    *process = None;
+    Ok(())
 }

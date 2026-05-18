@@ -10,6 +10,7 @@ mod process_manager;
 mod server_cli_service;
 mod system;
 mod tools;
+mod update;
 
 use std::sync::Arc;
 
@@ -72,7 +73,8 @@ fn main() {
             server_cli_service::stop_server_cli,
             server_cli_service::get_server_cli_status,
             server_cli_service::generate_remote_auth_token,
-            notification::send_download_complete_notification
+            notification::send_download_complete_notification,
+            update::install_available_update
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
