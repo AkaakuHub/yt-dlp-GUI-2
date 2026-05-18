@@ -80,7 +80,11 @@ if [ -z "$CI" ]; then
 
     echo "Committing changes..."
     git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json package.json
-    git commit -m "v$NEW_VERSION"
+    if git diff --cached --quiet; then
+        echo "No version file changes. Tagging current HEAD."
+    else
+        git commit -m "v$NEW_VERSION"
+    fi
 
     echo "Creating tag $TAG..."
     git tag -a "$TAG" -m "Release $TAG"
