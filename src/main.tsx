@@ -205,7 +205,7 @@ const App = () => {
 		return (
 			<div className="relative flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
 				<ToastContainer
-					position="top-left"
+					position="top-right"
 					autoClose={5000}
 					icon={false}
 					hideProgressBar={false}
@@ -233,7 +233,7 @@ const App = () => {
 		<div className="relative flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
 			<WindowControls />
 			<ToastContainer
-				position="top-left"
+				position="top-right"
 				autoClose={5000}
 				icon={false}
 				hideProgressBar={false}

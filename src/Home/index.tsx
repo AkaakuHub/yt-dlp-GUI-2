@@ -156,11 +156,6 @@ export default function Home() {
 		return false;
 	}, [param.start_time, param.end_time]);
 
-	const appendConsoleError = useCallback((error: unknown) => {
-		const message = `エラー:${stringifyError(error)}`;
-		setConsoleText((prev) => (prev === "" ? message : `${prev}\n${message}`));
-	}, []);
-
 	const runArbitraryCommand = useCallback(async () => {
 		const currentSelectedIndex = selectedIndexRef.current;
 		if (!isDownloadModeValue(currentSelectedIndex)) {
@@ -248,8 +243,7 @@ export default function Home() {
 				try {
 					await runArbitraryCommand();
 				} catch (err) {
-					toast.error(`エラー:${err}`);
-					appendConsoleError(err);
+					toast.error(`エラー:${stringifyError(err)}`);
 				}
 				return;
 			}
@@ -276,12 +270,11 @@ export default function Home() {
 			try {
 				await runCommandFromUrl(urls[0] ?? "", isQueueMode ? 0 : undefined);
 			} catch (err) {
-				appendConsoleError(err);
+				toast.error(`エラー:${stringifyError(err)}`);
 				resetQueueState();
 			}
 		},
 		[
-			appendConsoleError,
 			hasInvalidTimestamp,
 			resetQueueState,
 			runArbitraryCommand,
@@ -364,12 +357,18 @@ export default function Home() {
 			try {
 				clipboardUrl = ((await readText()) || "").trim();
 			} catch (err) {
-				appendConsoleError(err);
+				toast.error(
+					`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
+				);
 			}
 		}
 		const targetUrl = clipboardUrl || inputUrl;
 		setUrlInput(targetUrl);
-		await executeButtonOnClick(targetUrl);
+		try {
+			await executeButtonOnClick(targetUrl);
+		} catch (err) {
+			toast.error(`エラー:${stringifyError(err)}`);
+		}
 	};
 
 	const stopProcess = async () => {
@@ -379,7 +378,8 @@ export default function Home() {
 			await invoke("stop_download");
 		} catch (error) {
 			stopRequestedRef.current = false;
-			throw error;
+			toast.error(`停止に失敗しました:${stringifyError(error)}`);
+			return;
 		}
 		setPid(null);
 	};
