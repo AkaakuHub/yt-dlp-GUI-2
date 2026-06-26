@@ -18,6 +18,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../_components/AppContext";
 import Workspace from "../_components/BottomTab";
+import {
+	appendConsoleOutput,
+	createConsoleLogState,
+} from "../_components/ConsoleBox/consoleLog";
 import { AppInput, AppSelect, AppTextarea } from "../_components/FormControls";
 import PrimaryCircleButton from "../_components/PrimaryCircleButton";
 import { SurfaceIsland, SurfacePanel } from "../_components/Surface";
@@ -76,7 +80,7 @@ export default function Home() {
 		useCookie,
 	} = useAppContext();
 	const [pid, setPid] = useState<number | null>(null);
-	const [consoleText, setConsoleText] = useState("");
+	const [consoleLog, setConsoleLog] = useState(createConsoleLogState);
 	const [urlInput, setUrlInput] = useState("");
 	const [arbitraryCode, setArbitraryCode] = useState("");
 	const [urlQueueText, setUrlQueueText] = useState("");
@@ -324,12 +328,7 @@ export default function Home() {
 						: event.payload;
 				setLatestConsoleText(progressPayload);
 			}
-			setConsoleText((prev) => {
-				if (prev === "") {
-					return event.payload.trimStart();
-				}
-				return `${prev}\n${event.payload}`;
-			});
+			setConsoleLog((prev) => appendConsoleOutput(prev, event.payload));
 		});
 
 		const unlistenExit = listen<string>("process-exit", () => {
@@ -681,7 +680,7 @@ export default function Home() {
 				</div>
 			</SurfaceIsland>
 
-			<Workspace consoleText={consoleText} />
+			<Workspace consoleLog={consoleLog} />
 		</div>
 	);
 }

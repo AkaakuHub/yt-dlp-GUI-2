@@ -1,16 +1,34 @@
 import { ArrowDown } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import type { ConsoleLogState } from "./consoleLog";
 
 interface ConsoleBoxProps {
-	consoleText: string;
+	consoleLog: ConsoleLogState;
 }
 
-export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
+const ROW_HEIGHT_PX = 20;
+const OVERSCAN_ROW_COUNT = 24;
+const INITIAL_VISIBLE_ROW_COUNT = 120;
+
+export default function ConsoleBox({ consoleLog }: ConsoleBoxProps) {
 	const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
+	const [viewport, setViewport] = useState({ scrollTop: 0, clientHeight: 0 });
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const lastScrollTopRef = useRef(0);
-	const lines = consoleText === "" ? [] : consoleText.split("\n");
-	const lineCount = lines.length;
+	const lineCount = consoleLog.lines.length;
+	const visibleRowCount =
+		viewport.clientHeight === 0
+			? INITIAL_VISIBLE_ROW_COUNT
+			: Math.ceil(viewport.clientHeight / ROW_HEIGHT_PX) +
+				OVERSCAN_ROW_COUNT * 2;
+	const startIndex = Math.max(
+		0,
+		Math.floor(viewport.scrollTop / ROW_HEIGHT_PX) - OVERSCAN_ROW_COUNT,
+	);
+	const endIndex = Math.min(lineCount, startIndex + visibleRowCount);
+	const visibleLines = consoleLog.lines.slice(startIndex, endIndex);
+	const topSpacerHeight = startIndex * ROW_HEIGHT_PX;
+	const bottomSpacerHeight = (lineCount - endIndex) * ROW_HEIGHT_PX;
 
 	const updateLastScrollTop = useCallback(() => {
 		const scrollArea = scrollAreaRef.current;
@@ -20,6 +38,17 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 		lastScrollTopRef.current = scrollArea.scrollTop;
 	}, []);
 
+	const updateViewport = useCallback(() => {
+		const scrollArea = scrollAreaRef.current;
+		if (!scrollArea) {
+			return;
+		}
+		setViewport({
+			scrollTop: scrollArea.scrollTop,
+			clientHeight: scrollArea.clientHeight,
+		});
+	}, []);
+
 	const scrollToBottom = useCallback(() => {
 		const scrollArea = scrollAreaRef.current;
 		if (!scrollArea) {
@@ -27,9 +56,11 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 		}
 		scrollArea.scrollTop = scrollArea.scrollHeight;
 		updateLastScrollTop();
-	}, [updateLastScrollTop]);
+		updateViewport();
+	}, [updateLastScrollTop, updateViewport]);
 
 	useLayoutEffect(() => {
+		updateViewport();
 		if (!isPinnedToBottom) {
 			return;
 		}
@@ -37,7 +68,7 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 			return;
 		}
 		scrollToBottom();
-	}, [isPinnedToBottom, lineCount, scrollToBottom]);
+	}, [isPinnedToBottom, lineCount, scrollToBottom, updateViewport]);
 
 	const handleScroll = () => {
 		const scrollArea = scrollAreaRef.current;
@@ -55,6 +86,7 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 			setIsPinnedToBottom(false);
 		}
 		updateLastScrollTop();
+		updateViewport();
 	};
 
 	const handleFollowButtonClick = () => {
@@ -62,7 +94,7 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 		scrollToBottom();
 	};
 
-	if (lines.length === 0) {
+	if (consoleLog.lines.length === 0) {
 		return (
 			<div className="flex h-full min-h-0 items-center justify-center bg-base-100 text-sm text-base-content/45">
 				出力待機
@@ -77,17 +109,26 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 				className="h-full overflow-auto py-2 font-mono text-xs leading-5"
 				onScroll={handleScroll}
 			>
-				{lines.map((line, index) => (
+				{consoleLog.truncatedLineCount > 0 ? (
+					<div className="h-5 px-3 text-base-content/45">
+						古いログ{consoleLog.truncatedLineCount}行を省略
+					</div>
+				) : null}
+				<div style={{ height: topSpacerHeight }} />
+				{visibleLines.map((line) => (
 					<div
-						key={`${index}-${line}`}
-						className="grid grid-cols-[42px_minmax(0,1fr)] text-base-content hover:bg-base-200"
+						key={line.id}
+						className="grid h-5 grid-cols-[42px_minmax(0,1fr)] text-base-content hover:bg-base-200"
 					>
 						<span className="border-r border-base-300 px-2 text-right text-base-content/40">
-							{index + 1}
+							{line.lineNumber}
 						</span>
-						<span className="min-w-0 whitespace-pre px-3">{line || " "}</span>
+						<span className="min-w-0 whitespace-pre px-3">
+							{line.text || " "}
+						</span>
 					</div>
 				))}
+				<div style={{ height: bottomSpacerHeight }} />
 			</div>
 			<button
 				aria-label="最下部に移動"

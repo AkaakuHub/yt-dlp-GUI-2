@@ -1,12 +1,13 @@
 import { useState } from "react";
 import ConsoleBox from "../ConsoleBox";
+import type { ConsoleLogState } from "../ConsoleBox/consoleLog";
 import CustomExplorer from "../CustomExplorer";
 
 interface WorkspaceProps {
-	consoleText: string;
+	consoleLog: ConsoleLogState;
 }
 
-export default function Workspace({ consoleText }: WorkspaceProps) {
+export default function Workspace({ consoleLog }: WorkspaceProps) {
 	const [activeTab, setActiveTab] = useState<"explorer" | "console">(
 		"explorer",
 	);
@@ -41,7 +42,7 @@ export default function Workspace({ consoleText }: WorkspaceProps) {
 				{activeTab === "explorer" ? (
 					<CustomExplorer />
 				) : (
-					<ConsoleBox consoleText={consoleText} />
+					<ConsoleBox consoleLog={consoleLog} />
 				)}
 			</div>
 		</section>
