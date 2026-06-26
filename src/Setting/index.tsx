@@ -1,12 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { message, open } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
 	isPermissionGranted,
 	requestPermission,
 } from "@tauri-apps/plugin-notification";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import {
 	Bell,
@@ -39,6 +38,7 @@ import ThemeSelector from "../_components/ThemeSelector";
 import ToolDownloadProgress, {
 	type ToolDownloadProgressValue,
 } from "../_components/ToolDownloadProgress";
+import { installAvailableUpdate } from "../_utils/appUpdate";
 import { checkToolAvailability } from "../_utils/toolAvailability";
 import type { ConfigProps } from "../types";
 
@@ -194,12 +194,8 @@ export default function Settings() {
 		if (update === null) {
 			return;
 		}
-		await invoke("install_available_update");
-		await message(
-			"アップデートが完了しました。アプリケーションを再起動します。",
-		);
-		await relaunch();
-	}, []);
+		await installAvailableUpdate(osType);
+	}, [osType]);
 
 	useEffect(() => {
 		const setupDownloadProgressListener = async () => {

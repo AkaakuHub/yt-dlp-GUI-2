@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Loader2, Package } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
@@ -16,6 +15,7 @@ import ToolDownloadProgress, {
 	type ToolDownloadProgressValue,
 } from "./_components/ToolDownloadProgress";
 import WindowControls from "./_components/WindowControls";
+import { installAvailableUpdate } from "./_utils/appUpdate";
 import { checkToolAvailability } from "./_utils/toolAvailability";
 import Home from "./Home";
 import Setting from "./Setting";
@@ -96,15 +96,7 @@ const App = () => {
 			return;
 		}
 
-		await invoke("install_available_update");
-		await message(
-			"アップデートが完了しました。アプリケーションを再起動します。",
-			{
-				title: "アップデート完了",
-				kind: "info",
-			},
-		);
-		await relaunch();
+		await installAvailableUpdate();
 	}, []);
 
 	useEffect(() => {

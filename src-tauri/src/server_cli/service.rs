@@ -4,6 +4,8 @@ use rand::distr::{Alphanumeric, SampleString};
 use serde::Serialize;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
+use std::process::Command;
 use std::sync::OnceLock;
 use tokio::{
     process::Child,
@@ -81,7 +83,20 @@ pub async fn stop_server_cli() -> Result<(), String> {
 }
 
 pub async fn stop_server_cli_for_update() -> Result<(), String> {
-    stop_server_cli().await
+    #[cfg(not(target_os = "windows"))]
+    {
+        stop_server_cli().await?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Err(err) = stop_server_cli().await {
+            eprintln!("アップデート前のサーバーCLI停止に失敗しました: {}", err);
+        }
+    }
+
+    terminate_windows_server_cli_processes();
+    Ok(())
 }
 
 pub fn stop_server_cli_before_exit() {
@@ -181,6 +196,20 @@ fn server_cli_path_or_default() -> Result<std::path::PathBuf, String> {
         .cloned()
         .unwrap_or_else(|| candidates[0].clone()))
 }
+
+#[cfg(target_os = "windows")]
+fn terminate_windows_server_cli_processes() {
+    for executable_name in ["server_cli.exe", "server_cli-*.exe"] {
+        let image_filter = format!("IMAGENAME eq {}", executable_name);
+        let _ = Command::new("taskkill")
+            .args(["/F", "/T", "/FI", &image_filter, "/IM", executable_name])
+            .creation_flags(0x08000000)
+            .status();
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn terminate_windows_server_cli_processes() {}
 
 fn service_error(error: auto_launch::Error) -> String {
     format!("サーバーCLIの常駐設定に失敗しました: {}", error)
