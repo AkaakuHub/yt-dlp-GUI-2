@@ -1,5 +1,5 @@
 import { ArrowDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 interface ConsoleBoxProps {
 	consoleText: string;
@@ -8,22 +8,36 @@ interface ConsoleBoxProps {
 export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 	const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
+	const lastScrollTopRef = useRef(0);
 	const lines = consoleText === "" ? [] : consoleText.split("\n");
 	const lineCount = lines.length;
 
-	useEffect(() => {
+	const updateLastScrollTop = useCallback(() => {
+		const scrollArea = scrollAreaRef.current;
+		if (!scrollArea) {
+			return;
+		}
+		lastScrollTopRef.current = scrollArea.scrollTop;
+	}, []);
+
+	const scrollToBottom = useCallback(() => {
+		const scrollArea = scrollAreaRef.current;
+		if (!scrollArea) {
+			return;
+		}
+		scrollArea.scrollTop = scrollArea.scrollHeight;
+		updateLastScrollTop();
+	}, [updateLastScrollTop]);
+
+	useLayoutEffect(() => {
 		if (!isPinnedToBottom) {
 			return;
 		}
 		if (lineCount === 0) {
 			return;
 		}
-		const scrollArea = scrollAreaRef.current;
-		if (!scrollArea) {
-			return;
-		}
-		scrollArea.scrollTop = scrollArea.scrollHeight;
-	}, [isPinnedToBottom, lineCount]);
+		scrollToBottom();
+	}, [isPinnedToBottom, lineCount, scrollToBottom]);
 
 	const handleScroll = () => {
 		const scrollArea = scrollAreaRef.current;
@@ -32,16 +46,20 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 		}
 		const distanceFromBottom =
 			scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
-		setIsPinnedToBottom(distanceFromBottom < 8);
+		const isAtBottom = distanceFromBottom < 8;
+		const isScrollingUp = scrollArea.scrollTop < lastScrollTopRef.current;
+
+		if (isAtBottom) {
+			setIsPinnedToBottom(true);
+		} else if (isScrollingUp) {
+			setIsPinnedToBottom(false);
+		}
+		updateLastScrollTop();
 	};
 
-	const scrollToBottom = () => {
-		const scrollArea = scrollAreaRef.current;
-		if (!scrollArea) {
-			return;
-		}
-		scrollArea.scrollTop = scrollArea.scrollHeight;
+	const handleFollowButtonClick = () => {
 		setIsPinnedToBottom(true);
+		scrollToBottom();
 	};
 
 	if (lines.length === 0) {
@@ -75,7 +93,7 @@ export default function ConsoleBox({ consoleText }: ConsoleBoxProps) {
 				aria-label="最下部に移動"
 				className="btn btn-primary btn-sm absolute right-3 bottom-3 h-9 min-h-9 w-9 rounded-full p-0 shadow"
 				type="button"
-				onClick={scrollToBottom}
+				onClick={handleFollowButtonClick}
 			>
 				<ArrowDown size={16} />
 			</button>
