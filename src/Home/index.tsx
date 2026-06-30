@@ -351,18 +351,15 @@ export default function Home() {
 
 	const executeFromPrimaryInput = async () => {
 		const inputUrl = urlInput.trim();
-		let clipboardUrl = "";
-		if (inputUrl === "") {
-			try {
-				clipboardUrl = ((await readText()) || "").trim();
-			} catch (err) {
-				toast.error(
-					`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
-				);
-			}
+		let clipboardText = "";
+		try {
+			clipboardText = (await readText()) || "";
+		} catch (err) {
+			toast.error(
+				`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
+			);
 		}
-		const targetUrl = clipboardUrl || inputUrl;
-		setUrlInput(targetUrl);
+		const targetUrl = clipboardText.trim() || inputUrl;
 		try {
 			await executeButtonOnClick(targetUrl);
 		} catch (err) {
