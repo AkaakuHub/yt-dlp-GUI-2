@@ -22,5 +22,5 @@ pub async fn install_available_update(app: AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| format!("アップデートのインストールに失敗しました: {}", e))?;
 
-    Ok(())
+    app.restart()
 }

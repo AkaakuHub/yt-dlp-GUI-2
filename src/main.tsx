@@ -24,12 +24,22 @@ import type { ConfigProps } from "./types";
 
 import "./main.css";
 
+type BootPhase = "checkingTools" | "updatingApp";
+
 type BootOverlayProps = {
 	isExiting: boolean;
+	phase: BootPhase;
 	progress: ToolDownloadProgressValue | null;
 };
 
-function BootOverlay({ isExiting, progress }: BootOverlayProps) {
+function BootOverlay({ isExiting, phase, progress }: BootOverlayProps) {
+	const title =
+		phase === "updatingApp"
+			? "アプリ更新中"
+			: progress
+				? "ツール更新中"
+				: "ツール確認中";
+
 	return (
 		<div
 			className={`fixed inset-0 z-[100] grid place-items-center bg-base-content/20 p-4 text-base-content backdrop-blur-sm transition-opacity duration-200 ease-out ${
@@ -46,9 +56,7 @@ function BootOverlay({ isExiting, progress }: BootOverlayProps) {
 								<Loader2 className="animate-spin" size={26} />
 							)}
 						</div>
-						<h1 className="text-lg font-bold">
-							{progress ? "ツール更新中" : "ツール確認中"}
-						</h1>
+						<h1 className="text-lg font-bold">{title}</h1>
 					</div>
 					{progress ? (
 						<ToolDownloadProgress progress={progress} tone="muted" />
@@ -64,6 +72,7 @@ const App = () => {
 	const [showSetup, setShowSetup] = useState<boolean>(false);
 	const [isBooting, setIsBooting] = useState<boolean>(true);
 	const [isBootExiting, setIsBootExiting] = useState<boolean>(false);
+	const [bootPhase, setBootPhase] = useState<BootPhase>("checkingTools");
 	const [bootDownloadProgress, setBootDownloadProgress] =
 		useState<ToolDownloadProgressValue | null>(null);
 	const { actualTheme } = useTheme();
@@ -96,6 +105,8 @@ const App = () => {
 			return;
 		}
 
+		setBootPhase("updatingApp");
+		setBootDownloadProgress(null);
 		await installAvailableUpdate();
 	}, []);
 
@@ -214,6 +225,7 @@ const App = () => {
 				{isBooting ? (
 					<BootOverlay
 						isExiting={isBootExiting}
+						phase={bootPhase}
 						progress={bootDownloadProgress}
 					/>
 				) : null}
@@ -257,6 +269,7 @@ const App = () => {
 			{isBooting ? (
 				<BootOverlay
 					isExiting={isBootExiting}
+					phase={bootPhase}
 					progress={bootDownloadProgress}
 				/>
 			) : null}

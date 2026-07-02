@@ -194,8 +194,8 @@ export default function Settings() {
 		if (update === null) {
 			return;
 		}
-		await installAvailableUpdate(osType);
-	}, [osType]);
+		await installAvailableUpdate();
+	}, []);
 
 	useEffect(() => {
 		const setupDownloadProgressListener = async () => {
