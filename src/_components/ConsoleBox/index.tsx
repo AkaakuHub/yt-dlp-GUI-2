@@ -132,7 +132,12 @@ export default function ConsoleBox({ consoleLog }: ConsoleBoxProps) {
 			</div>
 			<button
 				aria-label="最下部に移動"
-				className="btn btn-primary btn-sm absolute right-3 bottom-3 h-9 min-h-9 w-9 rounded-full p-0 shadow"
+				aria-pressed={isPinnedToBottom}
+				className={`btn btn-sm absolute right-3 bottom-3 h-9 min-h-9 w-9 rounded-full p-0 shadow ${
+					isPinnedToBottom
+						? "btn-primary"
+						: "btn-ghost bg-base-200 hover:bg-base-300"
+				}`}
 				type="button"
 				onClick={handleFollowButtonClick}
 			>
