@@ -89,8 +89,6 @@ export default function DownloadPage() {
 	const [isScheduling, setIsScheduling] = useState(false);
 	const [urlQueueText, setUrlQueueText] = useState("");
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
-	const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
-	const [showReservationPanel, setShowReservationPanel] = useState(false);
 	const [activeWorkspaceTab, setActiveWorkspaceTab] =
 		useState<WorkspaceTab>("実行");
 	const [queueProgress, setQueueProgress] = useState({ current: 0, total: 0 });
@@ -566,119 +564,124 @@ export default function DownloadPage() {
 					)}
 				>
 					<SurfaceIsland>
-						<div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_11rem_minmax(0,1fr)]">
-							<SurfacePanel className="grid gap-2">
-								<div className="flex min-w-0 items-center justify-between gap-2">
-									{pid === null ? (
-										<span className="badge badge-ghost border-base-300 text-base-content/60">
-											待機中
+						<div className="grid gap-2">
+							<div className="relative grid gap-2 sm:min-h-40">
+								<SurfacePanel className="z-10 grid gap-2 sm:absolute sm:top-0 sm:bottom-0 sm:left-0 sm:right-1/2 sm:pr-28">
+									<div className="flex min-w-0 items-center justify-between gap-2">
+										{pid === null ? (
+											<span className="badge badge-ghost border-base-300 text-base-content/60">
+												待機中
+											</span>
+										) : (
+											<span className="badge badge-error badge-outline">
+												PID {pid}
+												{queueLabel !== "" ? ` ${queueLabel}` : ""}
+											</span>
+										)}
+										<span className="truncate text-xs text-base-content/45">
+											{selectedModeLabel}
 										</span>
-									) : (
-										<span className="badge badge-error badge-outline">
-											PID {pid}
-											{queueLabel !== "" ? ` ${queueLabel}` : ""}
-										</span>
-									)}
-									<span className="truncate text-xs text-base-content/45">
-										{selectedModeLabel}
-									</span>
-								</div>
-								<AppInput
-									className="h-10 min-h-10 w-full bg-base-200"
-									value={urlInput}
-									onChange={(event) => setUrlInput(event.target.value)}
-									onKeyDown={(event) => {
-										if (event.key === "Enter") {
-											void executeFromPrimaryInput();
-										}
-									}}
-									placeholder="URL"
-									type="url"
-								/>
-								<DownloadModeSelector
-									disabled={!isSettingLoaded}
-									options={downloadModes}
-									value={selectedIndexNumber}
-									onChange={(value) => void persistDownloadMode(value)}
-									onMove={moveDownloadMode}
-								/>
-							</SurfacePanel>
+									</div>
+									<AppInput
+										className="h-10 min-h-10 w-full bg-base-200"
+										value={urlInput}
+										onChange={(event) => setUrlInput(event.target.value)}
+										onKeyDown={(event) => {
+											if (event.key === "Enter") {
+												void executeFromPrimaryInput();
+											}
+										}}
+										placeholder="URL"
+										type="url"
+									/>
+									<DownloadModeSelector
+										disabled={!isSettingLoaded}
+										options={downloadModes}
+										value={selectedIndexNumber}
+										onChange={(value) => void persistDownloadMode(value)}
+										onMove={moveDownloadMode}
+									/>
+								</SurfacePanel>
 
-							<div className="grid place-items-center">
-								<PrimaryCircleButton
-									label={pid === null ? "実行" : "中止"}
-									icon={
-										pid === null ? <Download size={30} /> : <Square size={26} />
-									}
-									disabled={pid === null && isQueueRunning}
-									tone={pid === null ? "primary" : "danger"}
-									onClick={() => {
-										if (pid === null) {
-											void executeFromPrimaryInput();
-											return;
+								<SurfacePanel className="z-10 grid content-start gap-2 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">
+									<div className="grid grid-cols-2 gap-2">
+										<button
+											className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
+											type="button"
+											onClick={openDirectory}
+										>
+											<FolderOpen size={16} />
+											<span className="hidden lg:inline">保存先</span>
+										</button>
+										<label className="dark-control-border flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
+											<input
+												className="toggle toggle-primary toggle-sm"
+												checked={param.is_cookie}
+												type="checkbox"
+												onChange={(event) =>
+													void updateCookie(event.target.checked)
+												}
+											/>
+											<Cookie size={15} />
+											<span className="hidden lg:inline">クッキー</span>
+										</label>
+									</div>
+								</SurfacePanel>
+
+								<div className="z-30 sm:absolute sm:right-0 sm:bottom-0 sm:left-1/2 sm:pl-28">
+									<QueueUrlPanel
+										isOpen={showQueuePanel}
+										value={urlQueueText}
+										onChange={setUrlQueueText}
+										onToggle={() => setShowQueuePanel((prev) => !prev)}
+									/>
+								</div>
+
+								<div className="z-[60] grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+									<PrimaryCircleButton
+										label={pid === null ? "実行" : "中止"}
+										icon={
+											pid === null ? (
+												<Download size={30} />
+											) : (
+												<Square size={26} />
+											)
 										}
-										void stopProcess();
-									}}
-								/>
+										disabled={pid === null && isQueueRunning}
+										tone={pid === null ? "primary" : "danger"}
+										onClick={() => {
+											if (pid === null) {
+												void executeFromPrimaryInput();
+												return;
+											}
+											void stopProcess();
+										}}
+									/>
+								</div>
 							</div>
 
-							<SurfacePanel className="grid content-start gap-2">
-								<div className="grid grid-cols-2 gap-2">
-									<button
-										className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
-										type="button"
-										onClick={openDirectory}
-									>
-										<FolderOpen size={16} />
-										<span className="hidden lg:inline">保存先</span>
-									</button>
-									<label className="dark-control-border flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
-										<input
-											className="toggle toggle-primary toggle-sm"
-											checked={param.is_cookie}
-											type="checkbox"
-											onChange={(event) =>
-												void updateCookie(event.target.checked)
-											}
-										/>
-										<Cookie size={15} />
-										<span className="hidden lg:inline">クッキー</span>
-									</label>
-								</div>
-								<QueueUrlPanel
-									isOpen={showQueuePanel}
-									value={urlQueueText}
-									onChange={setUrlQueueText}
-									onToggle={() => setShowQueuePanel((prev) => !prev)}
+							<div className="grid gap-2 md:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+								<AdvancedDownloadPanel
+									arbitraryCode={arbitraryCode}
+									param={param}
+									usesArbitraryCode={usesArbitraryCode}
+									usesCodecId={usesCodecId}
+									usesSubtitleLang={usesSubtitleLang}
+									onArbitraryCodeChange={setArbitraryCode}
+									onExecuteArbitraryCode={() => void executeButtonOnClick("")}
+									onParamChange={setParam}
+									onValidateTimestamp={validateTimestamp}
 								/>
-							</SurfacePanel>
-						</div>
-
-						<div className="mt-2 grid gap-2 md:grid-cols-2">
-							<AdvancedDownloadPanel
-								arbitraryCode={arbitraryCode}
-								isOpen={showAdvancedPanel}
-								param={param}
-								usesArbitraryCode={usesArbitraryCode}
-								usesCodecId={usesCodecId}
-								usesSubtitleLang={usesSubtitleLang}
-								onArbitraryCodeChange={setArbitraryCode}
-								onExecuteArbitraryCode={() => void executeButtonOnClick("")}
-								onParamChange={setParam}
-								onToggle={() => setShowAdvancedPanel((prev) => !prev)}
-								onValidateTimestamp={validateTimestamp}
-							/>
-							<ReservationPanel
-								isBusy={isScheduling}
-								isOpen={showReservationPanel}
-								kind={reservationKind}
-								scheduledAt={scheduledAt}
-								onKindChange={setReservationKind}
-								onScheduleUrl={() => void scheduleCurrentDownload()}
-								onScheduleYoutube={() => void scheduleYoutubeReservation()}
-								onScheduledAtChange={setScheduledAt}
-								onToggle={() => setShowReservationPanel((prev) => !prev)}
-							/>
+								<ReservationPanel
+									isBusy={isScheduling}
+									kind={reservationKind}
+									scheduledAt={scheduledAt}
+									onKindChange={setReservationKind}
+									onScheduleUrl={() => void scheduleCurrentDownload()}
+									onScheduleYoutube={() => void scheduleYoutubeReservation()}
+									onScheduledAtChange={setScheduledAt}
+								/>
+							</div>
 						</div>
 					</SurfaceIsland>
 					<SurfaceIsland className="min-h-0 overflow-hidden p-0">
