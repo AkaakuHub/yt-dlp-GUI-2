@@ -96,11 +96,7 @@ export default function ConsoleBox({ consoleLog }: ConsoleBoxProps) {
 	};
 
 	if (consoleLog.lines.length === 0) {
-		return (
-			<div className="flex h-full min-h-0 items-center justify-center bg-base-100 text-sm text-base-content/45">
-				出力待機
-			</div>
-		);
+		return <div className="h-full min-h-0 bg-base-100" />;
 	}
 
 	return (
