@@ -1,6 +1,8 @@
+use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
 use std::sync::Arc;
 
+use futures_util::future::BoxFuture;
 use serde::Serialize;
 use tauri::{Emitter, Window};
 use tokio::io::AsyncReadExt;
@@ -9,17 +11,29 @@ use tokio::process::Command as TokioCommand;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
-use tokio::task::{self, JoinHandle};
+use tokio::task;
 
 pub struct CommandManager {
-    command_task: Option<JoinHandle<()>>,
-    stop_signal: Option<broadcast::Sender<()>>,
+    queued_jobs: VecDeque<QueuedCommand>,
+    running_jobs: HashMap<u64, RunningCommand>,
+    next_job_id: u64,
+    max_parallel: usize,
     outputs: Vec<ProcessOutput>,
     next_output_id: u64,
-    running: bool,
-    pid: Option<u32>,
     reservations: Vec<ScheduledReservation>,
     next_reservation_id: u64,
+}
+
+#[derive(Clone)]
+pub struct QueuedCommand {
+    pub id: u64,
+    pub args: Vec<String>,
+    pub yt_dlp_path: String,
+}
+
+struct RunningCommand {
+    pid: u32,
+    stop_signal: broadcast::Sender<()>,
 }
 
 #[derive(Clone)]
@@ -31,6 +45,25 @@ pub struct ProcessOutput {
 pub struct ProcessSnapshot {
     pub running: bool,
     pub outputs: Vec<ProcessOutput>,
+    pub queue: QueueSnapshot,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueSnapshot {
+    pub pending: usize,
+    pub running: usize,
+    pub max_parallel: usize,
+    pub running_pids: Vec<u32>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueStartResponse {
+    pub queue_id: u64,
+    pub total: usize,
+    pub started: usize,
+    pub running_pids: Vec<u32>,
 }
 
 #[derive(Clone, Serialize)]
@@ -47,184 +80,125 @@ pub struct ScheduledReservation {
 impl CommandManager {
     pub fn new() -> Self {
         Self {
-            command_task: None,
-            stop_signal: None,
+            queued_jobs: VecDeque::new(),
+            running_jobs: HashMap::new(),
+            next_job_id: 1,
+            max_parallel: 1,
             outputs: Vec::new(),
             next_output_id: 0,
-            running: false,
-            pid: None,
             reservations: Vec::new(),
             next_reservation_id: 1,
         }
     }
 
-    pub async fn start_command(
-        &mut self,
+    pub async fn enqueue_commands(
         command_manager: Arc<Mutex<CommandManager>>,
-        args: Vec<String>,
+        commands: Vec<(Vec<String>, String)>,
         window: Option<tauri::Window>,
-        yt_dlp_path: &str,
-    ) -> Result<u32, String> {
-        if self.command_task.is_some() {
-            return Err("プロセスは既に実行中です".into());
+        max_parallel: usize,
+    ) -> Result<QueueStartResponse, String> {
+        let total = commands.len();
+        if total == 0 {
+            return Err("キューが空です".to_string());
         }
 
-        self.outputs.clear();
-        self.next_output_id = 0;
-        self.running = true;
-
-        let (tx, _) = broadcast::channel(1);
-        self.stop_signal = Some(tx.clone());
-
-        #[cfg(target_os = "windows")]
-        let mut child = TokioCommand::new(yt_dlp_path)
-            .args(&args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .creation_flags(0x08000000)
-            .spawn()
-            .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
-
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
-        let mut child = TokioCommand::new(yt_dlp_path)
-            .args(&args)
-            .env("LC_ALL", "en_US.UTF-8")
-            .env("LANG", "en_US.UTF-8")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
-
-        let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
-        self.pid = Some(pid);
-
-        let command_line = format!(
-            "{}>yt-dlp {}\n",
-            std::env::current_dir().unwrap().to_string_lossy(),
-            args.join(" ")
-        );
-        self.push_output(command_line.clone());
-        if let Some(window) = &window {
-            let _ = window.emit("process-output", command_line);
+        let mut manager = command_manager.lock().await;
+        if !manager.running_jobs.is_empty() || !manager.queued_jobs.is_empty() {
+            return Err("キューは既に実行中です".to_string());
         }
-
-        let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or("標準エラーの取得に失敗しました")?;
-
-        let window_clone = window.clone();
-        let window_clone2 = window.clone();
-        let tx_clone = tx.clone();
-        let command_manager_clone = Arc::clone(&command_manager);
-
-        let task_handle = task::spawn(async move {
-            let stdout_reader = TokioBufReader::new(stdout);
-            let stderr_reader = TokioBufReader::new(stderr);
-
-            let stop_rx1 = tx.subscribe();
-            let stop_rx2 = tx.subscribe();
-
-            let window_clone_stdout = window_clone.clone();
-            let window_clone_stderr = window_clone2.clone();
-            let command_manager_stdout = Arc::clone(&command_manager_clone);
-            let command_manager_stderr = Arc::clone(&command_manager_clone);
-
-            let stdout_task = tokio::spawn(async move {
-                process_lines(
-                    stdout_reader,
-                    command_manager_stdout,
-                    window_clone_stdout,
-                    stop_rx1,
-                )
-                .await;
+        manager.outputs.clear();
+        manager.next_output_id = 0;
+        manager.queued_jobs.clear();
+        manager.running_jobs.clear();
+        manager.next_job_id = 1;
+        manager.max_parallel = max_parallel.max(1);
+        let queue_id = manager.next_job_id;
+        for (args, yt_dlp_path) in commands {
+            let id = manager.next_job_id;
+            manager.next_job_id += 1;
+            manager.queued_jobs.push_back(QueuedCommand {
+                id,
+                args,
+                yt_dlp_path,
             });
+        }
+        let startable_count = manager.available_worker_count();
+        drop(manager);
 
-            let stderr_task = tokio::spawn(async move {
-                process_lines(
-                    stderr_reader,
-                    command_manager_stderr,
-                    window_clone_stderr,
-                    stop_rx2,
-                )
-                .await;
-            });
-
-            let mut rx = tx_clone.subscribe();
-
-            tokio::select! {
-                _ = rx.recv() => {
-                    if let Err(e) = child.kill().await {
-                        eprintln!("Failed to kill process: {}", e);
-                    }
-                    let _ = child.wait().await;
-                    finish_process(&command_manager_clone, window_clone2, "プロセス終了").await;
-
-                    return;
-                }
-                status = child.wait() => {
-                    match status {
-                        Ok(_) => {
-                            push_process_output(&command_manager_clone, window_clone.clone(), "\n".to_string()).await;
-                            finish_process(&command_manager_clone, window_clone2, "プロセス終了").await;
-                        }
-                        Err(e) => {
-                            finish_process(
-                                &command_manager_clone,
-                                window_clone,
-                                &format!("プロセス終了エラー: {}", e),
-                            ).await;
-                        }
-                    }
-                }
-            }
-
-            let _ = stdout_task.await;
-            let _ = stderr_task.await;
-
-            let mut manager = command_manager_clone.lock().await;
-            manager.command_task = None;
-            manager.stop_signal = None;
-            manager.running = false;
-            manager.pid = None;
-        });
-
-        self.command_task = Some(task_handle);
-
-        Ok(pid)
+        start_next_commands(command_manager.clone(), window, startable_count).await?;
+        let running_pids = command_manager.lock().await.queue_snapshot().running_pids;
+        Ok(QueueStartResponse {
+            queue_id,
+            total,
+            started: startable_count.min(total),
+            running_pids,
+        })
     }
 
-    pub async fn stop_command(&mut self, window: Option<tauri::Window>) -> Result<(), String> {
-        if let Some(stop_signal) = self.stop_signal.take() {
-            if let Err(err) = stop_signal.send(()) {
-                return Err(format!("Failed to send stop signal: {}", err));
-            }
-        } else {
+    pub async fn stop_all_commands(&mut self, window: Option<tauri::Window>) -> Result<(), String> {
+        if self.running_jobs.is_empty() && self.queued_jobs.is_empty() {
             return Err("Command is not running.".to_string());
         }
-
-        self.command_task.take();
-
-        self.running = false;
-        self.pid = None;
+        self.queued_jobs.clear();
+        for running_job in self.running_jobs.values() {
+            let _ = running_job.stop_signal.send(());
+        }
+        self.running_jobs.clear();
         self.push_output("プロセスを停止しました\n".to_string());
         if let Some(window) = window {
             let _ = window.emit("process-output", "プロセスを停止しました\n");
+            let _ = window.emit("process-exit", "プロセスを停止しました");
+            let _ = window.emit("process-queue", self.queue_snapshot());
         }
         Ok(())
     }
 
     pub fn snapshot_since(&self, since: u64) -> ProcessSnapshot {
         ProcessSnapshot {
-            running: self.running,
+            running: !self.running_jobs.is_empty() || !self.queued_jobs.is_empty(),
             outputs: self
                 .outputs
                 .iter()
                 .filter(|output| output.id >= since)
                 .cloned()
                 .collect(),
+            queue: self.queue_snapshot(),
         }
+    }
+
+    pub fn queue_snapshot(&self) -> QueueSnapshot {
+        let mut running_pids = self
+            .running_jobs
+            .values()
+            .map(|job| job.pid)
+            .collect::<Vec<_>>();
+        running_pids.sort_unstable();
+        QueueSnapshot {
+            pending: self.queued_jobs.len(),
+            running: self.running_jobs.len(),
+            max_parallel: self.max_parallel,
+            running_pids,
+        }
+    }
+
+    fn available_worker_count(&self) -> usize {
+        self.max_parallel.saturating_sub(self.running_jobs.len())
+    }
+
+    fn take_next_command(&mut self) -> Option<QueuedCommand> {
+        if self.available_worker_count() == 0 {
+            return None;
+        }
+        self.queued_jobs.pop_front()
+    }
+
+    fn register_running_job(&mut self, id: u64, pid: u32, stop_signal: broadcast::Sender<()>) {
+        self.running_jobs
+            .insert(id, RunningCommand { pid, stop_signal });
+    }
+
+    fn finish_running_job(&mut self, id: u64) {
+        self.running_jobs.remove(&id);
     }
 
     pub fn add_reservation(
@@ -266,6 +240,147 @@ impl CommandManager {
         self.next_output_id += 1;
         self.outputs.push(ProcessOutput { id, line });
     }
+}
+
+async fn start_next_commands(
+    command_manager: Arc<Mutex<CommandManager>>,
+    window: Option<Window>,
+    count: usize,
+) -> Result<(), String> {
+    for _ in 0..count {
+        let command = {
+            let mut manager = command_manager.lock().await;
+            manager.take_next_command()
+        };
+        let Some(command) = command else {
+            break;
+        };
+        start_command_task(command_manager.clone(), command, window.clone()).await?;
+    }
+    Ok(())
+}
+
+fn start_command_task(
+    command_manager: Arc<Mutex<CommandManager>>,
+    command: QueuedCommand,
+    window: Option<Window>,
+) -> BoxFuture<'static, Result<(), String>> {
+    Box::pin(async move {
+        let (tx, _) = broadcast::channel(1);
+
+        #[cfg(target_os = "windows")]
+        let mut child = TokioCommand::new(&command.yt_dlp_path)
+            .args(&command.args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .creation_flags(0x08000000)
+            .spawn()
+            .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
+
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        let mut child = TokioCommand::new(&command.yt_dlp_path)
+            .args(&command.args)
+            .env("LC_ALL", "en_US.UTF-8")
+            .env("LANG", "en_US.UTF-8")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
+
+        let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
+
+        let command_line = format!(
+            "[job:{} pid:{}] {}>yt-dlp {}\n",
+            command.id,
+            pid,
+            std::env::current_dir().unwrap().to_string_lossy(),
+            command.args.join(" ")
+        );
+        push_process_output(&command_manager, window.clone(), command_line).await;
+        command_manager
+            .lock()
+            .await
+            .register_running_job(command.id, pid, tx.clone());
+
+        emit_queue_snapshot(&command_manager, window.clone()).await;
+
+        let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or("標準エラーの取得に失敗しました")?;
+
+        let job_id = command.id;
+        let tx_clone = tx.clone();
+        let command_manager_clone = Arc::clone(&command_manager);
+        let window_clone = window.clone();
+
+        task::spawn(async move {
+            let stdout_reader = TokioBufReader::new(stdout);
+            let stderr_reader = TokioBufReader::new(stderr);
+
+            let stop_rx1 = tx.subscribe();
+            let stop_rx2 = tx.subscribe();
+
+            let command_manager_stdout = Arc::clone(&command_manager_clone);
+            let command_manager_stderr = Arc::clone(&command_manager_clone);
+            let stdout_window = window_clone.clone();
+            let stderr_window = window_clone.clone();
+
+            let stdout_task = tokio::spawn(async move {
+                process_lines(
+                    stdout_reader,
+                    command_manager_stdout,
+                    stdout_window,
+                    stop_rx1,
+                )
+                .await;
+            });
+
+            let stderr_task = tokio::spawn(async move {
+                process_lines(
+                    stderr_reader,
+                    command_manager_stderr,
+                    stderr_window,
+                    stop_rx2,
+                )
+                .await;
+            });
+
+            let mut rx = tx_clone.subscribe();
+
+            tokio::select! {
+                _ = rx.recv() => {
+                    if let Err(e) = child.kill().await {
+                        eprintln!("Failed to kill process: {}", e);
+                    }
+                    let _ = child.wait().await;
+                    finish_command(&command_manager_clone, window_clone.clone(), job_id, "プロセス終了").await;
+                }
+                status = child.wait() => {
+                    match status {
+                        Ok(_) => {
+                            push_process_output(&command_manager_clone, window_clone.clone(), "\n".to_string()).await;
+                            finish_command(&command_manager_clone, window_clone.clone(), job_id, "プロセス終了").await;
+                        }
+                        Err(e) => {
+                            finish_command(
+                                &command_manager_clone,
+                                window_clone.clone(),
+                                job_id,
+                                &format!("プロセス終了エラー: {}", e),
+                            ).await;
+                        }
+                    }
+                }
+            }
+
+            let _ = stdout_task.await;
+            let _ = stderr_task.await;
+        });
+
+        Ok(())
+    })
 }
 
 fn decode_buffer(buffer: &[u8]) -> String {
@@ -310,18 +425,39 @@ async fn push_process_output(
     }
 }
 
-async fn finish_process(
+async fn finish_command(
     command_manager: &Arc<Mutex<CommandManager>>,
     window: Option<Window>,
+    job_id: u64,
     message: &str,
 ) {
+    let startable_count = {
+        let mut manager = command_manager.lock().await;
+        manager.finish_running_job(job_id);
+        manager.available_worker_count()
+    };
+    let _ = start_next_commands(command_manager.clone(), window.clone(), startable_count).await;
+    emit_queue_snapshot(command_manager, window.clone()).await;
+    let is_queue_finished = {
+        let manager = command_manager.lock().await;
+        manager.running_jobs.is_empty() && manager.queued_jobs.is_empty()
+    };
+    if !is_queue_finished {
+        return;
+    }
     {
         let mut manager = command_manager.lock().await;
-        manager.running = false;
-        manager.pid = None;
+        manager.push_output(format!("{}\n", message));
     }
     if let Some(window) = window {
         let _ = window.emit("process-exit", message);
+    }
+}
+
+async fn emit_queue_snapshot(command_manager: &Arc<Mutex<CommandManager>>, window: Option<Window>) {
+    if let Some(window) = window {
+        let snapshot = command_manager.lock().await.queue_snapshot();
+        let _ = window.emit("process-queue", snapshot);
     }
 }
 

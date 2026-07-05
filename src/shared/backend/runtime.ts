@@ -6,10 +6,25 @@ import type { ConfigProps } from "../../types";
 type ProcessListeners = {
 	onOutput: (line: string) => void;
 	onExit: (message: string) => void;
+	onQueue: (status: QueueStatus) => void;
 };
 
 type RunResponse = {
 	pid: number;
+};
+
+export type QueueStatus = {
+	pending: number;
+	running: number;
+	maxParallel: number;
+	runningPids: number[];
+};
+
+export type QueueRunResponse = {
+	queueId: number;
+	total: number;
+	started: number;
+	runningPids: number[];
 };
 
 type ScheduleResponse = {
@@ -81,6 +96,22 @@ export const startDownload = async (
 		body: JSON.stringify({ param }),
 	});
 	return response.pid;
+};
+
+export const startDownloadQueue = async (
+	params: RunCommandParam[],
+	maxParallel: number,
+): Promise<QueueRunResponse> => {
+	if (isTauriRuntime()) {
+		return invoke<QueueRunResponse>("start_download_queue", {
+			params,
+			maxParallel,
+		});
+	}
+	return apiFetch<QueueRunResponse>("/api/downloads/queue", {
+		method: "POST",
+		body: JSON.stringify({ params, maxParallel }),
+	});
 };
 
 export const stopDownload = async (): Promise<void> => {
@@ -174,6 +205,7 @@ export const openDownloadDirectory = async (path: string): Promise<void> => {
 export const subscribeProcessEvents = async ({
 	onOutput,
 	onExit,
+	onQueue,
 }: ProcessListeners): Promise<() => void> => {
 	if (isTauriRuntime()) {
 		const unlistenOutput = await listen<string>("process-output", (event) => {
@@ -182,9 +214,16 @@ export const subscribeProcessEvents = async ({
 		const unlistenExit = await listen<string>("process-exit", (event) => {
 			onExit(event.payload);
 		});
+		const unlistenQueue = await listen<QueueStatus>(
+			"process-queue",
+			(event) => {
+				onQueue(event.payload);
+			},
+		);
 		return () => {
 			unlistenOutput();
 			unlistenExit();
+			unlistenQueue();
 		};
 	}
 
@@ -194,6 +233,9 @@ export const subscribeProcessEvents = async ({
 	});
 	eventSource.addEventListener("process-exit", (event) => {
 		onExit(JSON.parse(event.data) as string);
+	});
+	eventSource.addEventListener("process-queue", (event) => {
+		onQueue(JSON.parse(event.data) as QueueStatus);
 	});
 	return () => eventSource.close();
 };

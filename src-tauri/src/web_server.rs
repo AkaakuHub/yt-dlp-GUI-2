@@ -13,7 +13,7 @@ use crate::{
     command_handlers::schedule_local_download,
     config::{AppState, Settings},
     download_command::{build_yt_dlp_args, RunCommandParam},
-    process_manager::CommandManager,
+    process_manager::{CommandManager, QueueStartResponse},
     reservation::{
         resolve_youtube_live_reservation, ReservationResponse, YoutubeLiveReservationRequest,
     },
@@ -23,6 +23,13 @@ use crate::{
 #[derive(Deserialize)]
 struct RunRequest {
     param: RunCommandParam,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct QueueRunRequest {
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
 }
 
 #[derive(Deserialize)]
@@ -134,8 +141,25 @@ async fn handle_http_request(
         ("POST", "/api/downloads") => {
             let run_request = serde_json::from_str::<RunRequest>(&request.body)
                 .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
-            let pid = start_download(run_request.param, command_manager).await?;
+            let response =
+                start_download_queue(vec![run_request.param], 1, command_manager).await?;
+            let pid = response
+                .running_pids
+                .first()
+                .copied()
+                .ok_or_else(|| "プロセスIDの取得に失敗しました".to_string())?;
             json_response(200, "OK", &RunResponse { pid })
+        }
+        ("POST", "/api/downloads/queue") => {
+            let run_request = serde_json::from_str::<QueueRunRequest>(&request.body)
+                .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
+            let response = start_download_queue(
+                run_request.params,
+                run_request.max_parallel,
+                command_manager,
+            )
+            .await?;
+            json_response(200, "OK", &response)
         }
         ("POST", "/api/schedules") => {
             let schedule_request = serde_json::from_str::<ScheduleRequest>(&request.body)
@@ -152,7 +176,7 @@ async fn handle_http_request(
             json_response(200, "OK", &reservation)
         }
         ("POST", "/api/downloads/stop") => {
-            command_manager.lock().await.stop_command(None).await?;
+            command_manager.lock().await.stop_all_commands(None).await?;
             Ok(text_response(200, "OK", "stopped"))
         }
         ("POST", "/api/settings/use-cookie") => {
@@ -211,10 +235,11 @@ async fn schedule_youtube_live_from_start(
     })
 }
 
-async fn start_download(
-    param: RunCommandParam,
+async fn start_download_queue(
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
     command_manager: Arc<Mutex<CommandManager>>,
-) -> Result<u32, String> {
+) -> Result<QueueStartResponse, String> {
     let settings = Settings::new();
     let (yt_dlp_path, _ffmpeg_path, _deno_path) = resolve_tool_paths(
         settings.use_bundle_tools,
@@ -228,12 +253,14 @@ async fn start_download(
             "yt-dlpが見つかりません。ツールをダウンロードするかパスを設定してください。".into(),
         );
     }
-    let args = build_yt_dlp_args(param, &settings)?;
-    command_manager
-        .lock()
-        .await
-        .start_command(command_manager.clone(), args, None, &yt_dlp_path)
-        .await
+    let commands = params
+        .into_iter()
+        .map(|param| {
+            let args = build_yt_dlp_args(param, &settings)?;
+            Ok((args, yt_dlp_path.clone()))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    CommandManager::enqueue_commands(command_manager, commands, None, max_parallel).await
 }
 
 async fn handle_sse(
@@ -255,11 +282,18 @@ async fn handle_sse(
 
     let mut since = 0_u64;
     let mut was_running = false;
+    let mut last_queue_json = String::new();
     loop {
         let snapshot = command_manager.lock().await.snapshot_since(since);
         for output in snapshot.outputs {
             since = output.id + 1;
             write_sse_event(&mut stream, "process-output", &output.line).await?;
+        }
+        let queue_json = serde_json::to_string(&snapshot.queue)
+            .map_err(|e| format!("キュー状態の作成に失敗しました: {}", e))?;
+        if queue_json != last_queue_json {
+            write_sse_raw_event(&mut stream, "process-queue", &queue_json).await?;
+            last_queue_json = queue_json;
         }
         if snapshot.running {
             was_running = true;
@@ -275,6 +309,14 @@ async fn handle_sse(
 async fn write_sse_event(stream: &mut TcpStream, event: &str, data: &str) -> Result<(), String> {
     let data =
         serde_json::to_string(data).map_err(|e| format!("SSEの作成に失敗しました: {}", e))?;
+    write_sse_raw_event(stream, event, &data).await
+}
+
+async fn write_sse_raw_event(
+    stream: &mut TcpStream,
+    event: &str,
+    data: &str,
+) -> Result<(), String> {
     stream
         .write_all(format!("event: {}\ndata: {}\n\n", event, data).as_bytes())
         .await

@@ -8,8 +8,10 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Window};
 
 #[derive(Serialize)]
-struct RemoteRunRequest {
-    param: RunCommandParam,
+#[serde(rename_all = "camelCase")]
+struct RemoteQueueRunRequest {
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
 }
 
 #[derive(Serialize)]
@@ -20,8 +22,12 @@ struct RemoteScheduleRequest {
 }
 
 #[derive(Deserialize)]
-struct RemoteRunResponse {
-    pid: u32,
+#[serde(rename_all = "camelCase")]
+pub struct RemoteQueueRunResponse {
+    pub queue_id: u64,
+    pub total: usize,
+    pub started: usize,
+    pub running_pids: Vec<u32>,
 }
 
 #[derive(Deserialize)]
@@ -30,11 +36,12 @@ struct RemoteScheduleResponse {
     schedule_id: String,
 }
 
-pub(crate) async fn start_remote_download(
-    param: RunCommandParam,
+pub(crate) async fn start_remote_download_queue(
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
     settings: &Settings,
     window: Window,
-) -> Result<u32, String> {
+) -> Result<RemoteQueueRunResponse, String> {
     let server_url = normalize_server_url(&settings.remote_server_url)?;
     let token = settings.remote_auth_token.trim();
     if token.is_empty() {
@@ -42,9 +49,12 @@ pub(crate) async fn start_remote_download(
     }
 
     let response = reqwest::Client::new()
-        .post(format!("{}/api/downloads", server_url))
+        .post(format!("{}/api/downloads/queue", server_url))
         .bearer_auth(token)
-        .json(&RemoteRunRequest { param })
+        .json(&RemoteQueueRunRequest {
+            params,
+            max_parallel: max_parallel.max(1),
+        })
         .send()
         .await
         .map_err(|e| format!("リモートサーバーへの接続に失敗しました: {}", e))?;
@@ -59,11 +69,11 @@ pub(crate) async fn start_remote_download(
     }
 
     let body = response
-        .json::<RemoteRunResponse>()
+        .json::<RemoteQueueRunResponse>()
         .await
         .map_err(|e| format!("リモートサーバーの応答を解析できません: {}", e))?;
     start_remote_output_stream(server_url, token.to_string(), window);
-    Ok(body.pid)
+    Ok(body)
 }
 
 pub(crate) async fn stop_remote_download(settings: &Settings) -> Result<(), String> {

@@ -1,11 +1,11 @@
 use crate::{
     client::remote::{
-        schedule_remote_download, schedule_remote_youtube_live_from_start, start_remote_download,
-        stop_remote_download,
+        schedule_remote_download, schedule_remote_youtube_live_from_start,
+        start_remote_download_queue, stop_remote_download,
     },
     config::AppState,
     download_command::{build_yt_dlp_args, RunCommandParam},
-    process_manager::{CommandManager, ScheduledReservation},
+    process_manager::{CommandManager, QueueStartResponse, ScheduledReservation},
     reservation::{
         current_time_ms, resolve_youtube_live_reservation, ReservationResponse,
         YoutubeLiveReservationRequest,
@@ -27,15 +27,37 @@ pub async fn start_download(
     param: RunCommandParam,
     app_state: State<'_, AppState>,
 ) -> Result<u32, String> {
+    let response = start_download_queue(command_manager, window, vec![param], 1, app_state).await?;
+    response
+        .running_pids
+        .first()
+        .copied()
+        .ok_or_else(|| "プロセスIDの取得に失敗しました".to_string())
+}
+
+#[tauri::command]
+pub async fn start_download_queue(
+    command_manager: State<'_, Arc<Mutex<CommandManager>>>,
+    window: tauri::Window,
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
+    app_state: State<'_, AppState>,
+) -> Result<QueueStartResponse, String> {
     let settings = app_state.settings.lock().await.clone();
     if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        return start_remote_download(param, &settings, window).await;
+        let response = start_remote_download_queue(params, max_parallel, &settings, window).await?;
+        return Ok(QueueStartResponse {
+            queue_id: response.queue_id,
+            total: response.total,
+            started: response.started,
+            running_pids: response.running_pids,
+        });
     }
-
-    start_local_download(
+    start_local_download_queue(
         command_manager.inner().clone(),
         Some(window),
-        param,
+        params,
+        max_parallel,
         &settings,
     )
     .await
@@ -120,8 +142,14 @@ pub async fn schedule_local_download(
             .lock()
             .await
             .update_reservation_status(reservation_id, "実行中");
-        if let Err(err) =
-            start_local_download(command_manager.clone(), window.clone(), param, &settings).await
+        if let Err(err) = start_local_download_queue(
+            command_manager.clone(),
+            window.clone(),
+            vec![param],
+            1,
+            &settings,
+        )
+        .await
         {
             command_manager
                 .lock()
@@ -149,13 +177,13 @@ pub async fn get_reservations(
     Ok(command_manager.lock().await.reservations())
 }
 
-async fn start_local_download(
+async fn start_local_download_queue(
     command_manager: Arc<Mutex<CommandManager>>,
     window: Option<tauri::Window>,
-    param: RunCommandParam,
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
     settings: &crate::config::Settings,
-) -> Result<u32, String> {
-    let mut manager = command_manager.lock().await;
+) -> Result<QueueStartResponse, String> {
     let (yt_dlp_path, _ffmpeg_path, _deno_path) = resolve_tool_paths(
         settings.use_bundle_tools,
         &settings.yt_dlp_path,
@@ -170,11 +198,15 @@ async fn start_local_download(
         );
     }
 
-    let args = build_yt_dlp_args(param, &settings)?;
+    let commands = params
+        .into_iter()
+        .map(|param| {
+            let args = build_yt_dlp_args(param, settings)?;
+            Ok((args, yt_dlp_path.clone()))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
 
-    manager
-        .start_command(command_manager.clone(), args, window, &yt_dlp_path)
-        .await
+    CommandManager::enqueue_commands(command_manager, commands, window, max_parallel).await
 }
 
 #[tauri::command]
@@ -189,5 +221,5 @@ pub async fn stop_download(
     }
 
     let mut manager = command_manager.lock().await;
-    manager.stop_command(Some(window)).await
+    manager.stop_all_commands(Some(window)).await
 }

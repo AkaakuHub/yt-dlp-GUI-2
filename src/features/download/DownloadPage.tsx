@@ -6,11 +6,13 @@ import { useAppContext } from "../../app/contexts/AppContext";
 import {
 	isTauriRuntime,
 	openDownloadDirectory,
+	type QueueStatus,
 	scheduleDownload,
 	scheduleYoutubeLiveFromStart,
 	setDownloadModeSetting,
 	setUseCookieSetting,
 	startDownload,
+	startDownloadQueue,
 	stopDownload,
 	subscribeProcessEvents,
 } from "../../shared/backend/runtime";
@@ -62,12 +64,6 @@ const stringifyError = (error: unknown): string => {
 	return String(error);
 };
 
-interface QueueState {
-	active: boolean;
-	index: number;
-	items: string[];
-}
-
 export default function DownloadPage() {
 	const {
 		isSettingLoaded,
@@ -78,7 +74,6 @@ export default function DownloadPage() {
 		setUseCookie,
 		useCookie,
 	} = useAppContext();
-	const [pid, setPid] = useState<number | null>(null);
 	const [consoleLog, setConsoleLog] = useState(createConsoleLogState);
 	const [urlInput, setUrlInput] = useState("");
 	const [arbitraryCode, setArbitraryCode] = useState("");
@@ -91,7 +86,13 @@ export default function DownloadPage() {
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
 	const [activeWorkspaceTab, setActiveWorkspaceTab] =
 		useState<WorkspaceTab>("実行");
-	const [queueProgress, setQueueProgress] = useState({ current: 0, total: 0 });
+	const [maxParallel, setMaxParallel] = useState(1);
+	const [queueStatus, setQueueStatus] = useState<QueueStatus>({
+		pending: 0,
+		running: 0,
+		maxParallel: 1,
+		runningPids: [],
+	});
 	const [param, setParam] = useState<DownloadParam>({
 		codec_id: undefined,
 		subtitle_lang: undefined,
@@ -101,11 +102,6 @@ export default function DownloadPage() {
 		is_cookie: useCookie,
 	});
 
-	const queueStateRef = useRef<QueueState>({
-		active: false,
-		index: -1,
-		items: [],
-	});
 	const latestDownloadDestinationRef = useRef("");
 	const stopRequestedRef = useRef(false);
 	const selectedIndexRef = useRef(selectedIndexNumber);
@@ -113,11 +109,6 @@ export default function DownloadPage() {
 		start_time: false,
 		end_time: false,
 	});
-
-	const resetQueueState = useCallback(() => {
-		queueStateRef.current = { active: false, index: -1, items: [] };
-		setQueueProgress({ current: 0, total: 0 });
-	}, []);
 
 	useEffect(() => {
 		selectedIndexRef.current = selectedIndexNumber;
@@ -131,6 +122,15 @@ export default function DownloadPage() {
 		setUseCookie(nextUseCookie);
 		setParam((prev) => ({ ...prev, is_cookie: nextUseCookie }));
 		await setUseCookieSetting(nextUseCookie);
+	};
+
+	const updateMaxParallel = (value: string) => {
+		const parsedValue = Number.parseInt(value, 10);
+		if (!Number.isInteger(parsedValue)) {
+			setMaxParallel(1);
+			return;
+		}
+		setMaxParallel(Math.min(Math.max(parsedValue, 1), 8));
 	};
 
 	const validateTimestamp = useCallback(
@@ -215,49 +215,12 @@ export default function DownloadPage() {
 			kind: currentSelectedIndex,
 		};
 		const processId = await startDownload(runParam);
-		setPid(processId);
+		setQueueStatus((prev) => ({
+			...prev,
+			running: 1,
+			runningPids: [processId],
+		}));
 	}, [arbitraryCode, hasInvalidModeOption, hasInvalidTimestamp, param]);
-
-	const runCommandFromUrl = useCallback(
-		async (targetUrl: string, queueIndex?: number) => {
-			const currentSelectedIndex = selectedIndexRef.current;
-			if (!isDownloadModeValue(currentSelectedIndex)) {
-				toast.error("不正なモードです。");
-				throw new Error("invalid_mode");
-			}
-			const startTime = normalizeTimestamp(param.start_time || "");
-			const endTime = normalizeTimestamp(param.end_time || "");
-			if (startTime === null || endTime === null) {
-				toast.error("開始時間/終了時間の形式が不正です。");
-				throw new Error("invalid_timestamp");
-			}
-			if (hasInvalidModeOption()) {
-				throw new Error("invalid_mode_option");
-			}
-			if (targetUrl.trim() === "") {
-				toast.error("URLが空です。");
-				throw new Error("empty_url");
-			}
-			const url = cleanDownloadUrl(targetUrl);
-			if (url === null) {
-				toast.error(
-					`"${shortenText(targetUrl, 100)}"は有効なURLではありません。`,
-				);
-				throw new Error("invalid_url");
-			}
-			const runParam: RunCommandParam = {
-				...param,
-				output_name: resolveOutputName(param.output_name || "", queueIndex),
-				start_time: startTime,
-				end_time: endTime,
-				url,
-				kind: currentSelectedIndex,
-			};
-			const processId = await startDownload(runParam);
-			setPid(processId);
-		},
-		[hasInvalidModeOption, param],
-	);
 
 	const executeButtonOnClick = useCallback(
 		async (targetUrl: string) => {
@@ -297,22 +260,44 @@ export default function DownloadPage() {
 				return;
 			}
 
-			queueStateRef.current = { active: true, index: 0, items: urls };
-			setQueueProgress({ current: 1, total: urls.length });
-
 			try {
-				await runCommandFromUrl(urls[0] ?? "", isQueueMode ? 0 : undefined);
+				const startTime = normalizeTimestamp(param.start_time || "");
+				const endTime = normalizeTimestamp(param.end_time || "");
+				if (startTime === null || endTime === null) {
+					toast.error("開始時間/終了時間の形式が不正です。");
+					return;
+				}
+				const runParams = urls.map((targetUrl, index): RunCommandParam => {
+					const url = cleanDownloadUrl(targetUrl) || "";
+					return {
+						...param,
+						output_name: resolveOutputName(
+							param.output_name || "",
+							isQueueMode ? index : undefined,
+						),
+						start_time: startTime,
+						end_time: endTime,
+						url,
+						kind: currentSelectedIndex,
+					};
+				});
+				const response = await startDownloadQueue(runParams, maxParallel);
+				setQueueStatus({
+					pending: Math.max(response.total - response.started, 0),
+					running: response.started,
+					maxParallel,
+					runningPids: response.runningPids,
+				});
 			} catch (err) {
 				toast.error(`エラー:${stringifyError(err)}`);
-				resetQueueState();
 			}
 		},
 		[
 			hasInvalidTimestamp,
 			hasInvalidModeOption,
-			resetQueueState,
 			runArbitraryCommand,
-			runCommandFromUrl,
+			param,
+			maxParallel,
 			urlQueueText,
 		],
 	);
@@ -397,26 +382,6 @@ export default function DownloadPage() {
 		}
 	}, [buildScheduledRunParam]);
 
-	const runQueueNext = useCallback(() => {
-		if (!queueStateRef.current.active) {
-			return;
-		}
-		const nextIndex = queueStateRef.current.index + 1;
-		if (nextIndex >= queueStateRef.current.items.length) {
-			resetQueueState();
-			return;
-		}
-		queueStateRef.current = { ...queueStateRef.current, index: nextIndex };
-		setQueueProgress((prev) => ({ current: nextIndex + 1, total: prev.total }));
-		void runCommandFromUrl(
-			queueStateRef.current.items[nextIndex] ?? "",
-			nextIndex,
-		).catch((err) => {
-			toast.error(`エラー:${err}`);
-			resetQueueState();
-		});
-	}, [resetQueueState, runCommandFromUrl]);
-
 	useEffect(() => {
 		let unlisten: (() => void) | null = null;
 		void subscribeProcessEvents({
@@ -447,11 +412,18 @@ export default function DownloadPage() {
 				stopRequestedRef.current = false;
 				latestDownloadDestinationRef.current = "";
 				setLatestConsoleText(wasStopped ? DOWNLOAD_STOPPED_MESSAGE : "");
-				setPid(null);
 				if (wasStopped) {
 					return;
 				}
-				runQueueNext();
+				setQueueStatus((prev) => ({
+					...prev,
+					pending: 0,
+					running: 0,
+					runningPids: [],
+				}));
+			},
+			onQueue: (status) => {
+				setQueueStatus(status);
 			},
 		}).then((nextUnlisten) => {
 			unlisten = nextUnlisten;
@@ -460,7 +432,7 @@ export default function DownloadPage() {
 		return () => {
 			unlisten?.();
 		};
-	}, [runQueueNext, setLatestConsoleText]);
+	}, [setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
 		const inputUrl = urlInput.trim();
@@ -483,7 +455,6 @@ export default function DownloadPage() {
 	};
 
 	const stopProcess = async () => {
-		resetQueueState();
 		stopRequestedRef.current = true;
 		try {
 			await stopDownload();
@@ -492,7 +463,12 @@ export default function DownloadPage() {
 			toast.error(`停止に失敗しました:${stringifyError(error)}`);
 			return;
 		}
-		setPid(null);
+		setQueueStatus((prev) => ({
+			...prev,
+			pending: 0,
+			running: 0,
+			runningPids: [],
+		}));
 	};
 
 	const openDirectory = async () => {
@@ -517,14 +493,13 @@ export default function DownloadPage() {
 		void persistDownloadMode(downloadModes[nextIndex].value);
 	};
 
-	const isQueueRunning = queueProgress.total > 0;
+	const isQueueRunning = queueStatus.pending > 0 || queueStatus.running > 0;
 	const usesCodecId = selectedIndexNumber === DOWNLOAD_MODE.codecId;
 	const usesSubtitleLang = selectedIndexNumber === DOWNLOAD_MODE.subtitle;
 	const usesArbitraryCode = selectedIndexNumber === DOWNLOAD_MODE.arbitraryCode;
-	const queueLabel =
-		queueProgress.total > 0
-			? `${queueProgress.current}/${queueProgress.total}`
-			: "";
+	const queueLabel = isQueueRunning
+		? `${queueStatus.running}実行中 / ${queueStatus.pending}待機`
+		: "";
 	const selectedModeLabel =
 		downloadModes.find((mode) => mode.value === selectedIndexNumber)?.label ||
 		"未選択";
@@ -568,13 +543,13 @@ export default function DownloadPage() {
 							<div className="relative grid gap-2 sm:min-h-40">
 								<SurfacePanel className="z-10 grid gap-2 sm:absolute sm:top-0 sm:bottom-0 sm:left-0 sm:right-1/2 sm:pr-28">
 									<div className="flex min-w-0 items-center justify-between gap-2">
-										{pid === null ? (
+										{!isQueueRunning ? (
 											<span className="badge badge-ghost border-base-300 text-base-content/60">
 												待機中
 											</span>
 										) : (
 											<span className="badge badge-error badge-outline">
-												PID {pid}
+												PID {queueStatus.runningPids.join(", ")}
 												{queueLabel !== "" ? ` ${queueLabel}` : ""}
 											</span>
 										)}
@@ -623,6 +598,20 @@ export default function DownloadPage() {
 											<span className="hidden lg:inline">クッキー</span>
 										</label>
 									</div>
+									<label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 rounded-md bg-base-200 px-3 py-1">
+										<span className="text-xs font-semibold text-base-content/65">
+											並列数
+										</span>
+										<AppInput
+											className="h-8 min-h-8 bg-base-100 px-2"
+											value={maxParallel}
+											inputMode="numeric"
+											type="number"
+											onChange={(event) =>
+												updateMaxParallel(event.target.value)
+											}
+										/>
+									</label>
 								</SurfacePanel>
 
 								<div className="z-30 sm:absolute sm:right-0 sm:bottom-0 sm:left-1/2 sm:pl-28">
@@ -636,18 +625,17 @@ export default function DownloadPage() {
 
 								<div className="z-[60] grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 									<PrimaryCircleButton
-										label={pid === null ? "実行" : "中止"}
+										label={!isQueueRunning ? "実行" : "中止"}
 										icon={
-											pid === null ? (
+											!isQueueRunning ? (
 												<Download size={30} />
 											) : (
 												<Square size={26} />
 											)
 										}
-										disabled={pid === null && isQueueRunning}
-										tone={pid === null ? "primary" : "danger"}
+										tone={!isQueueRunning ? "primary" : "danger"}
 										onClick={() => {
-											if (pid === null) {
+											if (!isQueueRunning) {
 												void executeFromPrimaryInput();
 												return;
 											}
@@ -691,7 +679,7 @@ export default function DownloadPage() {
 								<span>出力</span>
 							</div>
 							<div className="grid h-9 grid-cols-[5rem_11rem_minmax(0,1fr)_8rem_8rem] items-center border-b border-base-300 bg-base-100 px-3 text-xs text-base-content/70">
-								<span>{pid === null ? "未開始" : "実行中"}</span>
+								<span>{!isQueueRunning ? "未開始" : "実行中"}</span>
 								<span className="truncate">{selectedModeLabel}</span>
 								<span className="truncate text-base-content/45">
 									{executionTargetRows.length}件
@@ -701,16 +689,16 @@ export default function DownloadPage() {
 							</div>
 							<div className="min-h-0 overflow-auto">
 								{executionTargetRows.map((row) => {
-									const isCurrentQueueRow =
-										pid !== null &&
-										queueProgress.total > 0 &&
-										queueProgress.current === row.index + 1;
 									return (
 										<div
 											key={row.id}
 											className="grid h-9 grid-cols-[5rem_11rem_minmax(0,1fr)_8rem_8rem] items-center border-b border-base-300 px-3 text-xs hover:bg-base-200/60"
 										>
-											<span>{isCurrentQueueRow ? "実行中" : "未開始"}</span>
+											<span>
+												{isQueueRunning && row.index < queueStatus.running
+													? "実行中"
+													: "未開始"}
+											</span>
 											<span className="truncate">
 												{row.source === "queue"
 													? `一括 ${row.index + 1}`

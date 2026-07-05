@@ -78,6 +78,7 @@ fn main() {
         .manage(command_manager)
         .invoke_handler(tauri::generate_handler![
             start_download,
+            command_handlers::start_download_queue,
             stop_download,
             command_handlers::schedule_download,
             command_handlers::schedule_youtube_live_from_start,
