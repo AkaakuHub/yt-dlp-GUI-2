@@ -37,6 +37,7 @@ auto-launch = "0.6.0"
 rand = "0.9"
 tao = "0.35.2"
 tray-icon = "0.23.1"
+tauri-plugin-process = "2.3.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2.7"

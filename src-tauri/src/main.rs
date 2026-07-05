@@ -10,7 +10,6 @@ mod process_manager;
 mod reservation;
 mod system;
 mod tools;
-mod update;
 mod web_server;
 
 use std::sync::Arc;
@@ -114,13 +113,13 @@ fn main() {
             persistent_server_service::unregister_persistent_server,
             persistent_server_service::get_persistent_server_status,
             persistent_server_service::generate_remote_auth_token,
-            notification::send_download_complete_notification,
-            update::install_available_update
+            notification::send_download_complete_notification
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

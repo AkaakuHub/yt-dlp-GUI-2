@@ -48,12 +48,6 @@ pub fn generate_remote_auth_token() -> String {
     Alphanumeric.sample_string(&mut rand::rng(), 48)
 }
 
-pub async fn prepare_persistent_server_for_update() -> Result<(), String> {
-    Ok(())
-}
-
-pub fn prepare_persistent_server_before_exit() {}
-
 fn persistent_server_auto_launch() -> Result<auto_launch::AutoLaunch, String> {
     let app_path = current_app_path()?;
     AutoLaunchBuilder::new()

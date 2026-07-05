@@ -37,6 +37,16 @@ initializeWebAuthToken();
 
 type BootPhase = "checkingTools" | "updatingApp";
 
+const formatBytes = (bytes: number): string => {
+	if (bytes < 1024) {
+		return `${bytes}B`;
+	}
+	if (bytes < 1024 * 1024) {
+		return `${(bytes / 1024).toFixed(1)}KB`;
+	}
+	return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
+
 type WebAuthGateProps = {
 	children: React.ReactNode;
 };
@@ -170,8 +180,29 @@ const App = () => {
 		}
 
 		setBootPhase("updatingApp");
-		setBootDownloadProgress(null);
-		await installAvailableUpdate();
+		setBootDownloadProgress({
+			tool_name: "アプリ更新",
+			progress: 0,
+			status: "ダウンロード準備中",
+		});
+		await installAvailableUpdate({
+			update,
+			onProgress: ({ downloadedBytes, contentLength }) => {
+				const progress =
+					contentLength !== null && contentLength > 0
+						? Math.min((downloadedBytes / contentLength) * 100, 100)
+						: 0;
+				const status =
+					contentLength !== null
+						? `${formatBytes(downloadedBytes)}/${formatBytes(contentLength)}`
+						: formatBytes(downloadedBytes);
+				setBootDownloadProgress({
+					tool_name: "アプリ更新",
+					progress,
+					status,
+				});
+			},
+		});
 	}, []);
 
 	useEffect(() => {

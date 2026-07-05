@@ -16,6 +16,7 @@
     "notification:allow-is-permission-granted",
     "notification:allow-notify",
     "notification:allow-request-permission",
+    "process:default",
     "updater:allow-check",
     "updater:allow-download-and-install"
   ]

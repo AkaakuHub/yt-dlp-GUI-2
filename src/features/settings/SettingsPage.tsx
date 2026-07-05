@@ -195,7 +195,7 @@ export default function SettingsPage() {
 		if (update === null) {
 			return;
 		}
-		await installAvailableUpdate();
+		await installAvailableUpdate({ update });
 	}, []);
 
 	useEffect(() => {
