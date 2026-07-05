@@ -81,6 +81,7 @@ fn main() {
             stop_download,
             command_handlers::schedule_download,
             command_handlers::schedule_youtube_live_from_start,
+            command_handlers::get_reservations,
             open_directory,
             open_url_and_exit,
             get_sorted_directory_contents,

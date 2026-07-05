@@ -14,17 +14,20 @@ import {
 	stopDownload,
 	subscribeProcessEvents,
 } from "../../shared/backend/runtime";
+import ConsoleBox from "../../shared/components/ConsoleBox";
 import {
 	appendConsoleOutput,
 	createConsoleLogState,
 } from "../../shared/components/ConsoleBox/consoleLog";
+import FileExplorer from "../../shared/components/FileExplorer";
 import { AppInput } from "../../shared/components/FormControls";
 import PrimaryCircleButton from "../../shared/components/PrimaryCircleButton";
 import { SurfaceIsland, SurfacePanel } from "../../shared/components/Surface";
-import Workspace from "../../shared/components/Workspace";
+import { cn } from "../../shared/utils/className";
 import { AdvancedDownloadPanel } from "./components/AdvancedDownloadPanel";
 import { DownloadModeSelector } from "./components/DownloadModeSelector";
 import { QueueUrlPanel } from "./components/QueueUrlPanel";
+import { ReservationList } from "./components/ReservationList";
 import { ReservationPanel } from "./components/ReservationPanel";
 import {
 	cleanDownloadUrl,
@@ -43,6 +46,13 @@ import {
 
 const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
 const downloadModes = downloadModeOptions;
+const workspaceTabs = [
+	"実行",
+	"予約一覧",
+	"エクスプローラー",
+	"コンソール",
+] as const;
+type WorkspaceTab = (typeof workspaceTabs)[number];
 
 const stringifyError = (error: unknown): string => {
 	if (error instanceof Error) {
@@ -80,6 +90,8 @@ export default function DownloadPage() {
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
 	const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
 	const [showReservationPanel, setShowReservationPanel] = useState(false);
+	const [activeWorkspaceTab, setActiveWorkspaceTab] =
+		useState<WorkspaceTab>("実行");
 	const [queueProgress, setQueueProgress] = useState({ current: 0, total: 0 });
 	const [param, setParam] = useState<DownloadParam>({
 		codec_id: undefined,
@@ -154,6 +166,25 @@ export default function DownloadPage() {
 		return false;
 	}, [param.start_time, param.end_time]);
 
+	const hasInvalidModeOption = useCallback((): boolean => {
+		const currentSelectedIndex = selectedIndexRef.current;
+		if (
+			currentSelectedIndex === DOWNLOAD_MODE.codecId &&
+			(param.codec_id || "").trim() === ""
+		) {
+			toast.error("IDを指定するモードではコーデックIDが必要です。");
+			return true;
+		}
+		if (
+			currentSelectedIndex === DOWNLOAD_MODE.subtitle &&
+			(param.subtitle_lang || "").trim() === ""
+		) {
+			toast.error("字幕モードでは字幕言語が必要です。");
+			return true;
+		}
+		return false;
+	}, [param.codec_id, param.subtitle_lang]);
+
 	const runArbitraryCommand = useCallback(async () => {
 		const currentSelectedIndex = selectedIndexRef.current;
 		if (!isDownloadModeValue(currentSelectedIndex)) {
@@ -161,6 +192,9 @@ export default function DownloadPage() {
 			return;
 		}
 		if (hasInvalidTimestamp()) {
+			return;
+		}
+		if (hasInvalidModeOption()) {
 			return;
 		}
 		if (arbitraryCode === "") {
@@ -183,7 +217,7 @@ export default function DownloadPage() {
 		};
 		const processId = await startDownload(runParam);
 		setPid(processId);
-	}, [arbitraryCode, hasInvalidTimestamp, param]);
+	}, [arbitraryCode, hasInvalidModeOption, hasInvalidTimestamp, param]);
 
 	const runCommandFromUrl = useCallback(
 		async (targetUrl: string, queueIndex?: number) => {
@@ -197,6 +231,9 @@ export default function DownloadPage() {
 			if (startTime === null || endTime === null) {
 				toast.error("開始時間/終了時間の形式が不正です。");
 				throw new Error("invalid_timestamp");
+			}
+			if (hasInvalidModeOption()) {
+				throw new Error("invalid_mode_option");
 			}
 			if (targetUrl.trim() === "") {
 				toast.error("URLが空です。");
@@ -220,7 +257,7 @@ export default function DownloadPage() {
 			const processId = await startDownload(runParam);
 			setPid(processId);
 		},
-		[param],
+		[hasInvalidModeOption, param],
 	);
 
 	const executeButtonOnClick = useCallback(
@@ -231,6 +268,9 @@ export default function DownloadPage() {
 				return;
 			}
 			if (hasInvalidTimestamp()) {
+				return;
+			}
+			if (hasInvalidModeOption()) {
 				return;
 			}
 			if (currentSelectedIndex === DOWNLOAD_MODE.arbitraryCode) {
@@ -270,6 +310,7 @@ export default function DownloadPage() {
 		},
 		[
 			hasInvalidTimestamp,
+			hasInvalidModeOption,
 			resetQueueState,
 			runArbitraryCommand,
 			runCommandFromUrl,
@@ -285,6 +326,9 @@ export default function DownloadPage() {
 		}
 		if (currentSelectedIndex === DOWNLOAD_MODE.arbitraryCode) {
 			toast.error("任意コードは予約できません。");
+			return null;
+		}
+		if (hasInvalidModeOption()) {
 			return null;
 		}
 		const startTime = normalizeTimestamp(param.start_time || "");
@@ -305,7 +349,7 @@ export default function DownloadPage() {
 			url,
 			kind: currentSelectedIndex,
 		};
-	}, [param, urlInput]);
+	}, [hasInvalidModeOption, param, urlInput]);
 
 	const scheduleCurrentDownload = useCallback(async () => {
 		const runParam = buildScheduledRunParam();
@@ -335,6 +379,11 @@ export default function DownloadPage() {
 	const scheduleYoutubeReservation = useCallback(async () => {
 		const runParam = buildScheduledRunParam();
 		if (runParam === null) {
+			return;
+		}
+		const url = runParam.url || "";
+		if (!/https?:\/\/([^/]+\.)?(youtube\.com|youtu\.be)\//.test(url)) {
+			toast.error("YouTubeライブ予約にはYouTubeのURLが必要です。");
 			return;
 		}
 		try {
@@ -480,121 +529,181 @@ export default function DownloadPage() {
 
 	return (
 		<div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-base-100 p-2 text-base-content">
-			<SurfaceIsland>
-				<div className="grid gap-2">
-					<div className="relative grid gap-2 sm:min-h-40">
-						<SurfacePanel className="z-10 grid gap-2 sm:absolute sm:top-0 sm:bottom-0 sm:left-0 sm:right-1/2 sm:pr-28">
-							<div className="flex min-w-0 items-center gap-2">
-								{pid === null ? (
-									<span className="badge badge-ghost border-base-300 text-base-content/60">
-										待機中
-									</span>
-								) : (
-									<span className="badge badge-error badge-outline">
-										PID {pid}
-										{queueLabel !== "" ? ` ${queueLabel}` : ""}
-									</span>
-								)}
-							</div>
-							<AppInput
-								className="h-10 min-h-10 w-full bg-base-200"
-								value={urlInput}
-								onChange={(event) => setUrlInput(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter") {
-										void executeFromPrimaryInput();
-									}
-								}}
-								placeholder="URL"
-								type="url"
-							/>
+			<div className="grid h-10 grid-cols-4 overflow-hidden rounded-lg border border-base-300 bg-base-200">
+				{workspaceTabs.map((tab) => (
+					<button
+						key={tab}
+						className={cn(
+							"h-10 border-b-2 text-sm font-semibold transition-colors",
+							activeWorkspaceTab === tab
+								? "border-primary bg-base-100 text-primary"
+								: "border-transparent text-base-content/55 hover:bg-base-300/70 hover:text-base-content",
+						)}
+						type="button"
+						onClick={() => setActiveWorkspaceTab(tab)}
+					>
+						{tab}
+					</button>
+				))}
+			</div>
 
-							<DownloadModeSelector
-								disabled={!isSettingLoaded}
-								options={downloadModes}
-								value={selectedIndexNumber}
-								onChange={(value) => void persistDownloadMode(value)}
-								onMove={moveDownloadMode}
-							/>
-						</SurfacePanel>
+			<div className="min-h-0 overflow-hidden">
+				<div
+					className={cn(
+						activeWorkspaceTab === "実行"
+							? "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2"
+							: "hidden",
+					)}
+				>
+					<SurfaceIsland>
+						<div className="grid gap-2">
+							<div className="relative grid gap-2 sm:min-h-40">
+								<SurfacePanel className="z-10 grid gap-2 sm:absolute sm:top-0 sm:bottom-0 sm:left-0 sm:right-1/2 sm:pr-28">
+									<div className="flex min-w-0 items-center gap-2">
+										{pid === null ? (
+											<span className="badge badge-ghost border-base-300 text-base-content/60">
+												待機中
+											</span>
+										) : (
+											<span className="badge badge-error badge-outline">
+												PID {pid}
+												{queueLabel !== "" ? ` ${queueLabel}` : ""}
+											</span>
+										)}
+									</div>
+									<AppInput
+										className="h-10 min-h-10 w-full bg-base-200"
+										value={urlInput}
+										onChange={(event) => setUrlInput(event.target.value)}
+										onKeyDown={(event) => {
+											if (event.key === "Enter") {
+												void executeFromPrimaryInput();
+											}
+										}}
+										placeholder="URL"
+										type="url"
+									/>
 
-						<SurfacePanel className="z-10 grid grid-cols-2 gap-2 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">
-							<button
-								className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
-								type="button"
-								onClick={openDirectory}
-							>
-								<FolderOpen size={16} />
-								<span className="hidden lg:inline">保存先</span>
-							</button>
-							<label className="dark-control-border flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
-								<input
-									className="toggle toggle-primary toggle-sm"
-									checked={param.is_cookie}
-									type="checkbox"
-									onChange={(event) => void updateCookie(event.target.checked)}
+									<DownloadModeSelector
+										disabled={!isSettingLoaded}
+										options={downloadModes}
+										value={selectedIndexNumber}
+										onChange={(value) => void persistDownloadMode(value)}
+										onMove={moveDownloadMode}
+									/>
+								</SurfacePanel>
+
+								<SurfacePanel className="z-10 grid grid-cols-2 gap-2 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">
+									<button
+										className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 hover:bg-base-300"
+										type="button"
+										onClick={openDirectory}
+									>
+										<FolderOpen size={16} />
+										<span className="hidden lg:inline">保存先</span>
+									</button>
+									<label className="dark-control-border flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-base-300 bg-base-200 px-3 text-sm">
+										<input
+											className="toggle toggle-primary toggle-sm"
+											checked={param.is_cookie}
+											type="checkbox"
+											onChange={(event) =>
+												void updateCookie(event.target.checked)
+											}
+										/>
+										<Cookie size={15} />
+										<span className="hidden lg:inline">クッキー</span>
+									</label>
+								</SurfacePanel>
+
+								<QueueUrlPanel
+									isOpen={showQueuePanel}
+									value={urlQueueText}
+									onChange={setUrlQueueText}
+									onToggle={() => setShowQueuePanel((prev) => !prev)}
 								/>
-								<Cookie size={15} />
-								<span className="hidden lg:inline">クッキー</span>
-							</label>
-						</SurfacePanel>
 
-						<QueueUrlPanel
-							isOpen={showQueuePanel}
-							value={urlQueueText}
-							onChange={setUrlQueueText}
-							onToggle={() => setShowQueuePanel((prev) => !prev)}
-						/>
+								<div className="z-[60] grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+									<PrimaryCircleButton
+										label={pid === null ? "実行" : "中止"}
+										icon={
+											pid === null ? (
+												<Download size={30} />
+											) : (
+												<Square size={26} />
+											)
+										}
+										disabled={pid === null && isQueueRunning}
+										tone={pid === null ? "primary" : "danger"}
+										onClick={() => {
+											if (pid === null) {
+												void executeFromPrimaryInput();
+												return;
+											}
+											void stopProcess();
+										}}
+									/>
+								</div>
+							</div>
 
-						<div className="z-[60] grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
-							<PrimaryCircleButton
-								label={pid === null ? "実行" : "中止"}
-								icon={
-									pid === null ? <Download size={30} /> : <Square size={26} />
-								}
-								disabled={pid === null && isQueueRunning}
-								tone={pid === null ? "primary" : "danger"}
-								onClick={() => {
-									if (pid === null) {
-										void executeFromPrimaryInput();
-										return;
-									}
-									void stopProcess();
-								}}
-							/>
+							<div className="grid gap-2 md:grid-cols-2">
+								<AdvancedDownloadPanel
+									arbitraryCode={arbitraryCode}
+									isOpen={showAdvancedPanel}
+									param={param}
+									usesArbitraryCode={usesArbitraryCode}
+									usesCodecId={usesCodecId}
+									usesSubtitleLang={usesSubtitleLang}
+									onArbitraryCodeChange={setArbitraryCode}
+									onExecuteArbitraryCode={() => void executeButtonOnClick("")}
+									onParamChange={setParam}
+									onToggle={() => setShowAdvancedPanel((prev) => !prev)}
+									onValidateTimestamp={validateTimestamp}
+								/>
+								<ReservationPanel
+									isBusy={isScheduling}
+									isOpen={showReservationPanel}
+									kind={reservationKind}
+									scheduledAt={scheduledAt}
+									onKindChange={setReservationKind}
+									onScheduleUrl={() => void scheduleCurrentDownload()}
+									onScheduleYoutube={() => void scheduleYoutubeReservation()}
+									onScheduledAtChange={setScheduledAt}
+									onToggle={() => setShowReservationPanel((prev) => !prev)}
+								/>
+							</div>
 						</div>
-					</div>
-
-					<div className="grid gap-2 md:grid-cols-2">
-						<AdvancedDownloadPanel
-							arbitraryCode={arbitraryCode}
-							isOpen={showAdvancedPanel}
-							param={param}
-							usesArbitraryCode={usesArbitraryCode}
-							usesCodecId={usesCodecId}
-							usesSubtitleLang={usesSubtitleLang}
-							onArbitraryCodeChange={setArbitraryCode}
-							onExecuteArbitraryCode={() => void executeButtonOnClick("")}
-							onParamChange={setParam}
-							onToggle={() => setShowAdvancedPanel((prev) => !prev)}
-							onValidateTimestamp={validateTimestamp}
-						/>
-						<ReservationPanel
-							isBusy={isScheduling}
-							isOpen={showReservationPanel}
-							kind={reservationKind}
-							scheduledAt={scheduledAt}
-							onKindChange={setReservationKind}
-							onScheduleUrl={() => void scheduleCurrentDownload()}
-							onScheduleYoutube={() => void scheduleYoutubeReservation()}
-							onScheduledAtChange={setScheduledAt}
-							onToggle={() => setShowReservationPanel((prev) => !prev)}
-						/>
+					</SurfaceIsland>
+					<div className="min-h-0 rounded-lg border border-base-300 bg-base-100 p-3 text-sm text-base-content/55">
+						{pid === null
+							? "待機中"
+							: `実行中 PID ${pid}${queueLabel !== "" ? ` ${queueLabel}` : ""}`}
 					</div>
 				</div>
-			</SurfaceIsland>
-
-			<Workspace consoleLog={consoleLog} />
+				<div
+					className={cn(
+						activeWorkspaceTab === "予約一覧" ? "h-full min-h-0" : "hidden",
+					)}
+				>
+					<ReservationList />
+				</div>
+				<div
+					className={cn(
+						activeWorkspaceTab === "エクスプローラー"
+							? "h-full min-h-0"
+							: "hidden",
+					)}
+				>
+					<FileExplorer />
+				</div>
+				<div
+					className={cn(
+						activeWorkspaceTab === "コンソール" ? "h-full min-h-0" : "hidden",
+					)}
+				>
+					<ConsoleBox consoleLog={consoleLog} />
+				</div>
+			</div>
 		</div>
 	);
 }

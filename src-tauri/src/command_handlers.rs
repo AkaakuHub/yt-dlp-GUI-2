@@ -5,7 +5,7 @@ use crate::{
     },
     config::AppState,
     download_command::{build_yt_dlp_args, RunCommandParam},
-    process_manager::CommandManager,
+    process_manager::{CommandManager, ScheduledReservation},
     reservation::{
         current_time_ms, resolve_youtube_live_reservation, ReservationResponse,
         YoutubeLiveReservationRequest,
@@ -59,6 +59,8 @@ pub async fn schedule_download(
         param,
         run_at_ms,
         settings,
+        "日時指定予約".to_string(),
+        "日時指定".to_string(),
     )
     .await
 }
@@ -81,6 +83,8 @@ pub async fn schedule_youtube_live_from_start(
         param,
         run_at_ms,
         settings,
+        title.clone(),
+        "YouTubeライブ".to_string(),
     )
     .await?;
     Ok(ReservationResponse {
@@ -96,26 +100,53 @@ pub async fn schedule_local_download(
     param: RunCommandParam,
     run_at_ms: u64,
     settings: crate::config::Settings,
+    title: String,
+    kind: String,
 ) -> Result<String, String> {
     let now_ms = current_time_ms()?;
     if run_at_ms <= now_ms {
         return Err("予約時刻は現在より後にしてください".to_string());
     }
     let delay = Duration::from_millis(run_at_ms - now_ms);
-    let schedule_id = format!("schedule-{}", run_at_ms);
+    let url = param.url.clone().unwrap_or_default();
+    let reservation_id = command_manager
+        .lock()
+        .await
+        .add_reservation(title, url, run_at_ms, kind);
+    let schedule_id = format!("schedule-{}", reservation_id);
     tokio::spawn(async move {
         sleep_until(Instant::now() + delay).await;
+        command_manager
+            .lock()
+            .await
+            .update_reservation_status(reservation_id, "実行中");
         if let Err(err) =
-            start_local_download(command_manager, window.clone(), param, &settings).await
+            start_local_download(command_manager.clone(), window.clone(), param, &settings).await
         {
+            command_manager
+                .lock()
+                .await
+                .update_reservation_status(reservation_id, "失敗");
             if let Some(window) = window {
                 let _ = window.emit("process-exit", format!("予約実行に失敗しました: {}", err));
             } else {
                 eprintln!("予約実行に失敗しました: {}", err);
             }
+        } else {
+            command_manager
+                .lock()
+                .await
+                .update_reservation_status(reservation_id, "実行済み");
         }
     });
     Ok(schedule_id)
+}
+
+#[tauri::command]
+pub async fn get_reservations(
+    command_manager: State<'_, Arc<Mutex<CommandManager>>>,
+) -> Result<Vec<ScheduledReservation>, String> {
+    Ok(command_manager.lock().await.reservations())
 }
 
 async fn start_local_download(

@@ -22,6 +22,15 @@ export type ReservationResponse = {
 	title: string;
 };
 
+export type ScheduledReservation = {
+	id: number;
+	title: string;
+	url: string;
+	runAtMs: number;
+	kind: string;
+	status: string;
+};
+
 declare global {
 	interface Window {
 		__TAURI_INTERNALS__?: unknown;
@@ -114,6 +123,13 @@ export const scheduleYoutubeLiveFromStart = async (
 			body: JSON.stringify({ param }),
 		},
 	);
+};
+
+export const getReservations = async (): Promise<ScheduledReservation[]> => {
+	if (isTauriRuntime()) {
+		return invoke<ScheduledReservation[]>("get_reservations");
+	}
+	return apiFetch<ScheduledReservation[]>("/api/reservations");
 };
 
 export const setUseCookieSetting = async (value: boolean): Promise<void> => {

@@ -14,7 +14,12 @@ export function AppTabs({ tabNames, setActiveIndex, activeIndex }: Props) {
 
 	return (
 		<div className="border-b border-base-300 bg-base-200">
-			<div className="grid grid-cols-2">
+			<div
+				className="grid"
+				style={{
+					gridTemplateColumns: `repeat(${tabNames.length}, minmax(0, 1fr))`,
+				}}
+			>
 				{tabNames.map((tabName, index) => (
 					<button
 						key={tabName}

@@ -10,6 +10,7 @@ use tokio::{
 };
 
 use crate::{
+    command_handlers::schedule_local_download,
     config::{AppState, Settings},
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::CommandManager,
@@ -124,6 +125,10 @@ async fn handle_http_request(
     match (request.method.as_str(), path) {
         ("GET", "/api/health") => Ok(text_response(200, "OK", "ok")),
         ("GET", "/api/settings") => json_response(200, "OK", &Settings::new()),
+        ("GET", "/api/reservations") => {
+            let reservations = command_manager.lock().await.reservations();
+            json_response(200, "OK", &reservations)
+        }
         ("POST", "/api/downloads") => {
             let run_request = serde_json::from_str::<RunRequest>(&request.body)
                 .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
@@ -169,19 +174,16 @@ async fn schedule_download(
     request: ScheduleRequest,
     command_manager: Arc<Mutex<CommandManager>>,
 ) -> Result<String, String> {
-    let now_ms = current_time_ms()?;
-    if request.run_at_ms <= now_ms {
-        return Err("予約時刻は現在より後にしてください".to_string());
-    }
-    let delay = Duration::from_millis(request.run_at_ms - now_ms);
-    let schedule_id = format!("schedule-{}", request.run_at_ms);
-    tokio::spawn(async move {
-        sleep(delay).await;
-        if let Err(err) = start_download(request.param, command_manager).await {
-            eprintln!("予約実行に失敗しました: {}", err);
-        }
-    });
-    Ok(schedule_id)
+    schedule_local_download(
+        command_manager,
+        None,
+        request.param,
+        request.run_at_ms,
+        Settings::new(),
+        "日時指定予約".to_string(),
+        "日時指定".to_string(),
+    )
+    .await
 }
 
 async fn schedule_youtube_live_from_start(
@@ -190,8 +192,16 @@ async fn schedule_youtube_live_from_start(
 ) -> Result<ReservationResponse, String> {
     let settings = Settings::new();
     let (param, run_at_ms, title) = resolve_youtube_live_reservation(request, &settings).await?;
-    let schedule_id =
-        schedule_download(ScheduleRequest { param, run_at_ms }, command_manager).await?;
+    let schedule_id = schedule_local_download(
+        command_manager,
+        None,
+        param,
+        run_at_ms,
+        settings,
+        title.clone(),
+        "YouTubeライブ".to_string(),
+    )
+    .await?;
     Ok(ReservationResponse {
         schedule_id,
         run_at_ms,
@@ -480,8 +490,4 @@ fn json_u32_field(body: &str, field: &str) -> Result<u32, String> {
         .and_then(|value| value.get(field).and_then(|value| value.as_u64()))
         .and_then(|value| u32::try_from(value).ok())
         .ok_or_else(|| format!("{}が不正です", field))
-}
-
-fn current_time_ms() -> Result<u64, String> {
-    crate::reservation::current_time_ms()
 }
