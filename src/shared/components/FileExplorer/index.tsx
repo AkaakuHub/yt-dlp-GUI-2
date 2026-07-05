@@ -18,7 +18,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useAppContext } from "../../contexts/AppContext";
+import { useAppContext } from "../../../app/contexts/AppContext";
 import { eventEmitter } from "../../events/eventEmitter";
 import { cn } from "../../utils/className";
 import { AppInput } from "../FormControls";

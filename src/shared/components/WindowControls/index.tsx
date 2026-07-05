@@ -7,7 +7,7 @@ import {
 	useState,
 } from "react";
 import { toast } from "react-toastify";
-import { useAppContext } from "../../contexts/AppContext";
+import { useAppContext } from "../../../app/contexts/AppContext";
 import { eventEmitter } from "../../events/eventEmitter";
 
 const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";

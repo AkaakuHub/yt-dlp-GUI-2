@@ -1,6 +1,6 @@
 import { Laptop, Moon, Palette, Sun } from "lucide-react";
 import type React from "react";
-import { type ThemeMode, useTheme } from "../../contexts/ThemeContext";
+import { type ThemeMode, useTheme } from "../../../app/contexts/ThemeContext";
 import { cn } from "../../utils/className";
 
 const ThemeSelector: React.FC = () => {

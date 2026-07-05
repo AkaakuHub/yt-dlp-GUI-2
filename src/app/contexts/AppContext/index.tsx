@@ -7,7 +7,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import type { ConfigProps } from "../../types";
+import type { ConfigProps } from "../../../types";
 import { ThemeProvider } from "../ThemeContext";
 
 interface AppContextProps {

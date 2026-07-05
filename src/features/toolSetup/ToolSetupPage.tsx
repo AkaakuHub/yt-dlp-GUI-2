@@ -3,14 +3,14 @@ import { listen } from "@tauri-apps/api/event";
 import { CheckCircle2, Loader2, Package, Play, Terminal } from "lucide-react";
 import { type ChangeEvent, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { AppInput } from "../components/FormControls";
-import PrimaryCircleButton from "../components/PrimaryCircleButton";
-import type { ToolDownloadProgressValue } from "../components/ToolDownloadProgress";
-import { useAppContext } from "../contexts/AppContext";
-import { cn } from "../utils/className";
-import { checkToolAvailability } from "../utils/toolAvailability";
+import { useAppContext } from "../../app/contexts/AppContext";
+import { AppInput } from "../../shared/components/FormControls";
+import PrimaryCircleButton from "../../shared/components/PrimaryCircleButton";
+import type { ToolDownloadProgressValue } from "../../shared/components/ToolDownloadProgress";
+import { cn } from "../../shared/utils/className";
+import { checkToolAvailability } from "../../shared/utils/toolAvailability";
 
-interface ToolSetupProps {
+interface ToolSetupPageProps {
 	onComplete: () => void;
 }
 
@@ -49,7 +49,7 @@ const getToolKeyFromProgressName = (
 	return found?.[1] ?? null;
 };
 
-export default function ToolSetup({ onComplete }: ToolSetupProps) {
+export default function ToolSetupPage({ onComplete }: ToolSetupPageProps) {
 	const {
 		useBundleTools,
 		setUseBundleTools,

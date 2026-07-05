@@ -12,36 +12,31 @@ import {
 	CheckCircle2,
 	Cookie,
 	Copy,
-	Download,
 	FolderOpen,
 	HardDrive,
 	Hash,
 	KeyRound,
 	Loader2,
 	Network,
-	Package,
 	Play,
 	RefreshCw,
-	Save,
 	Server,
 	Settings2,
 	StopCircle,
-	Terminal,
 	X,
 } from "lucide-react";
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { AppInput, AppTextarea } from "../components/FormControls";
-import { SurfaceIsland, SurfacePanel } from "../components/Surface";
-import ThemeSelector from "../components/ThemeSelector";
-import ToolDownloadProgress, {
-	type ToolDownloadProgressValue,
-} from "../components/ToolDownloadProgress";
-import { useAppContext } from "../contexts/AppContext";
-import type { ConfigProps } from "../types";
-import { installAvailableUpdate } from "../utils/appUpdate";
-import { cn } from "../utils/className";
-import { checkToolAvailability } from "../utils/toolAvailability";
+import { useAppContext } from "../../app/contexts/AppContext";
+import { AppInput, AppTextarea } from "../../shared/components/FormControls";
+import { SurfaceIsland, SurfacePanel } from "../../shared/components/Surface";
+import ThemeSelector from "../../shared/components/ThemeSelector";
+import { type ToolDownloadProgressValue } from "../../shared/components/ToolDownloadProgress";
+import { installAvailableUpdate } from "../../shared/utils/appUpdate";
+import { cn } from "../../shared/utils/className";
+import { checkToolAvailability } from "../../shared/utils/toolAvailability";
+import type { ConfigProps } from "../../types";
+import { ToolsSettingsModal } from "./components/ToolsSettingsModal";
 
 type ToolCheckResults = {
 	ytDlp: boolean;
@@ -62,12 +57,6 @@ const emptyToolResults: ToolCheckResults = {
 	deno: false,
 };
 
-const toolLabels = [
-	["yt-dlp", "ytDlp"],
-	["FFmpeg", "ffmpeg"],
-	["Deno", "deno"],
-] as const;
-
 const MACOS_OS_TYPE = "macos";
 
 const parseServerPort = (value: string): number | null => {
@@ -78,7 +67,7 @@ const parseServerPort = (value: string): number | null => {
 	return parsedPort;
 };
 
-export default function Settings() {
+export default function SettingsPage() {
 	const {
 		saveDir,
 		setSaveDir,
@@ -890,181 +879,25 @@ export default function Settings() {
 			) : null}
 
 			{showToolsModal ? (
-				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
-					<section className="grid max-h-[calc(100vh-2rem)] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl">
-						<header className="flex items-center justify-between border-b border-base-300 p-4">
-							<h2 className="text-lg font-bold">ツール</h2>
-							<button
-								className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
-								type="button"
-								onClick={() => setShowToolsModal(false)}
-								aria-label="閉じる"
-							>
-								<X size={18} />
-							</button>
-						</header>
-
-						<div className="min-h-0 overflow-auto p-4">
-							<div className="grid gap-3">
-								<div className="grid gap-2 sm:grid-cols-2">
-									<button
-										className={cn(
-											"btn h-auto min-h-20 justify-start rounded-md p-3",
-											tempUseBundle
-												? "btn-primary"
-												: "btn-ghost bg-base-200 hover:bg-base-300",
-										)}
-										type="button"
-										onClick={() => setTempUseBundle(true)}
-									>
-										<Package size={18} />
-										<span className="text-left">
-											<span className="block">バンドル版</span>
-											<span className="block text-xs font-normal opacity-75">
-												内蔵ツールを使用
-											</span>
-										</span>
-									</button>
-									<button
-										className={cn(
-											"btn h-auto min-h-20 justify-start rounded-md p-3",
-											tempUseBundle
-												? "btn-ghost bg-base-200 hover:bg-base-300"
-												: "btn-primary",
-										)}
-										type="button"
-										onClick={() => setTempUseBundle(false)}
-									>
-										<Terminal size={18} />
-										<span className="text-left">
-											<span className="block">カスタムパス</span>
-											<span className="block text-xs font-normal opacity-75">
-												実行ファイルを指定
-											</span>
-										</span>
-									</button>
-								</div>
-
-								{!tempUseBundle ? (
-									<div className="grid gap-3 rounded-md border border-base-300 bg-base-200 p-3">
-										<label className="grid gap-1">
-											<span className="label pb-1 text-xs font-semibold text-base-content/65">
-												yt-dlpのパス
-											</span>
-											<AppInput
-												value={tempYtDlpPath}
-												onChange={(event) =>
-													setTempYtDlpPath(event.target.value)
-												}
-												placeholder="yt-dlp"
-											/>
-										</label>
-										<label className="grid gap-1">
-											<span className="label pb-1 text-xs font-semibold text-base-content/65">
-												FFmpegのパス
-											</span>
-											<AppInput
-												value={tempFfmpegPath}
-												onChange={(event) =>
-													setTempFfmpegPath(event.target.value)
-												}
-												placeholder="ffmpeg"
-											/>
-										</label>
-										<label className="grid gap-1">
-											<span className="label pb-1 text-xs font-semibold text-base-content/65">
-												Denoのパス
-											</span>
-											<AppInput
-												value={tempDenoPath}
-												onChange={(event) =>
-													setTempDenoPath(event.target.value)
-												}
-												placeholder="deno"
-											/>
-										</label>
-									</div>
-								) : null}
-
-								{downloadProgress ? (
-									<ToolDownloadProgress
-										className="border border-base-300"
-										progress={downloadProgress}
-										tone="muted"
-									/>
-								) : null}
-
-								<div className="grid gap-2 sm:grid-cols-3">
-									{toolLabels.map(([label, key]) => (
-										<div
-											key={key}
-											className="flex items-center justify-between rounded-md border border-base-300 bg-base-200 px-3 py-2 text-sm"
-										>
-											<span>{label}</span>
-											<span
-												className={cn(
-													toolCheckResults[key]
-														? "text-success"
-														: "text-base-content/40",
-												)}
-											>
-												{toolCheckResults[key] ? "OK" : "未確認"}
-											</span>
-										</div>
-									))}
-								</div>
-							</div>
-						</div>
-
-						<footer className="grid gap-2 border-t border-base-300 p-4 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
-							{tempUseBundle ? (
-								<button
-									className="btn btn-ghost rounded-md bg-base-200 hover:bg-base-300"
-									type="button"
-									disabled={isDownloadingTools || isCheckingTools}
-									onClick={() => void downloadBundleTools()}
-								>
-									{isDownloadingTools ? (
-										<Loader2 size={16} className="animate-spin" />
-									) : (
-										<Download size={16} />
-									)}
-									ダウンロード
-								</button>
-							) : (
-								<span />
-							)}
-							<button
-								className="btn btn-ghost rounded-md bg-base-200 hover:bg-base-300"
-								type="button"
-								disabled={isDownloadingTools || isCheckingTools}
-								onClick={() => void checkTools()}
-							>
-								{isCheckingTools ? (
-									<Loader2 size={16} className="animate-spin" />
-								) : (
-									<RefreshCw size={16} />
-								)}
-								確認
-							</button>
-							<span />
-							<button
-								className="btn btn-primary rounded-md"
-								type="button"
-								disabled={
-									!toolCheckResults.ytDlp ||
-									!toolCheckResults.ffmpeg ||
-									!toolCheckResults.deno ||
-									(downloadedOnce && isDownloadingTools)
-								}
-								onClick={() => void saveToolsSettings()}
-							>
-								<Save size={16} />
-								保存
-							</button>
-						</footer>
-					</section>
-				</div>
+				<ToolsSettingsModal
+					downloadProgress={downloadProgress}
+					downloadedOnce={downloadedOnce}
+					isCheckingTools={isCheckingTools}
+					isDownloadingTools={isDownloadingTools}
+					tempDenoPath={tempDenoPath}
+					tempFfmpegPath={tempFfmpegPath}
+					tempUseBundle={tempUseBundle}
+					tempYtDlpPath={tempYtDlpPath}
+					toolCheckResults={toolCheckResults}
+					onCheckTools={() => void checkTools()}
+					onClose={() => setShowToolsModal(false)}
+					onDownloadBundleTools={() => void downloadBundleTools()}
+					onSaveToolsSettings={() => void saveToolsSettings()}
+					onTempDenoPathChange={setTempDenoPath}
+					onTempFfmpegPathChange={setTempFfmpegPath}
+					onTempUseBundleChange={setTempUseBundle}
+					onTempYtDlpPathChange={setTempYtDlpPath}
+				/>
 			) : null}
 		</div>
 	);

@@ -7,21 +7,21 @@ import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { AppTabs } from "./components/AppTabs";
-import { SurfaceIsland, SurfacePanel } from "./components/Surface";
+import { AppProvider } from "./app/contexts/AppContext";
+import { useTheme } from "./app/contexts/ThemeContext";
+import DownloadPage from "./features/download/DownloadPage";
+import SettingsPage from "./features/settings/SettingsPage";
+import ToolSetupPage from "./features/toolSetup/ToolSetupPage";
+import { AppTabs } from "./shared/components/AppTabs";
+import { SurfaceIsland, SurfacePanel } from "./shared/components/Surface";
 import ToolDownloadProgress, {
 	type ToolDownloadProgressValue,
-} from "./components/ToolDownloadProgress";
-import WindowControls from "./components/WindowControls";
-import { AppProvider } from "./contexts/AppContext";
-import { useTheme } from "./contexts/ThemeContext";
-import Home from "./Home";
-import Setting from "./Setting";
-import ToolSetup from "./ToolSetup";
+} from "./shared/components/ToolDownloadProgress";
+import WindowControls from "./shared/components/WindowControls";
+import { installAvailableUpdate } from "./shared/utils/appUpdate";
+import { cn } from "./shared/utils/className";
+import { checkToolAvailability } from "./shared/utils/toolAvailability";
 import type { ConfigProps } from "./types";
-import { installAvailableUpdate } from "./utils/appUpdate";
-import { cn } from "./utils/className";
-import { checkToolAvailability } from "./utils/toolAvailability";
 
 import "./main.css";
 
@@ -223,7 +223,7 @@ const App = () => {
 					pauseOnHover
 					theme={actualTheme}
 				/>
-				<ToolSetup onComplete={handleSetupComplete} />
+				<ToolSetupPage onComplete={handleSetupComplete} />
 				{isBooting ? (
 					<BootOverlay
 						isExiting={isBootExiting}
@@ -262,10 +262,10 @@ const App = () => {
 			/>
 			<div className="min-h-0 flex-1 overflow-hidden">
 				<div className={cn(activeIndex === 0 ? "h-full min-h-0" : "hidden")}>
-					<Home />
+					<DownloadPage />
 				</div>
 				<div className={cn(activeIndex === 1 ? "h-full min-h-0" : "hidden")}>
-					<Setting />
+					<SettingsPage />
 				</div>
 			</div>
 			{isBooting ? (

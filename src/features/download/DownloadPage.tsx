@@ -1,31 +1,21 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import {
-	ChevronLeft,
-	ChevronRight,
-	Clock,
-	Cookie,
-	Download,
-	FileText,
-	FolderOpen,
-	ListPlus,
-	Settings2,
-	Square,
-	Terminal,
-} from "lucide-react";
+import { Cookie, Download, FolderOpen, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import { useAppContext } from "../../app/contexts/AppContext";
 import {
 	appendConsoleOutput,
 	createConsoleLogState,
-} from "../components/ConsoleBox/consoleLog";
-import { AppInput, AppSelect, AppTextarea } from "../components/FormControls";
-import PrimaryCircleButton from "../components/PrimaryCircleButton";
-import { SurfaceIsland, SurfacePanel } from "../components/Surface";
-import Workspace from "../components/Workspace";
-import { useAppContext } from "../contexts/AppContext";
-import { cn } from "../utils/className";
+} from "../../shared/components/ConsoleBox/consoleLog";
+import { AppInput } from "../../shared/components/FormControls";
+import PrimaryCircleButton from "../../shared/components/PrimaryCircleButton";
+import { SurfaceIsland, SurfacePanel } from "../../shared/components/Surface";
+import Workspace from "../../shared/components/Workspace";
+import { AdvancedDownloadPanel } from "./components/AdvancedDownloadPanel";
+import { DownloadModeSelector } from "./components/DownloadModeSelector";
+import { QueueUrlPanel } from "./components/QueueUrlPanel";
 import {
 	cleanDownloadUrl,
 	type DownloadParam,
@@ -37,7 +27,7 @@ import {
 	resolveOutputName,
 	shortenText,
 	type TimestampField,
-} from "./downloadForm";
+} from "./domain/downloadForm";
 
 const downloadModes = [
 	{ value: 1, label: "通常ダウンロード" },
@@ -70,7 +60,7 @@ interface QueueState {
 	items: string[];
 }
 
-export default function Home() {
+export default function DownloadPage() {
 	const {
 		isSettingLoaded,
 		saveDir,
@@ -443,40 +433,13 @@ export default function Home() {
 								type="url"
 							/>
 
-							<div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-								<AppSelect
-									className="h-10 min-h-10 w-full bg-base-200"
-									disabled={!isSettingLoaded}
-									value={selectedIndexNumber}
-									onChange={(event) => {
-										void persistDownloadMode(Number(event.target.value));
-									}}
-								>
-									{downloadModes.map((mode) => (
-										<option key={mode.value} value={mode.value}>
-											{mode.label}
-										</option>
-									))}
-								</AppSelect>
-								<button
-									aria-label="前のモード"
-									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md border border-base-300 bg-base-200 p-0 hover:border-base-content/25 hover:bg-base-300 focus:border-primary focus:outline-none"
-									disabled={!isSettingLoaded}
-									type="button"
-									onClick={() => moveDownloadMode(-1)}
-								>
-									<ChevronLeft size={18} />
-								</button>
-								<button
-									aria-label="次のモード"
-									className="btn btn-ghost h-10 min-h-10 w-10 rounded-md border border-base-300 bg-base-200 p-0 hover:border-base-content/25 hover:bg-base-300 focus:border-primary focus:outline-none"
-									disabled={!isSettingLoaded}
-									type="button"
-									onClick={() => moveDownloadMode(1)}
-								>
-									<ChevronRight size={18} />
-								</button>
-							</div>
+							<DownloadModeSelector
+								disabled={!isSettingLoaded}
+								options={downloadModes}
+								value={selectedIndexNumber}
+								onChange={(value) => void persistDownloadMode(value)}
+								onMove={moveDownloadMode}
+							/>
 						</SurfacePanel>
 
 						<SurfacePanel className="z-10 grid grid-cols-2 gap-2 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">
@@ -500,36 +463,12 @@ export default function Home() {
 							</label>
 						</SurfacePanel>
 
-						<div className="z-30 sm:absolute sm:right-0 sm:bottom-0 sm:left-1/2 sm:pl-28">
-							<button
-								className={cn(
-									"flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 text-left text-xs font-semibold ring-1 transition",
-									showQueuePanel
-										? "text-primary ring-primary/40"
-										: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300",
-								)}
-								type="button"
-								onClick={() => setShowQueuePanel((prev) => !prev)}
-							>
-								<ListPlus size={14} />
-								一括URLリスト
-							</button>
-							{showQueuePanel ? (
-								<div className="absolute top-14 right-0 left-28 z-50 grid gap-2 rounded-lg border border-primary/20 bg-base-100 p-3 shadow-xl ring-1 ring-base-300">
-									<div className="flex items-center justify-between gap-3">
-										<span className="text-xs text-base-content/50">
-											改行またはカンマ区切り
-										</span>
-									</div>
-									<AppTextarea
-										className="h-28 min-h-28 w-full text-sm leading-5 break-normal"
-										value={urlQueueText}
-										onChange={(event) => setUrlQueueText(event.target.value)}
-										placeholder="https://example.com/video1&#10;https://example.com/video2"
-									/>
-								</div>
-							) : null}
-						</div>
+						<QueueUrlPanel
+							isOpen={showQueuePanel}
+							value={urlQueueText}
+							onChange={setUrlQueueText}
+							onToggle={() => setShowQueuePanel((prev) => !prev)}
+						/>
 
 						<div className="z-[60] grid place-items-center sm:absolute sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
 							<PrimaryCircleButton
@@ -550,133 +489,19 @@ export default function Home() {
 						</div>
 					</div>
 
-					<div className="relative">
-						<button
-							className={cn(
-								"flex h-10 w-full items-center gap-2 rounded-md bg-base-100 px-3 text-left text-xs font-semibold ring-1 transition",
-								showAdvancedPanel
-									? "text-primary ring-primary/40"
-									: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300",
-							)}
-							type="button"
-							onClick={() => setShowAdvancedPanel((prev) => !prev)}
-						>
-							<Settings2 size={14} />
-							詳細設定
-						</button>
-						{showAdvancedPanel ? (
-							<div className="absolute top-12 right-0 left-0 z-50 grid gap-3 rounded-lg border border-primary/20 bg-base-100 p-3 shadow-xl ring-1 ring-base-300">
-								<div className="grid gap-2 md:grid-cols-4">
-									<label className="grid gap-1">
-										<span className="flex items-center gap-1 text-xs text-base-content/60">
-											<Clock size={13} />
-											開始
-										</span>
-										<AppInput
-											className="w-full bg-base-200"
-											value={param.start_time || ""}
-											onChange={(event) => {
-												const value = event.target.value;
-												setParam((prev) => ({ ...prev, start_time: value }));
-												validateTimestamp("start_time", value);
-											}}
-											placeholder="00:00:00"
-											type="text"
-										/>
-									</label>
-									<label className="grid gap-1">
-										<span className="flex items-center gap-1 text-xs text-base-content/60">
-											<Clock size={13} />
-											終了
-										</span>
-										<AppInput
-											className="w-full bg-base-200"
-											value={param.end_time || ""}
-											onChange={(event) => {
-												const value = event.target.value;
-												setParam((prev) => ({ ...prev, end_time: value }));
-												validateTimestamp("end_time", value);
-											}}
-											placeholder="00:00:00"
-											type="text"
-										/>
-									</label>
-									<label className="grid gap-1 md:col-span-2">
-										<span className="flex items-center gap-1 text-xs text-base-content/60">
-											<FileText size={13} />
-											出力ファイル名
-										</span>
-										<AppInput
-											className="w-full bg-base-200"
-											value={param.output_name || ""}
-											onChange={(event) =>
-												setParam((prev) => ({
-													...prev,
-													output_name: event.target.value,
-												}))
-											}
-											placeholder="{i}で連番"
-											type="text"
-										/>
-									</label>
-									{usesCodecId ? (
-										<label className="grid gap-1 md:col-span-2">
-											<span className="text-xs text-base-content/60">
-												コーデックID
-											</span>
-											<AppInput
-												className="w-full bg-base-200"
-												value={param.codec_id || ""}
-												onChange={(event) =>
-													setParam({ ...param, codec_id: event.target.value })
-												}
-												type="text"
-											/>
-										</label>
-									) : null}
-									{usesSubtitleLang ? (
-										<label className="grid gap-1 md:col-span-2">
-											<span className="text-xs text-base-content/60">
-												字幕言語
-											</span>
-											<AppInput
-												className="w-full bg-base-200"
-												value={param.subtitle_lang || ""}
-												onChange={(event) =>
-													setParam({
-														...param,
-														subtitle_lang: event.target.value,
-													})
-												}
-												type="text"
-											/>
-										</label>
-									) : null}
-									{usesArbitraryCode ? (
-										<label className="grid gap-1 md:col-span-4">
-											<span className="flex items-center gap-1 text-xs text-base-content/60">
-												<Terminal size={13} />
-												任意コード
-											</span>
-											<AppInput
-												className="w-full bg-base-200"
-												value={arbitraryCode}
-												onChange={(event) =>
-													setArbitraryCode(event.target.value)
-												}
-												onKeyDown={(event) => {
-													if (event.key === "Enter") {
-														void executeButtonOnClick("");
-													}
-												}}
-												type="text"
-											/>
-										</label>
-									) : null}
-								</div>
-							</div>
-						) : null}
-					</div>
+					<AdvancedDownloadPanel
+						arbitraryCode={arbitraryCode}
+						isOpen={showAdvancedPanel}
+						param={param}
+						usesArbitraryCode={usesArbitraryCode}
+						usesCodecId={usesCodecId}
+						usesSubtitleLang={usesSubtitleLang}
+						onArbitraryCodeChange={setArbitraryCode}
+						onExecuteArbitraryCode={() => void executeButtonOnClick("")}
+						onParamChange={setParam}
+						onToggle={() => setShowAdvancedPanel((prev) => !prev)}
+						onValidateTimestamp={validateTimestamp}
+					/>
 				</div>
 			</SurfaceIsland>
 
