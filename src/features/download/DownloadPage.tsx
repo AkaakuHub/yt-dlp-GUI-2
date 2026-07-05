@@ -18,7 +18,9 @@ import { DownloadModeSelector } from "./components/DownloadModeSelector";
 import { QueueUrlPanel } from "./components/QueueUrlPanel";
 import {
 	cleanDownloadUrl,
+	DOWNLOAD_MODE,
 	type DownloadParam,
+	downloadModeOptions,
 	isDownloadModeValue,
 	isValidTimestamp,
 	normalizeTimestamp,
@@ -29,23 +31,8 @@ import {
 	type TimestampField,
 } from "./domain/downloadForm";
 
-const downloadModes = [
-	{ value: 1, label: "通常ダウンロード" },
-	{ value: 2, label: "音声のみダウンロード" },
-	{ value: 3, label: "1080p" },
-	{ value: 4, label: "720p" },
-	{ value: 5, label: "480p" },
-	{ value: 6, label: "360p" },
-	{ value: 7, label: "リストを表示" },
-	{ value: 8, label: "IDを指定" },
-	{ value: 9, label: "配信録画(最初から)" },
-	{ value: 10, label: "配信録画(現在から)" },
-	{ value: 11, label: "サムネイル" },
-	{ value: 12, label: "字幕" },
-	{ value: 13, label: "任意コード >yt-dlp" },
-] as const;
-
 const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
+const downloadModes = downloadModeOptions;
 
 const stringifyError = (error: unknown): string => {
 	if (error instanceof Error) {
@@ -234,7 +221,7 @@ export default function DownloadPage() {
 			if (hasInvalidTimestamp()) {
 				return;
 			}
-			if (currentSelectedIndex === 13) {
+			if (currentSelectedIndex === DOWNLOAD_MODE.arbitraryCode) {
 				try {
 					await runArbitraryCommand();
 				} catch (err) {
@@ -394,9 +381,9 @@ export default function DownloadPage() {
 	};
 
 	const isQueueRunning = queueProgress.total > 0;
-	const usesCodecId = selectedIndexNumber === 8;
-	const usesSubtitleLang = selectedIndexNumber === 12;
-	const usesArbitraryCode = selectedIndexNumber === 13;
+	const usesCodecId = selectedIndexNumber === DOWNLOAD_MODE.codecId;
+	const usesSubtitleLang = selectedIndexNumber === DOWNLOAD_MODE.subtitle;
+	const usesArbitraryCode = selectedIndexNumber === DOWNLOAD_MODE.arbitraryCode;
 	const queueLabel =
 		queueProgress.total > 0
 			? `${queueProgress.current}/${queueProgress.total}`

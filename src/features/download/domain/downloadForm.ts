@@ -7,20 +7,37 @@ export interface DownloadParam {
 	is_cookie: boolean;
 }
 
-export type DownloadModeValue =
-	| 1
-	| 2
-	| 3
-	| 4
-	| 5
-	| 6
-	| 7
-	| 8
-	| 9
-	| 10
-	| 11
-	| 12
-	| 13;
+export const DOWNLOAD_MODE = {
+	normal: 1,
+	audioOnly: 2,
+	video1080p: 3,
+	video720p: 4,
+	video480p: 5,
+	video360p: 6,
+	listFormats: 7,
+	codecId: 8,
+	liveFromStart: 9,
+	thumbnail: 10,
+	subtitle: 11,
+	arbitraryCode: 12,
+} as const;
+
+export const downloadModeOptions = [
+	{ value: DOWNLOAD_MODE.normal, label: "通常ダウンロード" },
+	{ value: DOWNLOAD_MODE.audioOnly, label: "音声のみダウンロード" },
+	{ value: DOWNLOAD_MODE.video1080p, label: "1080p" },
+	{ value: DOWNLOAD_MODE.video720p, label: "720p" },
+	{ value: DOWNLOAD_MODE.video480p, label: "480p" },
+	{ value: DOWNLOAD_MODE.video360p, label: "360p" },
+	{ value: DOWNLOAD_MODE.listFormats, label: "リストを表示" },
+	{ value: DOWNLOAD_MODE.codecId, label: "IDを指定" },
+	{ value: DOWNLOAD_MODE.liveFromStart, label: "配信録画(最初から)" },
+	{ value: DOWNLOAD_MODE.thumbnail, label: "サムネイル" },
+	{ value: DOWNLOAD_MODE.subtitle, label: "字幕" },
+	{ value: DOWNLOAD_MODE.arbitraryCode, label: "任意コード >yt-dlp" },
+] as const;
+
+export type DownloadModeValue = (typeof downloadModeOptions)[number]["value"];
 
 export interface RunCommandParam extends DownloadParam {
 	kind: DownloadModeValue;
@@ -30,12 +47,10 @@ export interface RunCommandParam extends DownloadParam {
 
 export type TimestampField = "start_time" | "end_time";
 
-const downloadModeValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] as const;
-
 export const isDownloadModeValue = (
 	value: number,
 ): value is DownloadModeValue => {
-	return downloadModeValues.some((modeValue) => modeValue === value);
+	return downloadModeOptions.some((mode) => mode.value === value);
 };
 
 export const parseQueueItems = (value: string): string[] => {

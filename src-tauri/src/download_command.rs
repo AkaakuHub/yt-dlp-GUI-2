@@ -26,7 +26,6 @@ pub enum DownloadMode {
     ListFormats,
     CodecId,
     LiveFromStart,
-    LiveFromNow,
     Thumbnail,
     Subtitle,
     ArbitraryCode,
@@ -46,10 +45,9 @@ impl TryFrom<i32> for DownloadMode {
             7 => Ok(Self::ListFormats),
             8 => Ok(Self::CodecId),
             9 => Ok(Self::LiveFromStart),
-            10 => Ok(Self::LiveFromNow),
-            11 => Ok(Self::Thumbnail),
-            12 => Ok(Self::Subtitle),
-            13 => Ok(Self::ArbitraryCode),
+            10 => Ok(Self::Thumbnail),
+            11 => Ok(Self::Subtitle),
+            12 => Ok(Self::ArbitraryCode),
             _ => Err("不正な種類です".into()),
         }
     }
@@ -67,13 +65,14 @@ impl From<DownloadMode> for i32 {
             DownloadMode::ListFormats => 7,
             DownloadMode::CodecId => 8,
             DownloadMode::LiveFromStart => 9,
-            DownloadMode::LiveFromNow => 10,
-            DownloadMode::Thumbnail => 11,
-            DownloadMode::Subtitle => 12,
-            DownloadMode::ArbitraryCode => 13,
+            DownloadMode::Thumbnail => 10,
+            DownloadMode::Subtitle => 11,
+            DownloadMode::ArbitraryCode => 12,
         }
     }
 }
+
+const DEFAULT_VIDEO_FORMAT_SELECTOR: &str = "bestvideo*+bestaudio/best";
 
 pub(crate) fn build_yt_dlp_args(
     param: RunCommandParam,
@@ -144,7 +143,7 @@ fn args_for_mode(
             "-o".to_string(),
             save_path.to_string(),
             "-f".to_string(),
-            format_command(kind),
+            height_limited_format_selector(kind),
             "--no-mtime".to_string(),
         ]),
         DownloadMode::ListFormats => Ok(vec![
@@ -175,7 +174,6 @@ fn args_for_mode(
             args.extend(video_format_args());
             Ok(args)
         }
-        DownloadMode::LiveFromNow => video_download_args(url, save_path),
         DownloadMode::Thumbnail => Ok(vec![
             url.to_string(),
             "-o".to_string(),
@@ -216,26 +214,21 @@ fn video_download_args(url: &str, save_path: &str) -> Result<Vec<String>, String
 fn video_format_args() -> Vec<String> {
     vec![
         "-f".to_string(),
-        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best".to_string(),
+        DEFAULT_VIDEO_FORMAT_SELECTOR.to_string(),
         "--no-mtime".to_string(),
     ]
 }
 
-fn format_command(kind: DownloadMode) -> String {
-    let video_ids = match kind {
-        DownloadMode::Video1080p => ["616", "270", "137", "614", "248", "399"],
-        DownloadMode::Video720p => ["232", "609", "247", "136", "398", ""],
-        DownloadMode::Video480p => ["231", "606", "244", "135", "397", ""],
-        DownloadMode::Video360p => ["230", "605", "243", "134", "396", ""],
-        _ => ["", "", "", "", "", ""],
+fn height_limited_format_selector(kind: DownloadMode) -> String {
+    let max_height = match kind {
+        DownloadMode::Video1080p => 1080,
+        DownloadMode::Video720p => 720,
+        DownloadMode::Video480p => 480,
+        DownloadMode::Video360p => 360,
+        _ => unreachable!("height_limited_format_selector requires a height-limited video mode"),
     };
 
-    video_ids
-        .iter()
-        .filter(|id| !id.is_empty())
-        .map(|id| format!("{}+bestaudio", id))
-        .collect::<Vec<String>>()
-        .join("/")
+    format!("bestvideo*[height<={max_height}]+bestaudio/best[height<={max_height}]/best")
 }
 
 fn build_download_section(start_time: &str, end_time: &str) -> Option<String> {
@@ -286,8 +279,51 @@ mod tests {
 
         assert_eq!(args[0], "https://example.com/video");
         assert!(args.contains(&"C:/downloads/%(title)s.%(ext)s".to_string()));
+        assert!(args.contains(&DEFAULT_VIDEO_FORMAT_SELECTOR.to_string()));
+    }
+
+    #[test]
+    fn builds_live_from_start_args_with_default_video_format() {
+        let args = build_yt_dlp_args(
+            RunCommandParam {
+                url: Some("https://example.com/live".to_string()),
+                kind: DownloadMode::LiveFromStart,
+                codec_id: None,
+                subtitle_lang: None,
+                output_name: None,
+                start_time: None,
+                end_time: None,
+                is_cookie: false,
+                arbitrary_code: None,
+            },
+            &settings(),
+        )
+        .unwrap();
+
+        assert!(args.contains(&"--live-from-start".to_string()));
+        assert!(args.contains(&DEFAULT_VIDEO_FORMAT_SELECTOR.to_string()));
+    }
+
+    #[test]
+    fn builds_height_limited_video_args_without_fixed_itags() {
+        let args = build_yt_dlp_args(
+            RunCommandParam {
+                url: Some("https://example.com/video".to_string()),
+                kind: DownloadMode::Video720p,
+                codec_id: None,
+                subtitle_lang: None,
+                output_name: None,
+                start_time: None,
+                end_time: None,
+                is_cookie: false,
+                arbitrary_code: None,
+            },
+            &settings(),
+        )
+        .unwrap();
+
         assert!(
-            args.contains(&"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best".to_string())
+            args.contains(&"bestvideo*[height<=720]+bestaudio/best[height<=720]/best".to_string())
         );
     }
 
