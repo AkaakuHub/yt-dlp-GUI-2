@@ -7,6 +7,7 @@ mod download_command;
 mod notification;
 mod persistent_server_service;
 mod process_manager;
+mod reservation;
 mod system;
 mod tools;
 mod update;
@@ -52,8 +53,11 @@ fn main() {
         .on_window_event(|window, event| {
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
+                    let settings = config::Settings::new();
+                    if settings.keep_running_in_tray {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
                 }
             }
         })
@@ -76,6 +80,7 @@ fn main() {
             start_download,
             stop_download,
             command_handlers::schedule_download,
+            command_handlers::schedule_youtube_live_from_start,
             open_directory,
             open_url_and_exit,
             get_sorted_directory_contents,
@@ -101,6 +106,7 @@ fn main() {
             config::commands::set_remote_server_url,
             config::commands::set_remote_auth_token,
             config::commands::set_server_auth_token,
+            config::commands::set_keep_running_in_tray,
             client::remote::test_remote_server,
             persistent_server_service::register_persistent_server,
             persistent_server_service::unregister_persistent_server,

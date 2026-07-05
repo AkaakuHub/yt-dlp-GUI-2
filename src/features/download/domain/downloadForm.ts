@@ -43,6 +43,7 @@ export interface RunCommandParam extends DownloadParam {
 	kind: DownloadModeValue;
 	url?: string;
 	arbitrary_code?: string;
+	wait_for_video_seconds?: number;
 }
 
 export type TimestampField = "start_time" | "end_time";

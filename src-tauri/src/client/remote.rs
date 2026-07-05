@@ -1,4 +1,8 @@
-use crate::{config::Settings, download_command::RunCommandParam};
+use crate::{
+    config::Settings,
+    download_command::RunCommandParam,
+    reservation::{ReservationResponse, YoutubeLiveReservationRequest},
+};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Window};
@@ -123,6 +127,45 @@ pub(crate) async fn schedule_remote_download(
         .map_err(|e| format!("リモートサーバーの応答を解析できません: {}", e))?;
     start_remote_output_stream(server_url, token.to_string(), window);
     Ok(body.schedule_id)
+}
+
+pub(crate) async fn schedule_remote_youtube_live_from_start(
+    request: YoutubeLiveReservationRequest,
+    settings: &Settings,
+    window: Window,
+) -> Result<ReservationResponse, String> {
+    let server_url = normalize_server_url(&settings.remote_server_url)?;
+    let token = settings.remote_auth_token.trim();
+    if token.is_empty() {
+        return Err("リモートサーバーのトークンが設定されていません".into());
+    }
+
+    let response = reqwest::Client::new()
+        .post(format!(
+            "{}/api/schedules/youtube-live-from-start",
+            server_url
+        ))
+        .bearer_auth(token)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| format!("リモートサーバーへの接続に失敗しました: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!(
+            "リモートサーバーがエラーを返しました: {} {}",
+            status, body
+        ));
+    }
+
+    let body = response
+        .json::<ReservationResponse>()
+        .await
+        .map_err(|e| format!("リモートサーバーの応答を解析できません: {}", e))?;
+    start_remote_output_stream(server_url, token.to_string(), window);
+    Ok(body)
 }
 
 fn start_remote_output_stream(server_url: String, token: String, window: Window) {

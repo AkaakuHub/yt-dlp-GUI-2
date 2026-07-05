@@ -13,6 +13,9 @@ use crate::{
     config::{AppState, Settings},
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::CommandManager,
+    reservation::{
+        resolve_youtube_live_reservation, ReservationResponse, YoutubeLiveReservationRequest,
+    },
     tools::resolve_tool_paths,
 };
 
@@ -133,6 +136,14 @@ async fn handle_http_request(
             let schedule_id = schedule_download(schedule_request, command_manager).await?;
             json_response(200, "OK", &ScheduleResponse { schedule_id })
         }
+        ("POST", "/api/schedules/youtube-live-from-start") => {
+            let schedule_request =
+                serde_json::from_str::<YoutubeLiveReservationRequest>(&request.body)
+                    .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
+            let reservation =
+                schedule_youtube_live_from_start(schedule_request, command_manager).await?;
+            json_response(200, "OK", &reservation)
+        }
         ("POST", "/api/downloads/stop") => {
             command_manager.lock().await.stop_command(None).await?;
             Ok(text_response(200, "OK", "stopped"))
@@ -171,6 +182,21 @@ async fn schedule_download(
         }
     });
     Ok(schedule_id)
+}
+
+async fn schedule_youtube_live_from_start(
+    request: YoutubeLiveReservationRequest,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<ReservationResponse, String> {
+    let settings = Settings::new();
+    let (param, run_at_ms, title) = resolve_youtube_live_reservation(request, &settings).await?;
+    let schedule_id =
+        schedule_download(ScheduleRequest { param, run_at_ms }, command_manager).await?;
+    Ok(ReservationResponse {
+        schedule_id,
+        run_at_ms,
+        title,
+    })
 }
 
 async fn start_download(
@@ -457,8 +483,5 @@ fn json_u32_field(body: &str, field: &str) -> Result<u32, String> {
 }
 
 fn current_time_ms() -> Result<u64, String> {
-    let duration = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| format!("現在時刻の取得に失敗しました: {}", e))?;
-    u64::try_from(duration.as_millis()).map_err(|_| "現在時刻が大きすぎます".to_string())
+    crate::reservation::current_time_ms()
 }

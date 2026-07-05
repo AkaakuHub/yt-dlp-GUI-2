@@ -16,6 +16,12 @@ type ScheduleResponse = {
 	scheduleId: string;
 };
 
+export type ReservationResponse = {
+	scheduleId: string;
+	runAtMs: number;
+	title: string;
+};
+
 declare global {
 	interface Window {
 		__TAURI_INTERNALS__?: unknown;
@@ -35,6 +41,17 @@ export const initializeWebAuthToken = (): void => {
 	window.localStorage.setItem("serverAuthToken", token);
 	url.searchParams.delete("token");
 	window.history.replaceState({}, "", url.toString());
+};
+
+export const hasWebAuthToken = (): boolean => {
+	if (isTauriRuntime()) {
+		return true;
+	}
+	return webAuthToken().trim() !== "";
+};
+
+export const setWebAuthToken = (token: string): void => {
+	window.localStorage.setItem("serverAuthToken", token);
 };
 
 export const getSettings = async (): Promise<ConfigProps> => {
@@ -82,6 +99,23 @@ export const scheduleDownload = async (
 	return response.scheduleId;
 };
 
+export const scheduleYoutubeLiveFromStart = async (
+	param: RunCommandParam,
+): Promise<ReservationResponse> => {
+	if (isTauriRuntime()) {
+		return invoke<ReservationResponse>("schedule_youtube_live_from_start", {
+			request: { param },
+		});
+	}
+	return apiFetch<ReservationResponse>(
+		"/api/schedules/youtube-live-from-start",
+		{
+			method: "POST",
+			body: JSON.stringify({ param }),
+		},
+	);
+};
+
 export const setUseCookieSetting = async (value: boolean): Promise<void> => {
 	if (isTauriRuntime()) {
 		await invoke("set_use_cookie", { newUseCookie: value });
@@ -102,6 +136,16 @@ export const setDownloadModeSetting = async (value: number): Promise<void> => {
 		method: "POST",
 		body: JSON.stringify({ value }),
 	});
+};
+
+export const setKeepRunningInTraySetting = async (
+	value: boolean,
+): Promise<void> => {
+	if (isTauriRuntime()) {
+		await invoke("set_keep_running_in_tray", {
+			keepRunningInTray: value,
+		});
+	}
 };
 
 export const openDownloadDirectory = async (path: string): Promise<void> => {

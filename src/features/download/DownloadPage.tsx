@@ -7,6 +7,7 @@ import {
 	isTauriRuntime,
 	openDownloadDirectory,
 	scheduleDownload,
+	scheduleYoutubeLiveFromStart,
 	setDownloadModeSetting,
 	setUseCookieSetting,
 	startDownload,
@@ -24,6 +25,7 @@ import Workspace from "../../shared/components/Workspace";
 import { AdvancedDownloadPanel } from "./components/AdvancedDownloadPanel";
 import { DownloadModeSelector } from "./components/DownloadModeSelector";
 import { QueueUrlPanel } from "./components/QueueUrlPanel";
+import { ReservationPanel } from "./components/ReservationPanel";
 import {
 	cleanDownloadUrl,
 	DOWNLOAD_MODE,
@@ -69,10 +71,15 @@ export default function DownloadPage() {
 	const [consoleLog, setConsoleLog] = useState(createConsoleLogState);
 	const [urlInput, setUrlInput] = useState("");
 	const [arbitraryCode, setArbitraryCode] = useState("");
-	const [scheduleAt, setScheduleAt] = useState("");
+	const [reservationKind, setReservationKind] = useState<
+		"youtube" | "scheduledUrl"
+	>("youtube");
+	const [scheduledAt, setScheduledAt] = useState("");
+	const [isScheduling, setIsScheduling] = useState(false);
 	const [urlQueueText, setUrlQueueText] = useState("");
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
 	const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
+	const [showReservationPanel, setShowReservationPanel] = useState(false);
 	const [queueProgress, setQueueProgress] = useState({ current: 0, total: 0 });
 	const [param, setParam] = useState<DownloadParam>({
 		codec_id: undefined,
@@ -270,50 +277,77 @@ export default function DownloadPage() {
 		],
 	);
 
-	const scheduleCurrentDownload = useCallback(async () => {
+	const buildScheduledRunParam = useCallback((): RunCommandParam | null => {
 		const currentSelectedIndex = selectedIndexRef.current;
 		if (!isDownloadModeValue(currentSelectedIndex)) {
 			toast.error("不正なモードです。");
-			return;
+			return null;
 		}
 		if (currentSelectedIndex === DOWNLOAD_MODE.arbitraryCode) {
 			toast.error("任意コードは予約できません。");
-			return;
-		}
-		if (scheduleAt === "") {
-			toast.error("予約時刻を入力してください。");
-			return;
-		}
-		const runAtMs = new Date(scheduleAt).getTime();
-		if (!Number.isFinite(runAtMs) || runAtMs <= Date.now()) {
-			toast.error("予約時刻は現在より後にしてください。");
-			return;
+			return null;
 		}
 		const startTime = normalizeTimestamp(param.start_time || "");
 		const endTime = normalizeTimestamp(param.end_time || "");
 		if (startTime === null || endTime === null) {
 			toast.error("開始時間/終了時間の形式が不正です。");
-			return;
+			return null;
 		}
 		const url = cleanDownloadUrl(urlInput);
 		if (url === null) {
 			toast.error("URLが空、または不正です。");
-			return;
+			return null;
 		}
-		const runParam: RunCommandParam = {
+		return {
 			...param,
 			start_time: startTime,
 			end_time: endTime,
 			url,
 			kind: currentSelectedIndex,
 		};
+	}, [param, urlInput]);
+
+	const scheduleCurrentDownload = useCallback(async () => {
+		const runParam = buildScheduledRunParam();
+		if (runParam === null) {
+			return;
+		}
+		if (scheduledAt === "") {
+			toast.error("予約時刻を入力してください。");
+			return;
+		}
+		const runAtMs = new Date(scheduledAt).getTime();
+		if (!Number.isFinite(runAtMs) || runAtMs <= Date.now()) {
+			toast.error("予約時刻は現在より後にしてください。");
+			return;
+		}
 		try {
+			setIsScheduling(true);
 			await scheduleDownload(runParam, runAtMs);
 			toast.success("録画予約を追加しました。");
 		} catch (err) {
 			toast.error(`予約に失敗しました:${stringifyError(err)}`);
+		} finally {
+			setIsScheduling(false);
 		}
-	}, [param, scheduleAt, urlInput]);
+	}, [buildScheduledRunParam, scheduledAt]);
+
+	const scheduleYoutubeReservation = useCallback(async () => {
+		const runParam = buildScheduledRunParam();
+		if (runParam === null) {
+			return;
+		}
+		try {
+			setIsScheduling(true);
+			const reservation = await scheduleYoutubeLiveFromStart(runParam);
+			const startsAt = new Date(reservation.runAtMs).toLocaleString();
+			toast.success(`${reservation.title}を${startsAt}に予約しました。`);
+		} catch (err) {
+			toast.error(`YouTubeライブ予約に失敗しました:${stringifyError(err)}`);
+		} finally {
+			setIsScheduling(false);
+		}
+	}, [buildScheduledRunParam]);
 
 	const runQueueNext = useCallback(() => {
 		if (!queueStateRef.current.active) {
@@ -482,21 +516,6 @@ export default function DownloadPage() {
 								onChange={(value) => void persistDownloadMode(value)}
 								onMove={moveDownloadMode}
 							/>
-							<div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-								<AppInput
-									className="h-10 min-h-10 w-full bg-base-200"
-									value={scheduleAt}
-									onChange={(event) => setScheduleAt(event.target.value)}
-									type="datetime-local"
-								/>
-								<button
-									className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 px-3 text-sm hover:bg-base-300"
-									type="button"
-									onClick={() => void scheduleCurrentDownload()}
-								>
-									予約
-								</button>
-							</div>
 						</SurfacePanel>
 
 						<SurfacePanel className="z-10 grid grid-cols-2 gap-2 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">
@@ -546,19 +565,32 @@ export default function DownloadPage() {
 						</div>
 					</div>
 
-					<AdvancedDownloadPanel
-						arbitraryCode={arbitraryCode}
-						isOpen={showAdvancedPanel}
-						param={param}
-						usesArbitraryCode={usesArbitraryCode}
-						usesCodecId={usesCodecId}
-						usesSubtitleLang={usesSubtitleLang}
-						onArbitraryCodeChange={setArbitraryCode}
-						onExecuteArbitraryCode={() => void executeButtonOnClick("")}
-						onParamChange={setParam}
-						onToggle={() => setShowAdvancedPanel((prev) => !prev)}
-						onValidateTimestamp={validateTimestamp}
-					/>
+					<div className="grid gap-2 md:grid-cols-2">
+						<AdvancedDownloadPanel
+							arbitraryCode={arbitraryCode}
+							isOpen={showAdvancedPanel}
+							param={param}
+							usesArbitraryCode={usesArbitraryCode}
+							usesCodecId={usesCodecId}
+							usesSubtitleLang={usesSubtitleLang}
+							onArbitraryCodeChange={setArbitraryCode}
+							onExecuteArbitraryCode={() => void executeButtonOnClick("")}
+							onParamChange={setParam}
+							onToggle={() => setShowAdvancedPanel((prev) => !prev)}
+							onValidateTimestamp={validateTimestamp}
+						/>
+						<ReservationPanel
+							isBusy={isScheduling}
+							isOpen={showReservationPanel}
+							kind={reservationKind}
+							scheduledAt={scheduledAt}
+							onKindChange={setReservationKind}
+							onScheduleUrl={() => void scheduleCurrentDownload()}
+							onScheduleYoutube={() => void scheduleYoutubeReservation()}
+							onScheduledAtChange={setScheduledAt}
+							onToggle={() => setShowReservationPanel((prev) => !prev)}
+						/>
+					</div>
 				</div>
 			</SurfaceIsland>
 

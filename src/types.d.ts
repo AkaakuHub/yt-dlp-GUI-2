@@ -14,4 +14,5 @@ export interface ConfigProps {
 	remote_server_url: string;
 	remote_auth_token: string;
 	server_auth_token: string;
+	keep_running_in_tray: boolean;
 }

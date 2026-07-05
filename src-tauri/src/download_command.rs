@@ -1,7 +1,7 @@
 use crate::config::Settings;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct RunCommandParam {
     pub url: Option<String>,
     pub kind: DownloadMode,
@@ -12,6 +12,7 @@ pub struct RunCommandParam {
     pub end_time: Option<String>,
     pub is_cookie: bool,
     pub arbitrary_code: Option<String>,
+    pub wait_for_video_seconds: Option<u32>,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
@@ -85,6 +86,7 @@ pub(crate) fn build_yt_dlp_args(
     let arbitrary_code = param.arbitrary_code.unwrap_or_default();
     let start_time = param.start_time.unwrap_or_default();
     let end_time = param.end_time.unwrap_or_default();
+    let wait_for_video_seconds = param.wait_for_video_seconds;
 
     let output_file_name = if output_name.trim().is_empty() {
         "%(title)s.%(ext)s".to_string()
@@ -109,6 +111,13 @@ pub(crate) fn build_yt_dlp_args(
     if param.is_cookie {
         args.push("--cookies-from-browser".to_string());
         args.push(settings.browser.clone());
+    }
+
+    if let Some(wait_seconds) = wait_for_video_seconds {
+        if wait_seconds > 0 {
+            args.push("--wait-for-video".to_string());
+            args.push(wait_seconds.to_string());
+        }
     }
 
     args.push("--remote-components".to_string());
@@ -272,6 +281,7 @@ mod tests {
                 end_time: None,
                 is_cookie: false,
                 arbitrary_code: None,
+                wait_for_video_seconds: None,
             },
             &settings(),
         )
@@ -295,6 +305,7 @@ mod tests {
                 end_time: None,
                 is_cookie: false,
                 arbitrary_code: None,
+                wait_for_video_seconds: None,
             },
             &settings(),
         )
@@ -317,6 +328,7 @@ mod tests {
                 end_time: None,
                 is_cookie: false,
                 arbitrary_code: None,
+                wait_for_video_seconds: None,
             },
             &settings(),
         )
@@ -340,6 +352,7 @@ mod tests {
                 end_time: None,
                 is_cookie: false,
                 arbitrary_code: None,
+                wait_for_video_seconds: None,
             },
             &settings(),
         );
@@ -360,6 +373,7 @@ mod tests {
                 end_time: Some("00:02:00".to_string()),
                 is_cookie: true,
                 arbitrary_code: None,
+                wait_for_video_seconds: Some(30),
             },
             &settings(),
         )
@@ -371,5 +385,8 @@ mod tests {
         assert!(args
             .windows(2)
             .any(|pair| pair == ["--cookies-from-browser", "firefox"]));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair == ["--wait-for-video", "30"]));
     }
 }

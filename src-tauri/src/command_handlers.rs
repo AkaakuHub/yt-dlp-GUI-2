@@ -1,8 +1,15 @@
 use crate::{
-    client::remote::{schedule_remote_download, start_remote_download, stop_remote_download},
+    client::remote::{
+        schedule_remote_download, schedule_remote_youtube_live_from_start, start_remote_download,
+        stop_remote_download,
+    },
     config::AppState,
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::CommandManager,
+    reservation::{
+        current_time_ms, resolve_youtube_live_reservation, ReservationResponse,
+        YoutubeLiveReservationRequest,
+    },
     tools::resolve_tool_paths,
 };
 use std::sync::Arc;
@@ -43,22 +50,69 @@ pub async fn schedule_download(
     app_state: State<'_, AppState>,
 ) -> Result<String, String> {
     let settings = app_state.settings.lock().await.clone();
+    if settings.execution_target == REMOTE_EXECUTION_TARGET {
+        return schedule_remote_download(param, run_at_ms, &settings, window).await;
+    }
+    schedule_local_download(
+        command_manager.inner().clone(),
+        Some(window),
+        param,
+        run_at_ms,
+        settings,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn schedule_youtube_live_from_start(
+    command_manager: State<'_, Arc<Mutex<CommandManager>>>,
+    window: tauri::Window,
+    request: YoutubeLiveReservationRequest,
+    app_state: State<'_, AppState>,
+) -> Result<ReservationResponse, String> {
+    let settings = app_state.settings.lock().await.clone();
+    if settings.execution_target == REMOTE_EXECUTION_TARGET {
+        return schedule_remote_youtube_live_from_start(request, &settings, window).await;
+    }
+    let (param, run_at_ms, title) = resolve_youtube_live_reservation(request, &settings).await?;
+    let schedule_id = schedule_local_download(
+        command_manager.inner().clone(),
+        Some(window),
+        param,
+        run_at_ms,
+        settings,
+    )
+    .await?;
+    Ok(ReservationResponse {
+        schedule_id,
+        run_at_ms,
+        title,
+    })
+}
+
+pub async fn schedule_local_download(
+    command_manager: Arc<Mutex<CommandManager>>,
+    window: Option<tauri::Window>,
+    param: RunCommandParam,
+    run_at_ms: u64,
+    settings: crate::config::Settings,
+) -> Result<String, String> {
     let now_ms = current_time_ms()?;
     if run_at_ms <= now_ms {
         return Err("予約時刻は現在より後にしてください".to_string());
     }
-    if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        return schedule_remote_download(param, run_at_ms, &settings, window).await;
-    }
     let delay = Duration::from_millis(run_at_ms - now_ms);
     let schedule_id = format!("schedule-{}", run_at_ms);
-    let command_manager = command_manager.inner().clone();
     tokio::spawn(async move {
         sleep_until(Instant::now() + delay).await;
         if let Err(err) =
-            start_local_download(command_manager, Some(window.clone()), param, &settings).await
+            start_local_download(command_manager, window.clone(), param, &settings).await
         {
-            let _ = window.emit("process-exit", format!("予約実行に失敗しました: {}", err));
+            if let Some(window) = window {
+                let _ = window.emit("process-exit", format!("予約実行に失敗しました: {}", err));
+            } else {
+                eprintln!("予約実行に失敗しました: {}", err);
+            }
         }
     });
     Ok(schedule_id)
@@ -105,11 +159,4 @@ pub async fn stop_download(
 
     let mut manager = command_manager.lock().await;
     manager.stop_command(Some(window)).await
-}
-
-fn current_time_ms() -> Result<u64, String> {
-    let duration = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| format!("現在時刻の取得に失敗しました: {}", e))?;
-    u64::try_from(duration.as_millis()).map_err(|_| "現在時刻が大きすぎます".to_string())
 }

@@ -42,6 +42,8 @@ interface AppContextProps {
 	setRemoteAuthToken: React.Dispatch<React.SetStateAction<string>>;
 	serverAuthToken: string;
 	setServerAuthToken: React.Dispatch<React.SetStateAction<string>>;
+	keepRunningInTray: boolean;
+	setKeepRunningInTray: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -69,6 +71,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const [remoteServerUrl, setRemoteServerUrl] = useState("");
 	const [remoteAuthToken, setRemoteAuthToken] = useState("");
 	const [serverAuthToken, setServerAuthToken] = useState("");
+	const [keepRunningInTray, setKeepRunningInTray] = useState(false);
 
 	useEffect(() => {
 		getSettings()
@@ -87,6 +90,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setRemoteServerUrl(config.remote_server_url);
 				setRemoteAuthToken(config.remote_auth_token);
 				setServerAuthToken(config.server_auth_token);
+				setKeepRunningInTray(config.keep_running_in_tray);
 			})
 			.finally(() => {
 				setIsSettingLoaded(true);
@@ -129,6 +133,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					setRemoteAuthToken,
 					serverAuthToken,
 					setServerAuthToken,
+					keepRunningInTray,
+					setKeepRunningInTray,
 				}}
 			>
 				{children}

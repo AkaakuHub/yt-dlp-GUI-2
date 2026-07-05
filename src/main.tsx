@@ -14,11 +14,14 @@ import SettingsPage from "./features/settings/SettingsPage";
 import ToolSetupPage from "./features/toolSetup/ToolSetupPage";
 import {
 	getSettings,
+	hasWebAuthToken,
 	initializeWebAuthToken,
 	isTauriRuntime,
 	listenDownloadProgress,
+	setWebAuthToken,
 } from "./shared/backend/runtime";
 import { AppTabs } from "./shared/components/AppTabs";
+import { AppInput } from "./shared/components/FormControls";
 import { SurfaceIsland, SurfacePanel } from "./shared/components/Surface";
 import ToolDownloadProgress, {
 	type ToolDownloadProgressValue,
@@ -33,6 +36,57 @@ import "./main.css";
 initializeWebAuthToken();
 
 type BootPhase = "checkingTools" | "updatingApp";
+
+type WebAuthGateProps = {
+	children: React.ReactNode;
+};
+
+function WebAuthGate({ children }: WebAuthGateProps) {
+	const [token, setToken] = useState("");
+	const [hasToken, setHasToken] = useState(hasWebAuthToken);
+	const [error, setError] = useState("");
+	const [isConnecting, setIsConnecting] = useState(false);
+
+	if (isTauriRuntime() || hasToken) {
+		return <>{children}</>;
+	}
+
+	return (
+		<div className="grid h-screen place-items-center bg-base-100 p-4 text-base-content">
+			<SurfaceIsland className="w-full max-w-sm p-2 shadow-lg">
+				<SurfacePanel className="grid gap-3 p-5">
+					<h1 className="text-lg font-bold">接続トークン</h1>
+					<AppInput
+						value={token}
+						onChange={(event) => setToken(event.target.value)}
+						type="password"
+					/>
+					{error ? <p className="text-sm text-error">{error}</p> : null}
+					<button
+						className="btn btn-primary h-10 min-h-10 rounded-md"
+						type="button"
+						disabled={token.trim() === "" || isConnecting}
+						onClick={async () => {
+							setIsConnecting(true);
+							setError("");
+							setWebAuthToken(token.trim());
+							try {
+								await getSettings();
+								setHasToken(true);
+							} catch (connectError) {
+								setError(`接続できません:${String(connectError)}`);
+							} finally {
+								setIsConnecting(false);
+							}
+						}}
+					>
+						{isConnecting ? "確認中" : "接続"}
+					</button>
+				</SurfacePanel>
+			</SurfaceIsland>
+		</div>
+	);
+}
 
 type BootOverlayProps = {
 	isExiting: boolean;
@@ -295,8 +349,10 @@ const App = () => {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 	<React.StrictMode>
-		<AppProvider>
-			<App />
-		</AppProvider>
+		<WebAuthGate>
+			<AppProvider>
+				<App />
+			</AppProvider>
+		</WebAuthGate>
 	</React.StrictMode>,
 );

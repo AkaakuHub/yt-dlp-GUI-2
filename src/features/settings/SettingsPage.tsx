@@ -26,6 +26,7 @@ import {
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../../app/contexts/AppContext";
+import { setKeepRunningInTraySetting } from "../../shared/backend/runtime";
 import { AppInput, AppTextarea } from "../../shared/components/FormControls";
 import { SurfaceIsland, SurfacePanel } from "../../shared/components/Surface";
 import ThemeSelector from "../../shared/components/ThemeSelector";
@@ -91,6 +92,8 @@ export default function SettingsPage() {
 		setRemoteAuthToken,
 		serverAuthToken,
 		setServerAuthToken,
+		keepRunningInTray,
+		setKeepRunningInTray,
 	} = useAppContext();
 
 	const [currentVersion, setCurrentVersion] = useState("");
@@ -170,6 +173,11 @@ export default function SettingsPage() {
 		await invoke("set_server_auth_token", {
 			serverAuthToken: nextServerAuthToken,
 		});
+	};
+
+	const updateKeepRunningInTray = async (nextKeepRunningInTray: boolean) => {
+		setKeepRunningInTray(nextKeepRunningInTray);
+		await setKeepRunningInTraySetting(nextKeepRunningInTray);
 	};
 
 	const refreshPersistentServerStatus = useCallback(async () => {
@@ -441,7 +449,7 @@ export default function SettingsPage() {
 						</div>
 					</SurfaceIsland>
 
-					<SurfaceIsland className="grid min-h-0 gap-2">
+					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-2">
 						<div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
 							<label className="grid min-w-0 gap-1">
 								<span className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
@@ -625,6 +633,22 @@ export default function SettingsPage() {
 					</SurfaceIsland>
 
 					<SurfaceIsland className="grid min-h-0 gap-2">
+						<label className="dark-control-border flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md border border-base-300 bg-base-100 px-3">
+							<span className="flex min-w-0 items-center gap-2">
+								<Server size={18} className="shrink-0 text-primary" />
+								<span className="min-w-0 whitespace-nowrap text-xs font-semibold">
+									×で閉じても常駐
+								</span>
+							</span>
+							<input
+								className="toggle toggle-primary toggle-sm shrink-0"
+								type="checkbox"
+								checked={keepRunningInTray}
+								onChange={(event) =>
+									void updateKeepRunningInTray(event.target.checked)
+								}
+							/>
+						</label>
 						<label className="dark-control-border flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-md border border-base-300 bg-base-100 px-3">
 							<span className="flex min-w-0 items-center gap-2">
 								<Bell size={18} className="shrink-0 text-primary" />

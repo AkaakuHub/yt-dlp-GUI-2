@@ -50,6 +50,7 @@ pub struct Settings {
     pub remote_server_url: String,
     pub remote_auth_token: String,
     pub server_auth_token: String,
+    pub keep_running_in_tray: bool,
     pub yt_dlp_cache: Option<VerifyCache>,
     pub ffmpeg_cache: Option<VerifyCache>,
     pub deno_cache: Option<VerifyCache>,
@@ -74,6 +75,7 @@ impl Default for Settings {
             remote_server_url: "".to_string(),
             remote_auth_token: "".to_string(),
             server_auth_token: "".to_string(),
+            keep_running_in_tray: false,
             yt_dlp_cache: None,
             ffmpeg_cache: None,
             deno_cache: None,
@@ -189,6 +191,11 @@ impl Settings {
 
     pub fn set_server_auth_token(&mut self, server_auth_token: String) {
         self.server_auth_token = server_auth_token;
+        self.write_file();
+    }
+
+    pub fn set_keep_running_in_tray(&mut self, keep_running_in_tray: bool) {
+        self.keep_running_in_tray = keep_running_in_tray;
         self.write_file();
     }
 
@@ -395,6 +402,16 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().await;
         settings.set_server_auth_token(server_auth_token);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn set_keep_running_in_tray(
+        state: State<'_, AppState>,
+        keep_running_in_tray: bool,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().await;
+        settings.set_keep_running_in_tray(keep_running_in_tray);
         Ok(())
     }
 }
