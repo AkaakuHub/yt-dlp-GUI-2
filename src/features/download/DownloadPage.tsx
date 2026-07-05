@@ -578,9 +578,6 @@ export default function DownloadPage() {
 												{queueLabel !== "" ? ` ${queueLabel}` : ""}
 											</span>
 										)}
-										<span className="truncate text-xs text-base-content/45">
-											{selectedModeLabel}
-										</span>
 									</div>
 									<AppInput
 										className="h-10 min-h-10 w-full bg-base-200"

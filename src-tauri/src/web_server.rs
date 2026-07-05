@@ -108,7 +108,9 @@ async fn handle_connection(
         return handle_sse(stream, request, command_manager).await;
     }
 
-    let response = handle_http_request(request, &app_handle, command_manager).await?;
+    let response = handle_http_request(request, &app_handle, command_manager)
+        .await
+        .unwrap_or_else(|error| text_response(500, "Internal Server Error", &error));
     write_response(&mut stream, response).await
 }
 
@@ -307,17 +309,19 @@ async fn serve_static(app_handle: &AppHandle, path: &str) -> Result<HttpResponse
 
 fn web_dist_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let current_dir = std::env::current_dir().map_err(|e| format!("current_dir: {}", e))?;
-    let dev_dist = current_dir.join("dist");
-    if dev_dist.exists() {
-        return Ok(dev_dist);
+    for candidate in [current_dir.join("dist"), current_dir.join("../dist")] {
+        if candidate.exists() {
+            return Ok(candidate);
+        }
     }
     let resource_dir = app_handle
         .path()
         .resource_dir()
         .map_err(|e| format!("resource_dir: {}", e))?;
-    let bundled_dist = resource_dir.join("dist");
-    if bundled_dist.exists() {
-        return Ok(bundled_dist);
+    for candidate in [resource_dir.join("dist"), resource_dir] {
+        if candidate.join("index.html").exists() {
+            return Ok(candidate);
+        }
     }
     Err("web配信用のdistが見つかりません".to_string())
 }
