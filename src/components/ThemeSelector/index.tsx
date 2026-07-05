@@ -1,6 +1,7 @@
 import { Laptop, Moon, Palette, Sun } from "lucide-react";
 import type React from "react";
-import { type ThemeMode, useTheme } from "../ThemeContext";
+import { type ThemeMode, useTheme } from "../../contexts/ThemeContext";
+import { cn } from "../../utils/className";
 
 const ThemeSelector: React.FC = () => {
 	const { themeMode, setThemeMode } = useTheme();
@@ -22,11 +23,12 @@ const ThemeSelector: React.FC = () => {
 				{themes.map((theme) => (
 					<button
 						key={theme.mode}
-						className={`btn h-9 min-h-9 min-w-0 rounded-md px-2 text-xs ${
+						className={cn(
+							"btn h-9 min-h-9 min-w-0 rounded-md px-2 text-xs",
 							themeMode === theme.mode
 								? "btn-primary"
-								: "btn-ghost bg-base-100 text-base-content hover:bg-base-300"
-						}`}
+								: "btn-ghost bg-base-100 text-base-content hover:bg-base-300",
+						)}
 						onClick={() => setThemeMode(theme.mode)}
 						type="button"
 					>

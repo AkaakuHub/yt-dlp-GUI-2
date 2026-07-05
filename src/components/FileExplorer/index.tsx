@@ -18,8 +18,9 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useAppContext } from "../AppContext";
-import { eventEmitter } from "../EventEmitter";
+import { useAppContext } from "../../contexts/AppContext";
+import { eventEmitter } from "../../events/eventEmitter";
+import { cn } from "../../utils/className";
 import { AppInput } from "../FormControls";
 
 interface FileInfo {
@@ -82,7 +83,7 @@ function FileRow({ file, fullPath, onOpenDirectory }: FileRowProps) {
 			onClick={openItem}
 			onDragStart={startFileDrag}
 		>
-			<span className={file.is_dir ? "text-warning" : "text-info"}>
+			<span className={cn(file.is_dir ? "text-warning" : "text-info")}>
 				{file.is_dir ? <Folder size={17} /> : <File size={17} />}
 			</span>
 			<span className="truncate font-medium">{file.name}</span>
@@ -96,7 +97,7 @@ function FileRow({ file, fullPath, onOpenDirectory }: FileRowProps) {
 	);
 }
 
-export default function CustomExplorer() {
+export default function FileExplorer() {
 	const { saveDir } = useAppContext();
 	const [files, setFiles] = useState<FileInfo[]>([]);
 	const [currentPath, setCurrentPath] = useState(saveDir);

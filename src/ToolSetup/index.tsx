@@ -3,11 +3,12 @@ import { listen } from "@tauri-apps/api/event";
 import { CheckCircle2, Loader2, Package, Play, Terminal } from "lucide-react";
 import { type ChangeEvent, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { useAppContext } from "../_components/AppContext";
-import { AppInput } from "../_components/FormControls";
-import PrimaryCircleButton from "../_components/PrimaryCircleButton";
-import type { ToolDownloadProgressValue } from "../_components/ToolDownloadProgress";
-import { checkToolAvailability } from "../_utils/toolAvailability";
+import { AppInput } from "../components/FormControls";
+import PrimaryCircleButton from "../components/PrimaryCircleButton";
+import type { ToolDownloadProgressValue } from "../components/ToolDownloadProgress";
+import { useAppContext } from "../contexts/AppContext";
+import { cn } from "../utils/className";
+import { checkToolAvailability } from "../utils/toolAvailability";
 
 interface ToolSetupProps {
 	onComplete: () => void;
@@ -203,11 +204,12 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 				<section className="grid gap-2 rounded-lg bg-base-200 p-2 shadow-sm ring-1 ring-base-300 sm:grid-cols-2">
 					<div className="contents">
 						<label
-							className={`flex h-14 cursor-pointer items-center gap-3 rounded-md px-3 ${
+							className={cn(
+								"flex h-14 cursor-pointer items-center gap-3 rounded-md px-3",
 								useBundleTools
 									? "bg-primary text-primary-content"
-									: "bg-base-100 hover:bg-base-300"
-							}`}
+									: "bg-base-100 hover:bg-base-300",
+							)}
 						>
 							<input
 								className="radio radio-sm"
@@ -229,11 +231,12 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 						</label>
 
 						<label
-							className={`flex h-14 cursor-pointer items-center gap-3 rounded-md px-3 ${
+							className={cn(
+								"flex h-14 cursor-pointer items-center gap-3 rounded-md px-3",
 								useBundleTools
 									? "bg-base-100 hover:bg-base-300"
-									: "bg-primary text-primary-content"
-							}`}
+									: "bg-primary text-primary-content",
+							)}
 						>
 							<input
 								className="radio radio-sm"
@@ -338,11 +341,11 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 										<div className="flex items-center justify-between gap-3">
 											<span>{label}</span>
 											<span
-												className={
+												className={cn(
 													checkResults[key] || isProgressComplete
 														? "inline-flex items-center gap-1 text-success"
-														: "text-base-content/45"
-												}
+														: "text-base-content/45",
+												)}
 											>
 												{checkResults[key] || isProgressComplete ? (
 													<>
@@ -358,16 +361,18 @@ export default function ToolSetup({ onComplete }: ToolSetupProps) {
 										</div>
 										<div className="grid h-7 grid-rows-[0.5rem_1rem] gap-1">
 											<progress
-												className={`progress progress-primary h-2 w-full ${
-													progress ? "" : "invisible"
-												}`}
+												className={cn(
+													"progress progress-primary h-2 w-full",
+													!progress && "invisible",
+												)}
 												value={progress?.progress ?? 0}
 												max={100}
 											/>
 											<p
-												className={`truncate text-xs text-base-content/55 ${
-													progress ? "" : "invisible"
-												}`}
+												className={cn(
+													"truncate text-xs text-base-content/55",
+													!progress && "invisible",
+												)}
 											>
 												{progress?.status ?? "未確認"}
 											</p>

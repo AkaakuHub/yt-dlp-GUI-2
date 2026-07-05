@@ -7,20 +7,21 @@ import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { AppProvider } from "./_components/AppContext";
-import { SurfaceIsland, SurfacePanel } from "./_components/Surface";
-import { TabComponent } from "./_components/TabComponent";
-import { useTheme } from "./_components/ThemeContext";
+import { AppTabs } from "./components/AppTabs";
+import { SurfaceIsland, SurfacePanel } from "./components/Surface";
 import ToolDownloadProgress, {
 	type ToolDownloadProgressValue,
-} from "./_components/ToolDownloadProgress";
-import WindowControls from "./_components/WindowControls";
-import { installAvailableUpdate } from "./_utils/appUpdate";
-import { checkToolAvailability } from "./_utils/toolAvailability";
+} from "./components/ToolDownloadProgress";
+import WindowControls from "./components/WindowControls";
+import { AppProvider } from "./contexts/AppContext";
+import { useTheme } from "./contexts/ThemeContext";
 import Home from "./Home";
 import Setting from "./Setting";
 import ToolSetup from "./ToolSetup";
 import type { ConfigProps } from "./types";
+import { installAvailableUpdate } from "./utils/appUpdate";
+import { cn } from "./utils/className";
+import { checkToolAvailability } from "./utils/toolAvailability";
 
 import "./main.css";
 
@@ -42,9 +43,10 @@ function BootOverlay({ isExiting, phase, progress }: BootOverlayProps) {
 
 	return (
 		<div
-			className={`fixed inset-0 z-[100] grid place-items-center bg-base-content/20 p-4 text-base-content backdrop-blur-sm transition-opacity duration-200 ease-out ${
-				isExiting ? "opacity-0" : "opacity-100"
-			}`}
+			className={cn(
+				"fixed inset-0 z-[100] grid place-items-center bg-base-content/20 p-4 text-base-content backdrop-blur-sm transition-opacity duration-200 ease-out",
+				isExiting ? "opacity-0" : "opacity-100",
+			)}
 		>
 			<SurfaceIsland className="w-full max-w-sm p-2 shadow-lg">
 				<SurfacePanel className="grid gap-4 p-5">
@@ -253,16 +255,16 @@ const App = () => {
 					top: "84px",
 				}}
 			/>
-			<TabComponent
+			<AppTabs
 				tabNames={["ホーム", "設定"]}
 				setActiveIndex={setActiveIndex}
 				activeIndex={activeIndex}
 			/>
 			<div className="min-h-0 flex-1 overflow-hidden">
-				<div className={activeIndex === 0 ? "h-full min-h-0" : "hidden"}>
+				<div className={cn(activeIndex === 0 ? "h-full min-h-0" : "hidden")}>
 					<Home />
 				</div>
-				<div className={activeIndex === 1 ? "h-full min-h-0" : "hidden"}>
+				<div className={cn(activeIndex === 1 ? "h-full min-h-0" : "hidden")}>
 					<Setting />
 				</div>
 			</div>

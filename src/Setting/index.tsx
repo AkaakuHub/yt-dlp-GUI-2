@@ -31,16 +31,17 @@ import {
 } from "lucide-react";
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { useAppContext } from "../_components/AppContext";
-import { AppInput, AppTextarea } from "../_components/FormControls";
-import { SurfaceIsland, SurfacePanel } from "../_components/Surface";
-import ThemeSelector from "../_components/ThemeSelector";
+import { AppInput, AppTextarea } from "../components/FormControls";
+import { SurfaceIsland, SurfacePanel } from "../components/Surface";
+import ThemeSelector from "../components/ThemeSelector";
 import ToolDownloadProgress, {
 	type ToolDownloadProgressValue,
-} from "../_components/ToolDownloadProgress";
-import { installAvailableUpdate } from "../_utils/appUpdate";
-import { checkToolAvailability } from "../_utils/toolAvailability";
+} from "../components/ToolDownloadProgress";
+import { useAppContext } from "../contexts/AppContext";
 import type { ConfigProps } from "../types";
+import { installAvailableUpdate } from "../utils/appUpdate";
+import { cn } from "../utils/className";
+import { checkToolAvailability } from "../utils/toolAvailability";
 
 type ToolCheckResults = {
 	ytDlp: boolean;
@@ -520,11 +521,12 @@ export default function Settings() {
 							</div>
 							<div className="grid min-h-0 gap-1">
 								<button
-									className={`btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm ${
+									className={cn(
+										"btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm",
 										executionTarget === "local"
 											? "btn-primary"
-											: "btn-ghost bg-base-100 hover:bg-base-300"
-									}`}
+											: "btn-ghost bg-base-100 hover:bg-base-300",
+									)}
 									type="button"
 									onClick={() => void updateExecutionTarget("local")}
 								>
@@ -532,11 +534,12 @@ export default function Settings() {
 									このPC
 								</button>
 								<button
-									className={`btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm ${
+									className={cn(
+										"btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm",
 										executionTarget === "remote"
 											? "btn-primary"
-											: "btn-ghost bg-base-100 hover:bg-base-300"
-									}`}
+											: "btn-ghost bg-base-100 hover:bg-base-300",
+									)}
 									type="button"
 									onClick={() => void updateExecutionTarget("remote")}
 								>
@@ -905,11 +908,12 @@ export default function Settings() {
 							<div className="grid gap-3">
 								<div className="grid gap-2 sm:grid-cols-2">
 									<button
-										className={`btn h-auto min-h-20 justify-start rounded-md p-3 ${
+										className={cn(
+											"btn h-auto min-h-20 justify-start rounded-md p-3",
 											tempUseBundle
 												? "btn-primary"
-												: "btn-ghost bg-base-200 hover:bg-base-300"
-										}`}
+												: "btn-ghost bg-base-200 hover:bg-base-300",
+										)}
 										type="button"
 										onClick={() => setTempUseBundle(true)}
 									>
@@ -922,11 +926,12 @@ export default function Settings() {
 										</span>
 									</button>
 									<button
-										className={`btn h-auto min-h-20 justify-start rounded-md p-3 ${
+										className={cn(
+											"btn h-auto min-h-20 justify-start rounded-md p-3",
 											tempUseBundle
 												? "btn-ghost bg-base-200 hover:bg-base-300"
-												: "btn-primary"
-										}`}
+												: "btn-primary",
+										)}
 										type="button"
 										onClick={() => setTempUseBundle(false)}
 									>
@@ -997,11 +1002,11 @@ export default function Settings() {
 										>
 											<span>{label}</span>
 											<span
-												className={
+												className={cn(
 													toolCheckResults[key]
 														? "text-success"
-														: "text-base-content/40"
-												}
+														: "text-base-content/40",
+												)}
 											>
 												{toolCheckResults[key] ? "OK" : "未確認"}
 											</span>

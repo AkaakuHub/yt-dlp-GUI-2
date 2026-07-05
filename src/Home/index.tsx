@@ -16,15 +16,16 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { useAppContext } from "../_components/AppContext";
-import Workspace from "../_components/BottomTab";
 import {
 	appendConsoleOutput,
 	createConsoleLogState,
-} from "../_components/ConsoleBox/consoleLog";
-import { AppInput, AppSelect, AppTextarea } from "../_components/FormControls";
-import PrimaryCircleButton from "../_components/PrimaryCircleButton";
-import { SurfaceIsland, SurfacePanel } from "../_components/Surface";
+} from "../components/ConsoleBox/consoleLog";
+import { AppInput, AppSelect, AppTextarea } from "../components/FormControls";
+import PrimaryCircleButton from "../components/PrimaryCircleButton";
+import { SurfaceIsland, SurfacePanel } from "../components/Surface";
+import Workspace from "../components/Workspace";
+import { useAppContext } from "../contexts/AppContext";
+import { cn } from "../utils/className";
 import {
 	cleanDownloadUrl,
 	type DownloadParam,
@@ -501,11 +502,12 @@ export default function Home() {
 
 						<div className="z-30 sm:absolute sm:right-0 sm:bottom-0 sm:left-1/2 sm:pl-28">
 							<button
-								className={`flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 text-left text-xs font-semibold ring-1 transition ${
+								className={cn(
+									"flex h-12 w-full items-center gap-2 rounded-lg bg-base-100 p-3 text-left text-xs font-semibold ring-1 transition",
 									showQueuePanel
 										? "text-primary ring-primary/40"
-										: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300"
-								}`}
+										: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300",
+								)}
 								type="button"
 								onClick={() => setShowQueuePanel((prev) => !prev)}
 							>
@@ -550,11 +552,12 @@ export default function Home() {
 
 					<div className="relative">
 						<button
-							className={`flex h-10 w-full items-center gap-2 rounded-md bg-base-100 px-3 text-left text-xs font-semibold ring-1 transition ${
+							className={cn(
+								"flex h-10 w-full items-center gap-2 rounded-md bg-base-100 px-3 text-left text-xs font-semibold ring-1 transition",
 								showAdvancedPanel
 									? "text-primary ring-primary/40"
-									: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300"
-							}`}
+									: "dark-control-ring text-base-content/65 ring-transparent hover:bg-base-300",
+							)}
 							type="button"
 							onClick={() => setShowAdvancedPanel((prev) => !prev)}
 						>

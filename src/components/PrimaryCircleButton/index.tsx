@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "../../utils/className";
 
 interface PrimaryCircleButtonProps {
 	label: string;
@@ -31,9 +32,11 @@ export default function PrimaryCircleButton({
 	return (
 		<button
 			aria-disabled={disabled}
-			className={`aspect-square h-32 min-h-0 scale-[1.02] rounded-full text-lg font-bold shadow-md ring-6 ring-base-200 transition-transform ${colorClass} ${
-				disabled ? "cursor-not-allowed" : "active:scale-95"
-			} sm:h-36`}
+			className={cn(
+				"aspect-square h-32 min-h-0 scale-[1.02] rounded-full text-lg font-bold shadow-md ring-6 ring-base-200 transition-transform sm:h-36",
+				colorClass,
+				disabled ? "cursor-not-allowed" : "active:scale-95",
+			)}
 			type="button"
 			onClick={handleClick}
 		>

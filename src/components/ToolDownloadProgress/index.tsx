@@ -1,3 +1,5 @@
+import { cn } from "../../utils/className";
+
 export type ToolDownloadProgressValue = {
 	tool_name: string;
 	progress: number;
@@ -15,10 +17,14 @@ export default function ToolDownloadProgress({
 	className = "",
 	tone = "base",
 }: ToolDownloadProgressProps) {
-	const backgroundClass = tone === "muted" ? "bg-base-200" : "bg-base-100";
-
 	return (
-		<div className={`rounded-md ${backgroundClass} p-3 ${className}`}>
+		<div
+			className={cn(
+				"rounded-md p-3",
+				tone === "muted" ? "bg-base-200" : "bg-base-100",
+				className,
+			)}
+		>
 			<div className="flex justify-between gap-3 text-sm">
 				<span>{progress.tool_name}</span>
 				<span>{progress.progress.toFixed(1)}%</span>

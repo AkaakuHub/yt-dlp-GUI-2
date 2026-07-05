@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "../../utils/className";
 
 type SurfaceIslandProps = {
 	children: ReactNode;
@@ -11,7 +12,10 @@ export function SurfaceIsland({
 }: SurfaceIslandProps) {
 	return (
 		<section
-			className={`min-w-0 rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm ${className}`}
+			className={cn(
+				"min-w-0 rounded-lg border border-base-300 bg-base-200 p-2 shadow-sm",
+				className,
+			)}
 		>
 			{children}
 		</section>
@@ -25,7 +29,7 @@ type SurfacePanelProps = {
 
 export function SurfacePanel({ children, className = "" }: SurfacePanelProps) {
 	return (
-		<div className={`min-w-0 rounded-lg bg-base-100 p-3 ${className}`}>
+		<div className={cn("min-w-0 rounded-lg bg-base-100 p-3", className)}>
 			{children}
 		</div>
 	);

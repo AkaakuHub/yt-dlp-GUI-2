@@ -1,4 +1,5 @@
 import type React from "react";
+import { cn } from "../../utils/className";
 
 interface Props {
 	tabNames: string[];
@@ -6,7 +7,7 @@ interface Props {
 	activeIndex: number;
 }
 
-export function TabComponent({ tabNames, setActiveIndex, activeIndex }: Props) {
+export function AppTabs({ tabNames, setActiveIndex, activeIndex }: Props) {
 	const handleChange = (newValue: number): void => {
 		setActiveIndex(newValue);
 	};
@@ -17,11 +18,12 @@ export function TabComponent({ tabNames, setActiveIndex, activeIndex }: Props) {
 				{tabNames.map((tabName, index) => (
 					<button
 						key={tabName}
-						className={`h-14 border-b-2 text-sm font-semibold transition-colors ${
+						className={cn(
+							"h-14 border-b-2 text-sm font-semibold transition-colors",
 							activeIndex === index
 								? "border-primary bg-base-100 text-primary"
-								: "border-transparent text-base-content/55 hover:bg-base-300/70 hover:text-base-content"
-						}`}
+								: "border-transparent text-base-content/55 hover:bg-base-300/70 hover:text-base-content",
+						)}
 						onClick={() => handleChange(index)}
 						type="button"
 					>

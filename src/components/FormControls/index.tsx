@@ -3,6 +3,7 @@ import type {
 	KeyboardEventHandler,
 	ReactNode,
 } from "react";
+import { cn } from "../../utils/className";
 
 type AppInputProps = {
 	value: string | number;
@@ -27,7 +28,10 @@ export function AppInput({
 }: AppInputProps) {
 	return (
 		<input
-			className={`input input-bordered h-9 min-h-9 min-w-0 rounded-md border-base-300 bg-base-100 text-sm focus:border-primary focus:outline-none ${className}`}
+			className={cn(
+				"input input-bordered h-9 min-h-9 min-w-0 rounded-md border-base-300 bg-base-100 text-sm focus:border-primary focus:outline-none",
+				className,
+			)}
 			value={value}
 			onChange={onChange}
 			placeholder={placeholder}
@@ -54,7 +58,10 @@ export function AppTextarea({
 }: AppTextareaProps) {
 	return (
 		<textarea
-			className={`textarea textarea-bordered h-20 min-h-20 resize-none rounded-md border-base-300 bg-base-200 font-mono text-xs break-all focus:border-primary focus:outline-none ${className}`}
+			className={cn(
+				"textarea textarea-bordered h-20 min-h-20 resize-none rounded-md border-base-300 bg-base-200 font-mono text-xs break-all focus:border-primary focus:outline-none",
+				className,
+			)}
 			value={value}
 			onChange={onChange}
 			placeholder={placeholder}
@@ -79,7 +86,10 @@ export function AppSelect({
 }: AppSelectProps) {
 	return (
 		<select
-			className={`select select-bordered h-10 min-h-10 w-full rounded-md border-base-300 bg-base-200 text-sm focus:border-primary focus:outline-none ${className}`}
+			className={cn(
+				"select select-bordered h-10 min-h-10 w-full rounded-md border-base-300 bg-base-200 text-sm focus:border-primary focus:outline-none",
+				className,
+			)}
 			disabled={disabled}
 			value={value}
 			onChange={onChange}

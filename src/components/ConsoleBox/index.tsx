@@ -1,6 +1,6 @@
 import { ArrowDown } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { cn } from "../../_utils/className";
+import { cn } from "../../utils/className";
 import type { ConsoleLogState } from "./consoleLog";
 
 interface ConsoleBoxProps {
