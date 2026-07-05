@@ -1,0 +1,464 @@
+use std::{path::PathBuf, sync::Arc, time::Duration};
+
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    sync::Mutex,
+    time::sleep,
+};
+
+use crate::{
+    config::{AppState, Settings},
+    download_command::{build_yt_dlp_args, RunCommandParam},
+    process_manager::CommandManager,
+    tools::resolve_tool_paths,
+};
+
+#[derive(Deserialize)]
+struct RunRequest {
+    param: RunCommandParam,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScheduleRequest {
+    param: RunCommandParam,
+    run_at_ms: u64,
+}
+
+#[derive(Serialize)]
+struct RunResponse {
+    pid: u32,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScheduleResponse {
+    schedule_id: String,
+}
+
+struct HttpRequest {
+    method: String,
+    path: String,
+    headers: Vec<(String, String)>,
+    body: String,
+}
+
+struct HttpResponse {
+    status: u16,
+    reason: &'static str,
+    content_type: &'static str,
+    body: Vec<u8>,
+}
+
+pub fn start(
+    app_handle: AppHandle,
+    app_state: tauri::State<'_, AppState>,
+    command_manager: tauri::State<'_, Arc<Mutex<CommandManager>>>,
+) {
+    let settings =
+        tauri::async_runtime::block_on(async { app_state.settings.lock().await.clone() });
+    let address = format!("0.0.0.0:{}", settings.server_port);
+    let command_manager = command_manager.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(err) = run_server(address, app_handle, command_manager).await {
+            eprintln!("webサーバーの起動に失敗しました: {}", err);
+        }
+    });
+}
+
+async fn run_server(
+    address: String,
+    app_handle: AppHandle,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<(), String> {
+    let listener = TcpListener::bind(&address)
+        .await
+        .map_err(|e| format!("{}: {}", address, e))?;
+    println!("yt-dlp-GUI web listening on http://{}", address);
+
+    loop {
+        let (stream, _) = listener
+            .accept()
+            .await
+            .map_err(|e| format!("接続の受付に失敗しました: {}", e))?;
+        let app_handle = app_handle.clone();
+        let command_manager = command_manager.clone();
+        tokio::spawn(async move {
+            if let Err(err) = handle_connection(stream, app_handle, command_manager).await {
+                eprintln!("{}", err);
+            }
+        });
+    }
+}
+
+async fn handle_connection(
+    mut stream: TcpStream,
+    app_handle: AppHandle,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<(), String> {
+    let request = read_http_request(&mut stream).await?;
+    if request.method == "GET" && request.path.starts_with("/api/events") {
+        return handle_sse(stream, request, command_manager).await;
+    }
+
+    let response = handle_http_request(request, &app_handle, command_manager).await?;
+    write_response(&mut stream, response).await
+}
+
+async fn handle_http_request(
+    request: HttpRequest,
+    app_handle: &AppHandle,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<HttpResponse, String> {
+    let (path, _) = split_path_query(&request.path);
+    if path.starts_with("/api/") && !is_authorized(&request, &Settings::new()) {
+        return Ok(text_response(401, "Unauthorized", "unauthorized"));
+    }
+
+    match (request.method.as_str(), path) {
+        ("GET", "/api/health") => Ok(text_response(200, "OK", "ok")),
+        ("GET", "/api/settings") => json_response(200, "OK", &Settings::new()),
+        ("POST", "/api/downloads") => {
+            let run_request = serde_json::from_str::<RunRequest>(&request.body)
+                .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
+            let pid = start_download(run_request.param, command_manager).await?;
+            json_response(200, "OK", &RunResponse { pid })
+        }
+        ("POST", "/api/schedules") => {
+            let schedule_request = serde_json::from_str::<ScheduleRequest>(&request.body)
+                .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
+            let schedule_id = schedule_download(schedule_request, command_manager).await?;
+            json_response(200, "OK", &ScheduleResponse { schedule_id })
+        }
+        ("POST", "/api/downloads/stop") => {
+            command_manager.lock().await.stop_command(None).await?;
+            Ok(text_response(200, "OK", "stopped"))
+        }
+        ("POST", "/api/settings/use-cookie") => {
+            let value = json_bool_field(&request.body, "value")?;
+            let mut settings = Settings::new();
+            settings.set_use_cookie(value);
+            Ok(text_response(200, "OK", "ok"))
+        }
+        ("POST", "/api/settings/index") => {
+            let value = json_u32_field(&request.body, "value")?;
+            let mut settings = Settings::new();
+            settings.set_index(value);
+            Ok(text_response(200, "OK", "ok"))
+        }
+        _ if request.method == "GET" => serve_static(app_handle, path).await,
+        _ => Ok(text_response(404, "Not Found", "not found")),
+    }
+}
+
+async fn schedule_download(
+    request: ScheduleRequest,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<String, String> {
+    let now_ms = current_time_ms()?;
+    if request.run_at_ms <= now_ms {
+        return Err("予約時刻は現在より後にしてください".to_string());
+    }
+    let delay = Duration::from_millis(request.run_at_ms - now_ms);
+    let schedule_id = format!("schedule-{}", request.run_at_ms);
+    tokio::spawn(async move {
+        sleep(delay).await;
+        if let Err(err) = start_download(request.param, command_manager).await {
+            eprintln!("予約実行に失敗しました: {}", err);
+        }
+    });
+    Ok(schedule_id)
+}
+
+async fn start_download(
+    param: RunCommandParam,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<u32, String> {
+    let settings = Settings::new();
+    let (yt_dlp_path, _ffmpeg_path, _deno_path) = resolve_tool_paths(
+        settings.use_bundle_tools,
+        &settings.yt_dlp_path,
+        &settings.ffmpeg_path,
+        &settings.deno_path,
+    )
+    .map_err(|e| format!("ツールパスの解決に失敗しました: {}", e))?;
+    if yt_dlp_path.trim().is_empty() {
+        return Err(
+            "yt-dlpが見つかりません。ツールをダウンロードするかパスを設定してください。".into(),
+        );
+    }
+    let args = build_yt_dlp_args(param, &settings)?;
+    command_manager
+        .lock()
+        .await
+        .start_command(command_manager.clone(), args, None, &yt_dlp_path)
+        .await
+}
+
+async fn handle_sse(
+    mut stream: TcpStream,
+    request: HttpRequest,
+    command_manager: Arc<Mutex<CommandManager>>,
+) -> Result<(), String> {
+    if !is_authorized(&request, &Settings::new()) {
+        let response = text_response(401, "Unauthorized", "unauthorized");
+        return write_response(&mut stream, response).await;
+    }
+
+    stream
+        .write_all(
+            b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n",
+        )
+        .await
+        .map_err(|e| format!("SSEレスポンスの送信に失敗しました: {}", e))?;
+
+    let mut since = 0_u64;
+    let mut was_running = false;
+    loop {
+        let snapshot = command_manager.lock().await.snapshot_since(since);
+        for output in snapshot.outputs {
+            since = output.id + 1;
+            write_sse_event(&mut stream, "process-output", &output.line).await?;
+        }
+        if snapshot.running {
+            was_running = true;
+        } else if was_running {
+            write_sse_event(&mut stream, "process-exit", "プロセス終了").await?;
+            break;
+        }
+        sleep(Duration::from_millis(500)).await;
+    }
+    Ok(())
+}
+
+async fn write_sse_event(stream: &mut TcpStream, event: &str, data: &str) -> Result<(), String> {
+    let data =
+        serde_json::to_string(data).map_err(|e| format!("SSEの作成に失敗しました: {}", e))?;
+    stream
+        .write_all(format!("event: {}\ndata: {}\n\n", event, data).as_bytes())
+        .await
+        .map_err(|e| format!("SSEの送信に失敗しました: {}", e))
+}
+
+async fn serve_static(app_handle: &AppHandle, path: &str) -> Result<HttpResponse, String> {
+    let requested_path = if path == "/" {
+        "index.html"
+    } else {
+        path.trim_start_matches('/')
+    };
+    if requested_path.contains("..") {
+        return Ok(text_response(400, "Bad Request", "bad request"));
+    }
+
+    let dist_dir = web_dist_dir(app_handle)?;
+    let mut file_path = dist_dir.join(requested_path);
+    if !file_path.exists() {
+        file_path = dist_dir.join("index.html");
+    }
+    let body = tokio::fs::read(&file_path)
+        .await
+        .map_err(|e| format!("webファイルの読み取りに失敗しました: {}", e))?;
+    Ok(HttpResponse {
+        status: 200,
+        reason: "OK",
+        content_type: content_type(&file_path),
+        body,
+    })
+}
+
+fn web_dist_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let current_dir = std::env::current_dir().map_err(|e| format!("current_dir: {}", e))?;
+    let dev_dist = current_dir.join("dist");
+    if dev_dist.exists() {
+        return Ok(dev_dist);
+    }
+    let resource_dir = app_handle
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("resource_dir: {}", e))?;
+    let bundled_dist = resource_dir.join("dist");
+    if bundled_dist.exists() {
+        return Ok(bundled_dist);
+    }
+    Err("web配信用のdistが見つかりません".to_string())
+}
+
+fn content_type(path: &std::path::Path) -> &'static str {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("css") => "text/css; charset=utf-8",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        _ => "application/octet-stream",
+    }
+}
+
+fn split_path_query(path: &str) -> (&str, Option<&str>) {
+    path.split_once('?')
+        .map(|(path, query)| (path, Some(query)))
+        .unwrap_or((path, None))
+}
+
+fn is_authorized(request: &HttpRequest, settings: &Settings) -> bool {
+    let token = settings.server_auth_token.trim();
+    if token.is_empty() {
+        return false;
+    }
+    if request
+        .headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+        .map(|(_, value)| value == &format!("Bearer {}", token))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    let (_, query) = split_path_query(&request.path);
+    query
+        .map(|query| {
+            query
+                .split('&')
+                .filter_map(|pair| pair.split_once('='))
+                .any(|(name, value)| name == "token" && value == token)
+        })
+        .unwrap_or(false)
+}
+
+async fn read_http_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
+    let mut buffer = Vec::new();
+    let mut temp = [0u8; 1024];
+    let header_end = loop {
+        let read_size = stream
+            .read(&mut temp)
+            .await
+            .map_err(|e| format!("リクエストの読み取りに失敗しました: {}", e))?;
+        if read_size == 0 {
+            return Err("リクエストが空です".to_string());
+        }
+        buffer.extend_from_slice(&temp[..read_size]);
+        if let Some(position) = find_header_end(&buffer) {
+            break position;
+        }
+    };
+
+    let header_text = String::from_utf8(buffer[..header_end].to_vec())
+        .map_err(|e| format!("リクエストヘッダーがUTF-8ではありません: {}", e))?;
+    let mut lines = header_text.split("\r\n");
+    let request_line = lines.next().ok_or("リクエスト行がありません")?;
+    let mut request_parts = request_line.split_whitespace();
+    let method = request_parts
+        .next()
+        .ok_or("HTTPメソッドがありません")?
+        .to_string();
+    let path = request_parts.next().ok_or("パスがありません")?.to_string();
+    let headers = lines
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            Some((name.trim().to_string(), value.trim().to_string()))
+        })
+        .collect::<Vec<_>>();
+    let content_length = content_length(&headers)?;
+    let body_start = header_end + 4;
+    while buffer.len() < body_start + content_length {
+        let read_size = stream
+            .read(&mut temp)
+            .await
+            .map_err(|e| format!("リクエスト本文の読み取りに失敗しました: {}", e))?;
+        if read_size == 0 {
+            break;
+        }
+        buffer.extend_from_slice(&temp[..read_size]);
+    }
+    let body = String::from_utf8(buffer[body_start..body_start + content_length].to_vec())
+        .map_err(|e| format!("リクエスト本文がUTF-8ではありません: {}", e))?;
+    Ok(HttpRequest {
+        method,
+        path,
+        headers,
+        body,
+    })
+}
+
+fn find_header_end(buffer: &[u8]) -> Option<usize> {
+    buffer.windows(4).position(|window| window == b"\r\n\r\n")
+}
+
+fn content_length(headers: &[(String, String)]) -> Result<usize, String> {
+    headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+        .map(|(_, value)| {
+            value
+                .parse::<usize>()
+                .map_err(|e| format!("Content-Lengthが不正です: {}", e))
+        })
+        .unwrap_or(Ok(0))
+}
+
+async fn write_response(stream: &mut TcpStream, response: HttpResponse) -> Result<(), String> {
+    let http_response = format!(
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n",
+        response.status,
+        response.reason,
+        response.content_type,
+        response.body.len()
+    );
+    stream
+        .write_all(http_response.as_bytes())
+        .await
+        .map_err(|e| format!("レスポンスの送信に失敗しました: {}", e))?;
+    stream
+        .write_all(&response.body)
+        .await
+        .map_err(|e| format!("レスポンス本文の送信に失敗しました: {}", e))
+}
+
+fn text_response(status: u16, reason: &'static str, body: &str) -> HttpResponse {
+    HttpResponse {
+        status,
+        reason,
+        content_type: "text/plain; charset=utf-8",
+        body: body.as_bytes().to_vec(),
+    }
+}
+
+fn json_response<T: Serialize>(
+    status: u16,
+    reason: &'static str,
+    value: &T,
+) -> Result<HttpResponse, String> {
+    let body = serde_json::to_vec(value).map_err(|e| format!("JSONの作成に失敗しました: {}", e))?;
+    Ok(HttpResponse {
+        status,
+        reason,
+        content_type: "application/json; charset=utf-8",
+        body,
+    })
+}
+
+fn json_bool_field(body: &str, field: &str) -> Result<bool, String> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.get(field).and_then(|value| value.as_bool()))
+        .ok_or_else(|| format!("{}が不正です", field))
+}
+
+fn json_u32_field(body: &str, field: &str) -> Result<u32, String> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.get(field).and_then(|value| value.as_u64()))
+        .and_then(|value| u32::try_from(value).ok())
+        .ok_or_else(|| format!("{}が不正です", field))
+}
+
+fn current_time_ms() -> Result<u64, String> {
+    let duration = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| format!("現在時刻の取得に失敗しました: {}", e))?;
+    u64::try_from(duration.as_millis()).map_err(|_| "現在時刻が大きすぎます".to_string())
+}

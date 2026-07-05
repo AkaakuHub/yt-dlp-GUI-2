@@ -18,11 +18,9 @@ import {
 	KeyRound,
 	Loader2,
 	Network,
-	Play,
 	RefreshCw,
 	Server,
 	Settings2,
-	StopCircle,
 	X,
 } from "lucide-react";
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
@@ -44,7 +42,7 @@ type ToolCheckResults = {
 	deno: boolean;
 };
 
-type ServerCliStatus = {
+type PersistentServerStatus = {
 	registered: boolean;
 	running: boolean;
 	pathExists: boolean;
@@ -113,11 +111,11 @@ export default function SettingsPage() {
 	const [downloadProgress, setDownloadProgress] =
 		useState<ToolDownloadProgressValue | null>(null);
 	const [downloadedOnce, setDownloadedOnce] = useState(false);
-	const [isRegisteringServerCli, setIsRegisteringServerCli] = useState(false);
-	const [isOperatingServerCli, setIsOperatingServerCli] = useState(false);
+	const [isRegisteringPersistentServer, setIsRegisteringPersistentServer] =
+		useState(false);
 	const [isTestingRemoteServer, setIsTestingRemoteServer] = useState(false);
-	const [serverCliStatus, setServerCliStatus] =
-		useState<ServerCliStatus | null>(null);
+	const [persistentServerStatus, setPersistentServerStatus] =
+		useState<PersistentServerStatus | null>(null);
 	const [generatedToken, setGeneratedToken] = useState("");
 	const [showTokenModal, setShowTokenModal] = useState(false);
 	const [showRemoteSettingsModal, setShowRemoteSettingsModal] = useState(false);
@@ -174,9 +172,11 @@ export default function SettingsPage() {
 		});
 	};
 
-	const refreshServerCliStatus = useCallback(async () => {
-		const status = await invoke<ServerCliStatus>("get_server_cli_status");
-		setServerCliStatus(status);
+	const refreshPersistentServerStatus = useCallback(async () => {
+		const status = await invoke<PersistentServerStatus>(
+			"get_persistent_server_status",
+		);
+		setPersistentServerStatus(status);
 	}, []);
 
 	const executeUpdate = useCallback(async () => {
@@ -212,21 +212,21 @@ export default function SettingsPage() {
 
 		const unlistenPromise = setupDownloadProgressListener();
 		void loadSettingsMetadata();
-		void refreshServerCliStatus();
+		void refreshPersistentServerStatus();
 		const refreshOnVisible = () => {
 			if (document.visibilityState === "visible") {
-				void refreshServerCliStatus();
+				void refreshPersistentServerStatus();
 			}
 		};
-		window.addEventListener("focus", refreshServerCliStatus);
+		window.addEventListener("focus", refreshPersistentServerStatus);
 		document.addEventListener("visibilitychange", refreshOnVisible);
 
 		return () => {
-			window.removeEventListener("focus", refreshServerCliStatus);
+			window.removeEventListener("focus", refreshPersistentServerStatus);
 			document.removeEventListener("visibilitychange", refreshOnVisible);
 			unlistenPromise.then((unlisten) => unlisten());
 		};
-	}, [refreshServerCliStatus]);
+	}, [refreshPersistentServerStatus]);
 
 	const requestNotificationAccess = async () => {
 		const permission = await requestPermission();
@@ -333,48 +333,24 @@ export default function SettingsPage() {
 		toast.success("ツール設定を保存しました");
 	};
 
-	const updateServerCliRegistration = async (registered: boolean) => {
-		setIsRegisteringServerCli(true);
+	const updatePersistentServerRegistration = async (registered: boolean) => {
+		setIsRegisteringPersistentServer(true);
 		try {
 			await invoke(
-				registered ? "register_server_cli" : "unregister_server_cli",
+				registered
+					? "register_persistent_server"
+					: "unregister_persistent_server",
 			);
-			await refreshServerCliStatus();
+			await refreshPersistentServerStatus();
 			toast.success(
 				registered
-					? "このPCのサーバーを常駐登録しました"
-					: "このPCのサーバーの常駐登録を解除しました",
+					? "このPCのWebサーバーを常駐登録しました"
+					: "このPCのWebサーバーの常駐登録を解除しました",
 			);
 		} catch (error) {
 			toast.error(`常駐設定の更新に失敗しました:${String(error)}`);
 		} finally {
-			setIsRegisteringServerCli(false);
-		}
-	};
-
-	const startServerCli = async () => {
-		setIsOperatingServerCli(true);
-		try {
-			await invoke("start_server_cli");
-			await refreshServerCliStatus();
-			toast.success("このPCのサーバーを起動しました");
-		} catch (error) {
-			toast.error(`このPCのサーバーの起動に失敗しました:${String(error)}`);
-		} finally {
-			setIsOperatingServerCli(false);
-		}
-	};
-
-	const stopServerCli = async () => {
-		setIsOperatingServerCli(true);
-		try {
-			await invoke("stop_server_cli");
-			await refreshServerCliStatus();
-			toast.success("このPCのサーバーを停止しました");
-		} catch (error) {
-			toast.error(`このPCのサーバーの停止に失敗しました:${String(error)}`);
-		} finally {
-			setIsOperatingServerCli(false);
+			setIsRegisteringPersistentServer(false);
 		}
 	};
 
@@ -580,44 +556,22 @@ export default function SettingsPage() {
 						<div className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
 							<Server size={16} className="text-primary" />
 							このPCをサーバーにする
-							{serverCliStatus ? (
+							{persistentServerStatus ? (
 								<span className="ml-auto text-xs font-normal text-base-content/60">
-									{serverCliStatus.running ? "起動中" : "停止中"} /{" "}
-									{serverCliStatus.registered ? "登録済み" : "未登録"}
+									{persistentServerStatus.running ? "起動中" : "停止中"} /{" "}
+									{persistentServerStatus.registered ? "登録済み" : "未登録"}
 								</span>
 							) : null}
 						</div>
 						<div className="grid min-w-0 gap-3 md:grid-cols-[auto_minmax(0,1fr)_9.5rem_10rem]">
-							<div className="grid grid-cols-2 gap-2">
-								<button
-									className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
-									type="button"
-									disabled={isOperatingServerCli}
-									title={serverCliStatus?.running ? "停止" : "起動"}
-									aria-label={serverCliStatus?.running ? "停止" : "起動"}
-									onClick={() =>
-										void (serverCliStatus?.running
-											? stopServerCli()
-											: startServerCli())
-									}
-								>
-									{isOperatingServerCli ? (
-										<Loader2 size={16} className="animate-spin" />
-									) : serverCliStatus?.running ? (
-										<StopCircle size={16} />
-									) : (
-										<Play size={16} />
-									)}
-								</button>
-								<button
-									className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
-									type="button"
-									onClick={() => void refreshServerCliStatus()}
-									aria-label="このPCのサーバー状態を更新"
-								>
-									<RefreshCw size={16} />
-								</button>
-							</div>
+							<button
+								className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
+								type="button"
+								onClick={() => void refreshPersistentServerStatus()}
+								aria-label="このPCのWebサーバー状態を更新"
+							>
+								<RefreshCw size={16} />
+							</button>
 							<button
 								className="btn btn-ghost h-10 min-h-10 min-w-0 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
 								type="button"
@@ -637,7 +591,7 @@ export default function SettingsPage() {
 								<AppInput
 									className="h-7 min-h-7 bg-base-100 px-2"
 									value={serverPort}
-									disabled={serverCliStatus?.running ?? false}
+									disabled={persistentServerStatus?.running ?? false}
 									inputMode="numeric"
 									onChange={(event) => void changeServerPort(event)}
 								/>
@@ -647,15 +601,17 @@ export default function SettingsPage() {
 									<Server size={16} className="text-primary" />
 									常駐
 								</span>
-								{isRegisteringServerCli ? (
+								{isRegisteringPersistentServer ? (
 									<Loader2 size={16} className="animate-spin" />
 								) : (
 									<input
 										className="toggle toggle-primary toggle-sm shrink-0"
 										type="checkbox"
-										checked={serverCliStatus?.registered ?? false}
+										checked={persistentServerStatus?.registered ?? false}
 										onChange={(event) =>
-											void updateServerCliRegistration(event.target.checked)
+											void updatePersistentServerRegistration(
+												event.target.checked,
+											)
 										}
 									/>
 								)}
@@ -663,7 +619,7 @@ export default function SettingsPage() {
 						</div>
 						<div className="grid min-w-0 gap-2">
 							<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-100 px-3 text-xs text-base-content/55">
-								{serverCliStatus?.path || "実行ファイルの場所を確認中"}
+								{persistentServerStatus?.path || "実行ファイルの場所を確認中"}
 							</div>
 						</div>
 					</SurfaceIsland>

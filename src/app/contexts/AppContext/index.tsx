@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import type React from "react";
 import {
 	createContext,
@@ -7,7 +6,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import type { ConfigProps } from "../../../types";
+import { getSettings } from "../../../shared/backend/runtime";
 import { ThemeProvider } from "../ThemeContext";
 
 interface AppContextProps {
@@ -72,7 +71,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const [serverAuthToken, setServerAuthToken] = useState("");
 
 	useEffect(() => {
-		invoke<ConfigProps>("get_settings")
+		getSettings()
 			.then((config) => {
 				setSaveDir(config.save_dir);
 				setBrowser(config.browser);

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
 import { check } from "@tauri-apps/plugin-updater";
 import { Loader2, Package } from "lucide-react";
@@ -12,6 +12,12 @@ import { useTheme } from "./app/contexts/ThemeContext";
 import DownloadPage from "./features/download/DownloadPage";
 import SettingsPage from "./features/settings/SettingsPage";
 import ToolSetupPage from "./features/toolSetup/ToolSetupPage";
+import {
+	getSettings,
+	initializeWebAuthToken,
+	isTauriRuntime,
+	listenDownloadProgress,
+} from "./shared/backend/runtime";
 import { AppTabs } from "./shared/components/AppTabs";
 import { SurfaceIsland, SurfacePanel } from "./shared/components/Surface";
 import ToolDownloadProgress, {
@@ -21,9 +27,10 @@ import WindowControls from "./shared/components/WindowControls";
 import { installAvailableUpdate } from "./shared/utils/appUpdate";
 import { cn } from "./shared/utils/className";
 import { checkToolAvailability } from "./shared/utils/toolAvailability";
-import type { ConfigProps } from "./types";
 
 import "./main.css";
+
+initializeWebAuthToken();
 
 type BootPhase = "checkingTools" | "updatingApp";
 
@@ -78,6 +85,7 @@ const App = () => {
 	const [bootDownloadProgress, setBootDownloadProgress] =
 		useState<ToolDownloadProgressValue | null>(null);
 	const { actualTheme } = useTheme();
+	const isDesktopRuntime = isTauriRuntime();
 
 	const handleSetupComplete = () => {
 		setShowSetup(false);
@@ -113,6 +121,12 @@ const App = () => {
 	}, []);
 
 	useEffect(() => {
+		if (!isTauriRuntime()) {
+			setIsBooting(false);
+			setShowSetup(false);
+			return;
+		}
+
 		const preventReload = (event: KeyboardEvent) => {
 			if (event.key === "F5") {
 				event.preventDefault();
@@ -126,13 +140,11 @@ const App = () => {
 
 		const boot = async () => {
 			try {
-				unlistenDownloadProgress = await listen<ToolDownloadProgressValue>(
-					"download-progress",
-					(event) => {
-						setBootDownloadProgress(event.payload);
-					},
-				);
-				const settings = await invoke<ConfigProps>("get_settings");
+				unlistenDownloadProgress =
+					await listenDownloadProgress<ToolDownloadProgressValue>((payload) => {
+						setBootDownloadProgress(payload);
+					});
+				const settings = await getSettings();
 				await promptUpdateIfAvailable();
 				if (settings.execution_target === "remote") {
 					setShowSetup(false);
@@ -237,7 +249,7 @@ const App = () => {
 
 	return (
 		<div className="relative flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
-			<WindowControls />
+			{isDesktopRuntime ? <WindowControls /> : null}
 			<ToastContainer
 				position="top-right"
 				autoClose={5000}
@@ -256,7 +268,7 @@ const App = () => {
 				}}
 			/>
 			<AppTabs
-				tabNames={["ホーム", "設定"]}
+				tabNames={isDesktopRuntime ? ["ホーム", "設定"] : ["ホーム"]}
 				setActiveIndex={setActiveIndex}
 				activeIndex={activeIndex}
 			/>
@@ -264,9 +276,11 @@ const App = () => {
 				<div className={cn(activeIndex === 0 ? "h-full min-h-0" : "hidden")}>
 					<DownloadPage />
 				</div>
-				<div className={cn(activeIndex === 1 ? "h-full min-h-0" : "hidden")}>
-					<SettingsPage />
-				</div>
+				{isDesktopRuntime ? (
+					<div className={cn(activeIndex === 1 ? "h-full min-h-0" : "hidden")}>
+						<SettingsPage />
+					</div>
+				) : null}
 			</div>
 			{isBooting ? (
 				<BootOverlay

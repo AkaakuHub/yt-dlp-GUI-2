@@ -1,10 +1,18 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Cookie, Download, FolderOpen, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../../app/contexts/AppContext";
+import {
+	isTauriRuntime,
+	openDownloadDirectory,
+	scheduleDownload,
+	setDownloadModeSetting,
+	setUseCookieSetting,
+	startDownload,
+	stopDownload,
+	subscribeProcessEvents,
+} from "../../shared/backend/runtime";
 import {
 	appendConsoleOutput,
 	createConsoleLogState,
@@ -61,6 +69,7 @@ export default function DownloadPage() {
 	const [consoleLog, setConsoleLog] = useState(createConsoleLogState);
 	const [urlInput, setUrlInput] = useState("");
 	const [arbitraryCode, setArbitraryCode] = useState("");
+	const [scheduleAt, setScheduleAt] = useState("");
 	const [urlQueueText, setUrlQueueText] = useState("");
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
 	const [showAdvancedPanel, setShowAdvancedPanel] = useState(false);
@@ -103,7 +112,7 @@ export default function DownloadPage() {
 	const updateCookie = async (nextUseCookie: boolean) => {
 		setUseCookie(nextUseCookie);
 		setParam((prev) => ({ ...prev, is_cookie: nextUseCookie }));
-		await invoke("set_use_cookie", { newUseCookie: nextUseCookie });
+		await setUseCookieSetting(nextUseCookie);
 	};
 
 	const validateTimestamp = useCallback(
@@ -165,9 +174,7 @@ export default function DownloadPage() {
 			arbitrary_code: arbitraryCode,
 			kind: currentSelectedIndex,
 		};
-		const processId = await invoke<number>("start_download", {
-			param: runParam,
-		});
+		const processId = await startDownload(runParam);
 		setPid(processId);
 	}, [arbitraryCode, hasInvalidTimestamp, param]);
 
@@ -203,9 +210,7 @@ export default function DownloadPage() {
 				url,
 				kind: currentSelectedIndex,
 			};
-			const processId = await invoke<number>("start_download", {
-				param: runParam,
-			});
+			const processId = await startDownload(runParam);
 			setPid(processId);
 		},
 		[param],
@@ -265,6 +270,51 @@ export default function DownloadPage() {
 		],
 	);
 
+	const scheduleCurrentDownload = useCallback(async () => {
+		const currentSelectedIndex = selectedIndexRef.current;
+		if (!isDownloadModeValue(currentSelectedIndex)) {
+			toast.error("不正なモードです。");
+			return;
+		}
+		if (currentSelectedIndex === DOWNLOAD_MODE.arbitraryCode) {
+			toast.error("任意コードは予約できません。");
+			return;
+		}
+		if (scheduleAt === "") {
+			toast.error("予約時刻を入力してください。");
+			return;
+		}
+		const runAtMs = new Date(scheduleAt).getTime();
+		if (!Number.isFinite(runAtMs) || runAtMs <= Date.now()) {
+			toast.error("予約時刻は現在より後にしてください。");
+			return;
+		}
+		const startTime = normalizeTimestamp(param.start_time || "");
+		const endTime = normalizeTimestamp(param.end_time || "");
+		if (startTime === null || endTime === null) {
+			toast.error("開始時間/終了時間の形式が不正です。");
+			return;
+		}
+		const url = cleanDownloadUrl(urlInput);
+		if (url === null) {
+			toast.error("URLが空、または不正です。");
+			return;
+		}
+		const runParam: RunCommandParam = {
+			...param,
+			start_time: startTime,
+			end_time: endTime,
+			url,
+			kind: currentSelectedIndex,
+		};
+		try {
+			await scheduleDownload(runParam, runAtMs);
+			toast.success("録画予約を追加しました。");
+		} catch (err) {
+			toast.error(`予約に失敗しました:${stringifyError(err)}`);
+		}
+	}, [param, scheduleAt, urlInput]);
+
 	const runQueueNext = useCallback(() => {
 		if (!queueStateRef.current.active) {
 			return;
@@ -286,56 +336,61 @@ export default function DownloadPage() {
 	}, [resetQueueState, runCommandFromUrl]);
 
 	useEffect(() => {
-		const unlistenOutput = listen<string>("process-output", (event) => {
-			if (event.payload === "") {
-				return;
-			}
-			if (event.payload.includes("Destination:")) {
-				latestDownloadDestinationRef.current = event.payload;
-			}
-			if (
-				event.payload.startsWith("[download]") ||
-				event.payload.startsWith("[Merger]") ||
-				event.payload.startsWith("[Fixup")
-			) {
-				const progressPayload =
-					latestDownloadDestinationRef.current &&
-					event.payload.startsWith("[download]") &&
-					!event.payload.includes("Destination:")
-						? `${event.payload}\n${latestDownloadDestinationRef.current}`
-						: event.payload;
-				setLatestConsoleText(progressPayload);
-			}
-			setConsoleLog((prev) => appendConsoleOutput(prev, event.payload));
-		});
-
-		const unlistenExit = listen<string>("process-exit", () => {
-			const wasStopped = stopRequestedRef.current;
-			stopRequestedRef.current = false;
-			latestDownloadDestinationRef.current = "";
-			setLatestConsoleText(wasStopped ? DOWNLOAD_STOPPED_MESSAGE : "");
-			setPid(null);
-			if (wasStopped) {
-				return;
-			}
-			runQueueNext();
+		let unlisten: (() => void) | null = null;
+		void subscribeProcessEvents({
+			onOutput: (payload) => {
+				if (payload === "") {
+					return;
+				}
+				if (payload.includes("Destination:")) {
+					latestDownloadDestinationRef.current = payload;
+				}
+				if (
+					payload.startsWith("[download]") ||
+					payload.startsWith("[Merger]") ||
+					payload.startsWith("[Fixup")
+				) {
+					const progressPayload =
+						latestDownloadDestinationRef.current &&
+						payload.startsWith("[download]") &&
+						!payload.includes("Destination:")
+							? `${payload}\n${latestDownloadDestinationRef.current}`
+							: payload;
+					setLatestConsoleText(progressPayload);
+				}
+				setConsoleLog((prev) => appendConsoleOutput(prev, payload));
+			},
+			onExit: () => {
+				const wasStopped = stopRequestedRef.current;
+				stopRequestedRef.current = false;
+				latestDownloadDestinationRef.current = "";
+				setLatestConsoleText(wasStopped ? DOWNLOAD_STOPPED_MESSAGE : "");
+				setPid(null);
+				if (wasStopped) {
+					return;
+				}
+				runQueueNext();
+			},
+		}).then((nextUnlisten) => {
+			unlisten = nextUnlisten;
 		});
 
 		return () => {
-			unlistenOutput.then((fn) => fn());
-			unlistenExit.then((fn) => fn());
+			unlisten?.();
 		};
 	}, [runQueueNext, setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
 		const inputUrl = urlInput.trim();
 		let clipboardText = "";
-		try {
-			clipboardText = (await readText()) || "";
-		} catch (err) {
-			toast.error(
-				`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
-			);
+		if (isTauriRuntime()) {
+			try {
+				clipboardText = (await readText()) || "";
+			} catch (err) {
+				toast.error(
+					`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
+				);
+			}
 		}
 		const targetUrl = clipboardText.trim() || inputUrl;
 		try {
@@ -349,7 +404,7 @@ export default function DownloadPage() {
 		resetQueueState();
 		stopRequestedRef.current = true;
 		try {
-			await invoke("stop_download");
+			await stopDownload();
 		} catch (error) {
 			stopRequestedRef.current = false;
 			toast.error(`停止に失敗しました:${stringifyError(error)}`);
@@ -359,7 +414,7 @@ export default function DownloadPage() {
 	};
 
 	const openDirectory = async () => {
-		await invoke("open_directory", { path: saveDir });
+		await openDownloadDirectory(saveDir);
 	};
 
 	const persistDownloadMode = async (nextMode: number) => {
@@ -367,7 +422,7 @@ export default function DownloadPage() {
 			return;
 		}
 		setSelectedIndexNumber(nextMode);
-		await invoke("set_index", { newIndex: nextMode });
+		await setDownloadModeSetting(nextMode);
 	};
 
 	const moveDownloadMode = (direction: -1 | 1) => {
@@ -427,6 +482,21 @@ export default function DownloadPage() {
 								onChange={(value) => void persistDownloadMode(value)}
 								onMove={moveDownloadMode}
 							/>
+							<div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+								<AppInput
+									className="h-10 min-h-10 w-full bg-base-200"
+									value={scheduleAt}
+									onChange={(event) => setScheduleAt(event.target.value)}
+									type="datetime-local"
+								/>
+								<button
+									className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-200 px-3 text-sm hover:bg-base-300"
+									type="button"
+									onClick={() => void scheduleCurrentDownload()}
+								>
+									予約
+								</button>
+							</div>
 						</SurfacePanel>
 
 						<SurfacePanel className="z-10 grid grid-cols-2 gap-2 sm:absolute sm:top-0 sm:right-0 sm:left-1/2 sm:pl-28">

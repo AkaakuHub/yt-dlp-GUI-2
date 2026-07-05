@@ -5,12 +5,12 @@ mod command_handlers;
 mod config;
 mod download_command;
 mod notification;
+mod persistent_server_service;
 mod process_manager;
-#[path = "server_cli/service.rs"]
-mod server_cli_service;
 mod system;
 mod tools;
 mod update;
+mod web_server;
 
 use std::sync::Arc;
 
@@ -21,6 +21,9 @@ use system::{
     open_url_and_exit,
 };
 use tools::{check_tools_status, download_bundle_tools, ensure_bundle_tools};
+
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, WindowEvent};
 
 #[cfg(any(windows, target_os = "macos"))]
 use window_shadows_v2::set_shadows;
@@ -34,13 +37,45 @@ fn main() {
         .setup(|app| {
             #[cfg(any(windows, target_os = "macos"))]
             set_shadows(app, true);
+            setup_tray(app)?;
+            let app_handle = app.handle().clone();
+            let app_state = app.state::<config::AppState>();
+            let command_manager = app.state::<Arc<tokio::sync::Mutex<CommandManager>>>();
+            web_server::start(app_handle, app_state, command_manager);
+            if std::env::args().any(|arg| arg == "--headless") {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, WindowEvent::CloseRequested { .. }) {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .on_tray_icon_event(|app, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
         })
         .manage(app_state)
         .manage(command_manager)
         .invoke_handler(tauri::generate_handler![
             start_download,
             stop_download,
+            command_handlers::schedule_download,
             open_directory,
             open_url_and_exit,
             get_sorted_directory_contents,
@@ -67,12 +102,10 @@ fn main() {
             config::commands::set_remote_auth_token,
             config::commands::set_server_auth_token,
             client::remote::test_remote_server,
-            server_cli_service::register_server_cli,
-            server_cli_service::unregister_server_cli,
-            server_cli_service::start_server_cli,
-            server_cli_service::stop_server_cli,
-            server_cli_service::get_server_cli_status,
-            server_cli_service::generate_remote_auth_token,
+            persistent_server_service::register_persistent_server,
+            persistent_server_service::unregister_persistent_server,
+            persistent_server_service::get_persistent_server_status,
+            persistent_server_service::generate_remote_auth_token,
             notification::send_download_complete_notification,
             update::install_available_update
         ])
@@ -81,6 +114,19 @@ fn main() {
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app_handle, _event| {});
+}
+
+fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
+    let Some(icon) = app.default_window_icon().cloned() else {
+        return Ok(());
+    };
+    TrayIconBuilder::with_id("main")
+        .icon(icon)
+        .tooltip("yt-dlp-GUI")
+        .show_menu_on_left_click(false)
+        .build(app)?;
+    Ok(())
 }

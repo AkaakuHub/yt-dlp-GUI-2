@@ -13,6 +13,21 @@ use tokio::task::{self, JoinHandle};
 pub struct CommandManager {
     command_task: Option<JoinHandle<()>>,
     stop_signal: Option<broadcast::Sender<()>>,
+    outputs: Vec<ProcessOutput>,
+    next_output_id: u64,
+    running: bool,
+    pid: Option<u32>,
+}
+
+#[derive(Clone)]
+pub struct ProcessOutput {
+    pub id: u64,
+    pub line: String,
+}
+
+pub struct ProcessSnapshot {
+    pub running: bool,
+    pub outputs: Vec<ProcessOutput>,
 }
 
 impl CommandManager {
@@ -20,6 +35,10 @@ impl CommandManager {
         Self {
             command_task: None,
             stop_signal: None,
+            outputs: Vec::new(),
+            next_output_id: 0,
+            running: false,
+            pid: None,
         }
     }
 
@@ -27,12 +46,16 @@ impl CommandManager {
         &mut self,
         command_manager: Arc<Mutex<CommandManager>>,
         args: Vec<String>,
-        window: tauri::Window,
+        window: Option<tauri::Window>,
         yt_dlp_path: &str,
     ) -> Result<u32, String> {
         if self.command_task.is_some() {
             return Err("プロセスは既に実行中です".into());
         }
+
+        self.outputs.clear();
+        self.next_output_id = 0;
+        self.running = true;
 
         let (tx, _) = broadcast::channel(1);
         self.stop_signal = Some(tx.clone());
@@ -57,17 +80,17 @@ impl CommandManager {
             .map_err(|e| format!("コマンドの実行に失敗しました: {}", e))?;
 
         let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
+        self.pid = Some(pid);
 
-        window
-            .emit(
-                "process-output",
-                format!(
-                    "{}>yt-dlp {}\n",
-                    std::env::current_dir().unwrap().to_string_lossy(),
-                    args.join(" ")
-                ),
-            )
-            .unwrap();
+        let command_line = format!(
+            "{}>yt-dlp {}\n",
+            std::env::current_dir().unwrap().to_string_lossy(),
+            args.join(" ")
+        );
+        self.push_output(command_line.clone());
+        if let Some(window) = &window {
+            let _ = window.emit("process-output", command_line);
+        }
 
         let stdout = child.stdout.take().ok_or("標準出力の取得に失敗しました")?;
         let stderr = child
@@ -89,13 +112,27 @@ impl CommandManager {
 
             let window_clone_stdout = window_clone.clone();
             let window_clone_stderr = window_clone2.clone();
+            let command_manager_stdout = Arc::clone(&command_manager_clone);
+            let command_manager_stderr = Arc::clone(&command_manager_clone);
 
             let stdout_task = tokio::spawn(async move {
-                process_lines(stdout_reader, window_clone_stdout, stop_rx1).await;
+                process_lines(
+                    stdout_reader,
+                    command_manager_stdout,
+                    window_clone_stdout,
+                    stop_rx1,
+                )
+                .await;
             });
 
             let stderr_task = tokio::spawn(async move {
-                process_lines(stderr_reader, window_clone_stderr, stop_rx2).await;
+                process_lines(
+                    stderr_reader,
+                    command_manager_stderr,
+                    window_clone_stderr,
+                    stop_rx2,
+                )
+                .await;
             });
 
             let mut rx = tx_clone.subscribe();
@@ -106,20 +143,22 @@ impl CommandManager {
                         eprintln!("Failed to kill process: {}", e);
                     }
                     let _ = child.wait().await;
-                    window_clone2.emit("process-exit", "プロセス終了").unwrap();
+                    finish_process(&command_manager_clone, window_clone2, "プロセス終了").await;
 
                     return;
                 }
                 status = child.wait() => {
                     match status {
                         Ok(_) => {
-                            window_clone.emit("process-output", "\n").unwrap();
-                            window_clone2.emit("process-exit", "プロセス終了").unwrap();
+                            push_process_output(&command_manager_clone, window_clone.clone(), "\n".to_string()).await;
+                            finish_process(&command_manager_clone, window_clone2, "プロセス終了").await;
                         }
                         Err(e) => {
-                            window_clone
-                                .emit("process-exit", format!("プロセス終了エラー: {}", e))
-                                .unwrap();
+                            finish_process(
+                                &command_manager_clone,
+                                window_clone,
+                                &format!("プロセス終了エラー: {}", e),
+                            ).await;
                         }
                     }
                 }
@@ -130,6 +169,9 @@ impl CommandManager {
 
             let mut manager = command_manager_clone.lock().await;
             manager.command_task = None;
+            manager.stop_signal = None;
+            manager.running = false;
+            manager.pid = None;
         });
 
         self.command_task = Some(task_handle);
@@ -137,7 +179,7 @@ impl CommandManager {
         Ok(pid)
     }
 
-    pub async fn stop_command(&mut self, window: tauri::Window) -> Result<(), String> {
+    pub async fn stop_command(&mut self, window: Option<tauri::Window>) -> Result<(), String> {
         if let Some(stop_signal) = self.stop_signal.take() {
             if let Err(err) = stop_signal.send(()) {
                 return Err(format!("Failed to send stop signal: {}", err));
@@ -146,16 +188,33 @@ impl CommandManager {
             return Err("Command is not running.".to_string());
         }
 
-        if let Some(handle) = self.command_task.take() {
-            if let Err(err) = handle.await {
-                return Err(format!("Failed to stop command task: {}", err));
-            }
-        }
+        self.command_task.take();
 
-        window
-            .emit("process-output", "プロセスを停止しました\n")
-            .unwrap();
+        self.running = false;
+        self.pid = None;
+        self.push_output("プロセスを停止しました\n".to_string());
+        if let Some(window) = window {
+            let _ = window.emit("process-output", "プロセスを停止しました\n");
+        }
         Ok(())
+    }
+
+    pub fn snapshot_since(&self, since: u64) -> ProcessSnapshot {
+        ProcessSnapshot {
+            running: self.running,
+            outputs: self
+                .outputs
+                .iter()
+                .filter(|output| output.id >= since)
+                .cloned()
+                .collect(),
+        }
+    }
+
+    fn push_output(&mut self, line: String) {
+        let id = self.next_output_id;
+        self.next_output_id += 1;
+        self.outputs.push(ProcessOutput { id, line });
     }
 }
 
@@ -188,8 +247,40 @@ fn decode_buffer(buffer: &[u8]) -> String {
     }
 }
 
-async fn process_lines<R>(mut reader: R, window: Window, mut stop_rx: broadcast::Receiver<()>) -> ()
-where
+async fn push_process_output(
+    command_manager: &Arc<Mutex<CommandManager>>,
+    window: Option<Window>,
+    line: String,
+) {
+    let mut manager = command_manager.lock().await;
+    manager.push_output(line.clone());
+    drop(manager);
+    if let Some(window) = window {
+        let _ = window.emit("process-output", line);
+    }
+}
+
+async fn finish_process(
+    command_manager: &Arc<Mutex<CommandManager>>,
+    window: Option<Window>,
+    message: &str,
+) {
+    {
+        let mut manager = command_manager.lock().await;
+        manager.running = false;
+        manager.pid = None;
+    }
+    if let Some(window) = window {
+        let _ = window.emit("process-exit", message);
+    }
+}
+
+async fn process_lines<R>(
+    mut reader: R,
+    command_manager: Arc<Mutex<CommandManager>>,
+    window: Option<Window>,
+    mut stop_rx: broadcast::Receiver<()>,
+) where
     R: AsyncReadExt + Unpin,
 {
     let mut buffer = Vec::new();
@@ -205,13 +296,13 @@ where
                         for &byte in &temp_buffer[..n] {
                             if byte == b'\r' || byte == b'\n' {
                                 let line = decode_buffer(&buffer);
-                                window.emit("process-output", line).unwrap();
+                                push_process_output(&command_manager, window.clone(), line).await;
                                 buffer.clear();
                             } else {
                                 buffer.push(byte);
                                 if buffer.len() > MAX_LINE_LENGTH {
                                     let line = decode_buffer(&buffer);
-                                    window.emit("process-output", line).unwrap();
+                                    push_process_output(&command_manager, window.clone(), line).await;
                                     buffer.clear();
                                 }
                             }
@@ -231,6 +322,6 @@ where
 
     if !buffer.is_empty() {
         let line = decode_buffer(&buffer);
-        window.emit("process-output", line).unwrap();
+        push_process_output(&command_manager, window, line).await;
     }
 }

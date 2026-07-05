@@ -7,6 +7,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
+import { getSettings, isTauriRuntime } from "../../../shared/backend/runtime";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -38,7 +39,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 	useEffect(() => {
 		const loadSettings = async () => {
 			try {
-				const config = await invoke<{ theme_mode: string }>("get_settings");
+				const config = await getSettings();
 				const savedMode = config.theme_mode as ThemeMode;
 				if (["light", "dark", "system"].includes(savedMode)) {
 					setThemeMode(savedMode);
@@ -54,7 +55,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
 	const handleSetThemeMode = (mode: ThemeMode) => {
 		setThemeMode(mode);
-		void invoke("set_theme_mode", { newThemeMode: mode });
+		if (isTauriRuntime()) {
+			void invoke("set_theme_mode", { newThemeMode: mode });
+		}
 	};
 
 	useEffect(() => {

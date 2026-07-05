@@ -4592,6 +4592,7 @@ dependencies = [
  "gtk",
  "heck 0.5.0",
  "http",
+ "image",
  "jni",
  "libc",
  "log",
@@ -6768,7 +6769,7 @@ dependencies = [
 
 [[package]]
 name = "yt-dlp-GUI"
-version = "2.2.3"
+version = "2.2.4"
 dependencies = [
  "auto-launch",
  "dirs 5.0.1",
