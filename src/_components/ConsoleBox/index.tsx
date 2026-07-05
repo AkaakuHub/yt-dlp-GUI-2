@@ -1,5 +1,6 @@
 import { ArrowDown } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "../../_utils/className";
 import type { ConsoleLogState } from "./consoleLog";
 
 interface ConsoleBoxProps {
@@ -133,11 +134,12 @@ export default function ConsoleBox({ consoleLog }: ConsoleBoxProps) {
 			<button
 				aria-label="最下部に移動"
 				aria-pressed={isPinnedToBottom}
-				className={`btn btn-sm absolute right-3 bottom-3 h-9 min-h-9 w-9 rounded-full p-0 shadow ${
+				className={cn(
+					"btn btn-sm absolute right-3 bottom-3 h-9 min-h-9 w-9 rounded-full p-0 shadow",
 					isPinnedToBottom
 						? "btn-primary"
-						: "btn-ghost bg-base-200 hover:bg-base-300"
-				}`}
+						: "btn-ghost bg-base-200 hover:bg-base-300",
+				)}
 				type="button"
 				onClick={handleFollowButtonClick}
 			>
