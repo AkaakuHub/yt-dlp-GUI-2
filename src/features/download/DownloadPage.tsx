@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import { useAppContext } from "../../app/contexts/AppContext";
 import {
 	createChannelMonitorRule,
+	isTauriRuntime,
 	openDownloadDirectory,
 	type QueueStatus,
 	scheduleDownload,
@@ -55,16 +56,16 @@ import {
 	shortenText,
 	type TimestampField,
 } from "./domain/downloadForm";
-import { buildDownloadQueuePreview } from "./domain/downloadQueuePreview";
 
 const downloadModes = downloadModeOptions;
-const workspaceTabs = [
+const tauriWorkspaceTabs = [
 	"実行",
 	"予約一覧",
 	"エクスプローラー",
 	"コンソール",
 ] as const;
-type WorkspaceTab = (typeof workspaceTabs)[number];
+const webWorkspaceTabs = ["実行", "予約一覧", "コンソール"] as const;
+type WorkspaceTab = (typeof tauriWorkspaceTabs)[number];
 
 const stringifyError = (error: unknown): string => {
 	if (error instanceof Error) {
@@ -636,19 +637,18 @@ export default function DownloadPage() {
 	const queueLabel = isQueueRunning
 		? `${queueStatus.running}実行中 / ${queueStatus.pending}待機`
 		: "";
-	const selectedModeLabel =
-		downloadModes.find((mode) => mode.value === selectedIndexNumber)?.label ||
-		"未選択";
-	const downloadQueuePreviewRows = buildDownloadQueuePreview(
-		urlInput,
-		urlQueueText,
-	);
-	const outputNameLabel = (param.output_name || "").trim() || "既定";
-	const cookieLabel = param.is_cookie ? "使用" : "未使用";
+	const workspaceTabs = isTauriRuntime()
+		? tauriWorkspaceTabs
+		: webWorkspaceTabs;
 
 	return (
 		<div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-base-100 p-2 text-base-content">
-			<div className="grid h-10 grid-cols-4 overflow-hidden rounded-lg border border-base-300 bg-base-200">
+			<div
+				className="grid h-10 overflow-hidden rounded-lg border border-base-300 bg-base-200"
+				style={{
+					gridTemplateColumns: `repeat(${workspaceTabs.length}, minmax(0, 1fr))`,
+				}}
+			>
 				{workspaceTabs.map((tab) => (
 					<button
 						key={tab}
@@ -806,52 +806,6 @@ export default function DownloadPage() {
 							</div>
 						</div>
 					</SurfaceIsland>
-					<SurfaceIsland className="min-h-0 overflow-hidden p-0">
-						<div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden">
-							<div className="grid h-10 grid-cols-[5rem_11rem_minmax(0,1fr)_8rem_8rem] items-center border-b border-base-300 bg-base-200 px-3 text-xs font-semibold text-base-content/60">
-								<span>状態</span>
-								<span>種別</span>
-								<span>URL</span>
-								<span>Cookie</span>
-								<span>出力</span>
-							</div>
-							<div className="grid h-9 grid-cols-[5rem_11rem_minmax(0,1fr)_8rem_8rem] items-center border-b border-base-300 bg-base-100 px-3 text-xs text-base-content/70">
-								<span>{!isQueueRunning ? "未開始" : "実行中"}</span>
-								<span className="truncate">{selectedModeLabel}</span>
-								<span className="truncate text-base-content/45">
-									{downloadQueuePreviewRows.length}件
-								</span>
-								<span>{cookieLabel}</span>
-								<span className="truncate">{outputNameLabel}</span>
-							</div>
-							<div className="min-h-0 overflow-auto">
-								{downloadQueuePreviewRows.map((row) => {
-									return (
-										<div
-											key={row.id}
-											className="grid h-9 grid-cols-[5rem_11rem_minmax(0,1fr)_8rem_8rem] items-center border-b border-base-300 px-3 text-xs hover:bg-base-200/60"
-										>
-											<span>
-												{isQueueRunning && row.index < queueStatus.running
-													? "実行中"
-													: "未開始"}
-											</span>
-											<span className="truncate">
-												{row.source === "queue"
-													? `一括 ${row.index + 1}`
-													: "単発"}
-											</span>
-											<span className="truncate text-base-content/80">
-												{row.url}
-											</span>
-											<span>{cookieLabel}</span>
-											<span className="truncate">{outputNameLabel}</span>
-										</div>
-									);
-								})}
-							</div>
-						</div>
-					</SurfaceIsland>
 				</div>
 				<div
 					className={cn(
@@ -860,15 +814,17 @@ export default function DownloadPage() {
 				>
 					<ReservationList />
 				</div>
-				<div
-					className={cn(
-						activeWorkspaceTab === "エクスプローラー"
-							? "h-full min-h-0"
-							: "hidden",
-					)}
-				>
-					<FileExplorer />
-				</div>
+				{isTauriRuntime() ? (
+					<div
+						className={cn(
+							activeWorkspaceTab === "エクスプローラー"
+								? "h-full min-h-0"
+								: "hidden",
+						)}
+					>
+						<FileExplorer />
+					</div>
+				) : null}
 				<div
 					className={cn(
 						activeWorkspaceTab === "コンソール" ? "h-full min-h-0" : "hidden",

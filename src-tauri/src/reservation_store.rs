@@ -4,7 +4,10 @@ use chrono::{Datelike, Duration, Local, TimeZone};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
-use crate::{config::get_config_root, download_command::RunCommandParam};
+use crate::{
+    config::get_config_root, download_command::RunCommandParam,
+    reservation_migrations::initialize_database,
+};
 
 const DATABASE_FILENAME: &str = "reservations.sqlite3";
 
@@ -17,6 +20,8 @@ pub struct ScheduledReservation {
     pub run_at_ms: u64,
     pub kind: String,
     pub status: String,
+    pub result: String,
+    pub error_message: String,
 }
 
 #[derive(Clone)]
@@ -101,8 +106,8 @@ impl ReservationStore {
         connection
             .execute(
                 "INSERT INTO reservations
-                (title, url, run_at_ms, kind, status, param_json, created_at_ms, updated_at_ms)
-                VALUES (?1, ?2, ?3, ?4, '予約中', ?5, ?6, ?6)",
+                (title, url, run_at_ms, kind, status, result, error_message, param_json, created_at_ms, updated_at_ms)
+                VALUES (?1, ?2, ?3, ?4, '予約中', '未実行', '', ?5, ?6, ?6)",
                 params![
                     title,
                     url,
@@ -127,11 +132,30 @@ impl ReservationStore {
         Ok(())
     }
 
+    pub fn update_execution_result(
+        &self,
+        id: i64,
+        status: &str,
+        result: &str,
+        error_message: &str,
+    ) -> Result<(), String> {
+        let now_ms = current_time_ms()?;
+        self.connection()?
+            .execute(
+                "UPDATE reservations
+                 SET status = ?1, result = ?2, error_message = ?3, updated_at_ms = ?4
+                 WHERE id = ?5",
+                params![status, result, error_message, u64_to_i64(now_ms)?, id],
+            )
+            .map_err(|e| format!("予約実行結果を更新できません: {}", e))?;
+        Ok(())
+    }
+
     pub fn reservations(&self) -> Result<Vec<ScheduledReservation>, String> {
         let connection = self.connection()?;
         let mut statement = connection
             .prepare(
-                "SELECT id, title, url, run_at_ms, kind, status
+                "SELECT id, title, url, run_at_ms, kind, status, result, error_message
                 FROM reservations
                 ORDER BY run_at_ms ASC, id ASC",
             )
@@ -146,6 +170,8 @@ impl ReservationStore {
                     run_at_ms: i64_to_u64(run_at_ms).unwrap_or(0),
                     kind: row.get(4)?,
                     status: row.get(5)?,
+                    result: row.get(6)?,
+                    error_message: row.get(7)?,
                 })
             })
             .map_err(|e| format!("予約一覧を取得できません: {}", e))?;
@@ -450,52 +476,8 @@ impl ReservationStore {
     }
 
     fn initialize(&self) -> Result<(), String> {
-        self.connection()?
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS reservations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    url TEXT NOT NULL,
-                    run_at_ms INTEGER NOT NULL,
-                    kind TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    param_json TEXT NOT NULL,
-                    created_at_ms INTEGER NOT NULL,
-                    updated_at_ms INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS channel_monitor_rules (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    channel_url TEXT NOT NULL,
-                    weekdays_json TEXT NOT NULL,
-                    check_time TEXT NOT NULL,
-                    include_words_json TEXT NOT NULL,
-                    exclude_words_json TEXT NOT NULL,
-                    param_json TEXT NOT NULL,
-                    enabled INTEGER NOT NULL,
-                    next_check_at_ms INTEGER NOT NULL,
-                    last_checked_at_ms INTEGER,
-                    status TEXT NOT NULL,
-                    created_at_ms INTEGER NOT NULL,
-                    updated_at_ms INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS channel_monitor_rule_schedules (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    rule_id INTEGER NOT NULL,
-                    weekdays_json TEXT NOT NULL,
-                    check_time TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS channel_monitor_hits (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    rule_id INTEGER NOT NULL,
-                    content_key TEXT NOT NULL,
-                    url TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    created_at_ms INTEGER NOT NULL,
-                    UNIQUE(rule_id, content_key)
-                );",
-            )
-            .map_err(|e| format!("予約DBを初期化できません: {}", e))
+        let connection = self.connection()?;
+        initialize_database(&connection)
     }
 
     fn connection(&self) -> Result<Connection, String> {

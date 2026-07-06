@@ -166,27 +166,33 @@ fn spawn_scheduled_download(
             eprintln!("予約状態の更新に失敗しました: {}", err);
         }
         let settings = crate::config::Settings::new();
-        if let Err(err) = start_local_download_queue(
+        let execution_result = start_local_download_queue_and_wait(
             command_manager.clone(),
             window.clone(),
             vec![param],
             1,
             &settings,
         )
-        .await
-        {
-            if let Err(update_err) = reservation_store.update_status(reservation_id, "失敗") {
-                eprintln!("予約状態の更新に失敗しました: {}", update_err);
+        .await;
+        match execution_result {
+            Ok(_) => {
+                if let Err(update_err) =
+                    reservation_store.update_execution_result(reservation_id, "完了", "成功", "")
+                {
+                    eprintln!("予約実行結果の更新に失敗しました: {}", update_err);
+                }
             }
-            if let Some(window) = window {
-                let _ = window.emit("process-exit", format!("予約実行に失敗しました: {}", err));
-            } else {
-                eprintln!("予約実行に失敗しました: {}", err);
-            }
-        } else {
-            if let Err(update_err) = reservation_store.update_status(reservation_id, "実行済み")
-            {
-                eprintln!("予約状態の更新に失敗しました: {}", update_err);
+            Err(err) => {
+                if let Err(update_err) =
+                    reservation_store.update_execution_result(reservation_id, "完了", "失敗", &err)
+                {
+                    eprintln!("予約実行結果の更新に失敗しました: {}", update_err);
+                }
+                if let Some(window) = window {
+                    let _ = window.emit("process-exit", format!("予約実行に失敗しました: {}", err));
+                } else {
+                    eprintln!("予約実行に失敗しました: {}", err);
+                }
             }
         }
     });
@@ -215,6 +221,25 @@ async fn start_local_download_queue(
     max_parallel: usize,
     settings: &crate::config::Settings,
 ) -> Result<QueueStartResponse, String> {
+    let commands = build_command_queue(params, settings)?;
+    CommandManager::enqueue_commands(command_manager, commands, window, max_parallel).await
+}
+
+async fn start_local_download_queue_and_wait(
+    command_manager: Arc<Mutex<CommandManager>>,
+    window: Option<tauri::Window>,
+    params: Vec<RunCommandParam>,
+    max_parallel: usize,
+    settings: &crate::config::Settings,
+) -> Result<QueueStartResponse, String> {
+    let commands = build_command_queue(params, settings)?;
+    CommandManager::enqueue_commands_and_wait(command_manager, commands, window, max_parallel).await
+}
+
+fn build_command_queue(
+    params: Vec<RunCommandParam>,
+    settings: &crate::config::Settings,
+) -> Result<Vec<(Vec<String>, String)>, String> {
     let (yt_dlp_path, _ffmpeg_path, _deno_path) = resolve_tool_paths(
         settings.use_bundle_tools,
         &settings.yt_dlp_path,
@@ -237,7 +262,7 @@ async fn start_local_download_queue(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    CommandManager::enqueue_commands(command_manager, commands, window, max_parallel).await
+    Ok(commands)
 }
 
 #[tauri::command]

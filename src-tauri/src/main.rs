@@ -8,6 +8,7 @@ mod notification;
 mod persistent_server_service;
 mod process_manager;
 mod reservation;
+mod reservation_migrations;
 mod reservation_store;
 mod system;
 mod tools;

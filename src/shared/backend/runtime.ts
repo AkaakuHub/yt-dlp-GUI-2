@@ -44,6 +44,8 @@ export type ScheduledReservation = {
 	runAtMs: number;
 	kind: string;
 	status: string;
+	result: string;
+	errorMessage: string;
 };
 
 export type ChannelMonitorRuleRequest = {

@@ -10,6 +10,7 @@ use tokio::io::BufReader as TokioBufReader;
 use tokio::process::Command as TokioCommand;
 use tokio::select;
 use tokio::sync::broadcast;
+use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::task;
 
@@ -22,11 +23,11 @@ pub struct CommandManager {
     next_output_id: u64,
 }
 
-#[derive(Clone)]
 pub struct QueuedCommand {
     pub id: u64,
     pub args: Vec<String>,
     pub yt_dlp_path: String,
+    pub completion_sender: Option<oneshot::Sender<Result<(), String>>>,
 }
 
 struct RunningCommand {
@@ -105,6 +106,7 @@ impl CommandManager {
                 id,
                 args,
                 yt_dlp_path,
+                completion_sender: None,
             });
         }
         let startable_count = manager.available_worker_count();
@@ -118,6 +120,60 @@ impl CommandManager {
             started: startable_count.min(total),
             running_pids,
         })
+    }
+
+    pub async fn enqueue_commands_and_wait(
+        command_manager: Arc<Mutex<CommandManager>>,
+        commands: Vec<(Vec<String>, String)>,
+        window: Option<tauri::Window>,
+        max_parallel: usize,
+    ) -> Result<QueueStartResponse, String> {
+        let total = commands.len();
+        if total == 0 {
+            return Err("キューが空です".to_string());
+        }
+
+        let mut receivers = Vec::with_capacity(total);
+        let mut manager = command_manager.lock().await;
+        if !manager.running_jobs.is_empty() || !manager.queued_jobs.is_empty() {
+            return Err("キューは既に実行中です".to_string());
+        }
+        manager.outputs.clear();
+        manager.next_output_id = 0;
+        manager.queued_jobs.clear();
+        manager.running_jobs.clear();
+        manager.next_job_id = 1;
+        manager.max_parallel = max_parallel.max(1);
+        let queue_id = manager.next_job_id;
+        for (args, yt_dlp_path) in commands {
+            let id = manager.next_job_id;
+            manager.next_job_id += 1;
+            let (completion_sender, completion_receiver) = oneshot::channel();
+            receivers.push(completion_receiver);
+            manager.queued_jobs.push_back(QueuedCommand {
+                id,
+                args,
+                yt_dlp_path,
+                completion_sender: Some(completion_sender),
+            });
+        }
+        let startable_count = manager.available_worker_count();
+        drop(manager);
+
+        start_next_commands(command_manager.clone(), window, startable_count).await?;
+        let running_pids = command_manager.lock().await.queue_snapshot().running_pids;
+        let response = QueueStartResponse {
+            queue_id,
+            total,
+            started: startable_count.min(total),
+            running_pids,
+        };
+        for receiver in receivers {
+            receiver
+                .await
+                .map_err(|_| "プロセス結果を取得できませんでした".to_string())??;
+        }
+        Ok(response)
     }
 
     pub async fn stop_all_commands(&mut self, window: Option<tauri::Window>) -> Result<(), String> {
@@ -238,14 +294,6 @@ fn start_command_task(
 
         let pid = child.id().ok_or("プロセスIDの取得に失敗しました")?;
 
-        let command_line = format!(
-            "[job:{} pid:{}] {}>yt-dlp {}\n",
-            command.id,
-            pid,
-            std::env::current_dir().unwrap().to_string_lossy(),
-            command.args.join(" ")
-        );
-        push_process_output(&command_manager, window.clone(), command_line).await;
         command_manager
             .lock()
             .await
@@ -260,6 +308,7 @@ fn start_command_task(
             .ok_or("標準エラーの取得に失敗しました")?;
 
         let job_id = command.id;
+        let mut completion_sender = command.completion_sender;
         let tx_clone = tx.clone();
         let command_manager_clone = Arc::clone(&command_manager);
         let window_clone = window.clone();
@@ -304,20 +353,46 @@ fn start_command_task(
                         eprintln!("Failed to kill process: {}", e);
                     }
                     let _ = child.wait().await;
-                    finish_command(&command_manager_clone, window_clone.clone(), job_id, None).await;
+                    finish_command(
+                        &command_manager_clone,
+                        window_clone.clone(),
+                        job_id,
+                        None,
+                        completion_sender.take(),
+                        Err("停止されました".to_string()),
+                    ).await;
                 }
                 status = child.wait() => {
                     match status {
-                        Ok(_) => {
+                        Ok(exit_status) => {
                             push_process_output(&command_manager_clone, window_clone.clone(), "\n".to_string()).await;
-                            finish_command(&command_manager_clone, window_clone.clone(), job_id, None).await;
-                        }
-                        Err(e) => {
+                            let result = if exit_status.success() {
+                                Ok(())
+                            } else {
+                                Err(format!(
+                                    "yt-dlpが終了コード{}で失敗しました",
+                                    exit_status.code().unwrap_or(-1)
+                                ))
+                            };
+                            let message = result.as_ref().err().cloned();
                             finish_command(
                                 &command_manager_clone,
                                 window_clone.clone(),
                                 job_id,
-                                Some(format!("プロセス終了エラー: {}", e)),
+                                message,
+                                completion_sender.take(),
+                                result,
+                            ).await;
+                        }
+                        Err(e) => {
+                            let message = format!("プロセス終了エラー: {}", e);
+                            finish_command(
+                                &command_manager_clone,
+                                window_clone.clone(),
+                                job_id,
+                                Some(message.clone()),
+                                completion_sender.take(),
+                                Err(message),
                             ).await;
                         }
                     }
@@ -379,7 +454,12 @@ async fn finish_command(
     window: Option<Window>,
     job_id: u64,
     message: Option<String>,
+    completion_sender: Option<oneshot::Sender<Result<(), String>>>,
+    completion_result: Result<(), String>,
 ) {
+    if let Some(sender) = completion_sender {
+        let _ = sender.send(completion_result);
+    }
     let startable_count = {
         let mut manager = command_manager.lock().await;
         manager.finish_running_job(job_id);
