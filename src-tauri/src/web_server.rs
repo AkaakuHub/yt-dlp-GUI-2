@@ -1,6 +1,6 @@
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -83,6 +83,7 @@ struct HttpRequest {
     body: String,
 }
 
+#[derive(Debug)]
 struct HttpResponse {
     status: u16,
     reason: &'static str,
@@ -681,10 +682,10 @@ async fn serve_static(app_handle: &AppHandle, path: &str) -> Result<HttpResponse
     }
 
     let dist_dir = web_dist_dir(app_handle)?;
-    let mut file_path = dist_dir.join(requested_path);
-    if !file_path.exists() {
-        file_path = dist_dir.join("index.html");
-    }
+    let file_path = match static_file_path(&dist_dir, requested_path) {
+        Ok(file_path) => file_path,
+        Err(response) => return Ok(response),
+    };
     let body = tokio::fs::read(&file_path)
         .await
         .map_err(|e| format!("webファイルの読み取りに失敗しました: {}", e))?;
@@ -694,6 +695,17 @@ async fn serve_static(app_handle: &AppHandle, path: &str) -> Result<HttpResponse
         content_type: content_type(&file_path),
         body,
     })
+}
+
+fn static_file_path(dist_dir: &Path, requested_path: &str) -> Result<PathBuf, HttpResponse> {
+    let file_path = dist_dir.join(requested_path);
+    if file_path.is_file() {
+        return Ok(file_path);
+    }
+    if requested_path == "index.html" || Path::new(requested_path).extension().is_none() {
+        return Ok(dist_dir.join("index.html"));
+    }
+    Err(text_response(404, "Not Found", "not found"))
 }
 
 fn web_dist_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
@@ -839,7 +851,15 @@ async fn write_response(
     stream
         .write_all(&response.body)
         .await
-        .map_err(|e| format!("レスポンス本文の送信に失敗しました: {}", e))
+        .map_err(|e| format!("レスポンス本文の送信に失敗しました: {}", e))?;
+    stream
+        .flush()
+        .await
+        .map_err(|e| format!("レスポンスのflushに失敗しました: {}", e))?;
+    stream
+        .shutdown()
+        .await
+        .map_err(|e| format!("レスポンスの終了に失敗しました: {}", e))
 }
 
 fn text_response(status: u16, reason: &'static str, body: &str) -> HttpResponse {
@@ -878,4 +898,51 @@ fn json_u32_field(body: &str, field: &str) -> Result<u32, String> {
         .and_then(|value| value.get(field).and_then(|value| value.as_u64()))
         .and_then(|value| u32::try_from(value).ok())
         .ok_or_else(|| format!("{}が不正です", field))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn static_file_path_returns_asset_when_file_exists() {
+        let dist_dir = create_test_dist_dir("asset_exists");
+        let asset_dir = dist_dir.join("assets");
+        fs::create_dir_all(&asset_dir).unwrap();
+        let css_path = asset_dir.join("index.css");
+        fs::write(&css_path, "body{}").unwrap();
+
+        let resolved_path = static_file_path(&dist_dir, "assets/index.css").unwrap();
+
+        assert_eq!(resolved_path, css_path);
+    }
+
+    #[test]
+    fn static_file_path_returns_not_found_for_missing_asset() {
+        let dist_dir = create_test_dist_dir("missing_asset");
+
+        let response = static_file_path(&dist_dir, "assets/missing.css").unwrap_err();
+
+        assert_eq!(response.status, 404);
+    }
+
+    #[test]
+    fn static_file_path_returns_index_for_app_route() {
+        let dist_dir = create_test_dist_dir("app_route");
+        let index_path = dist_dir.join("index.html");
+
+        let resolved_path = static_file_path(&dist_dir, "downloads").unwrap();
+
+        assert_eq!(resolved_path, index_path);
+    }
+
+    fn create_test_dist_dir(name: &str) -> PathBuf {
+        let dist_dir = std::env::temp_dir().join(format!("yt-dlp-gui-web-server-test-{}", name));
+        if dist_dir.exists() {
+            fs::remove_dir_all(&dist_dir).unwrap();
+        }
+        fs::create_dir_all(&dist_dir).unwrap();
+        fs::write(dist_dir.join("index.html"), "<!doctype html>").unwrap();
+        dist_dir
+    }
 }
