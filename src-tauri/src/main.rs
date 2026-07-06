@@ -23,18 +23,26 @@ use system::{
 };
 use tools::{check_tools_status, download_bundle_tools, ensure_bundle_tools};
 
+use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, WindowEvent};
 
 #[cfg(any(windows, target_os = "macos"))]
 use window_shadows_v2::set_shadows;
 
+const TRAY_MENU_SHOW: &str = "show";
+const TRAY_MENU_QUIT: &str = "quit";
+
 fn main() {
+    attach_parent_console();
     let _ = fix_path_env::fix();
     let app_state = config::AppState::new();
     let command_manager = Arc::new(tokio::sync::Mutex::new(CommandManager::new()));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_main_window(app);
+        }))
         .setup(|app| {
             #[cfg(any(windows, target_os = "macos"))]
             set_shadows(app, true);
@@ -80,6 +88,11 @@ fn main() {
                     let _ = window.set_focus();
                 }
             }
+        })
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            TRAY_MENU_SHOW => show_main_window(app),
+            TRAY_MENU_QUIT => app.exit(0),
+            _ => {}
         })
         .manage(app_state)
         .manage(command_manager)
@@ -136,10 +149,33 @@ fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let Some(icon) = app.default_window_icon().cloned() else {
         return Ok(());
     };
+    let show = MenuItem::with_id(app, TRAY_MENU_SHOW, "表示", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, TRAY_MENU_QUIT, "終了", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
     TrayIconBuilder::with_id("main")
         .icon(icon)
         .tooltip("yt-dlp-GUI")
+        .menu(&menu)
         .show_menu_on_left_click(false)
         .build(app)?;
     Ok(())
 }
+
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[cfg(windows)]
+fn attach_parent_console() {
+    unsafe {
+        windows_sys::Win32::System::Console::AttachConsole(
+            windows_sys::Win32::System::Console::ATTACH_PARENT_PROCESS,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn attach_parent_console() {}
