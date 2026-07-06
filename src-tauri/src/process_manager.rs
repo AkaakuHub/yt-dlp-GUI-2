@@ -205,6 +205,10 @@ impl CommandManager {
         }
     }
 
+    pub fn next_output_id(&self) -> u64 {
+        self.next_output_id
+    }
+
     pub fn queue_snapshot(&self) -> QueueSnapshot {
         let mut running_pids = self
             .running_jobs

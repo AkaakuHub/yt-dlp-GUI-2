@@ -625,7 +625,15 @@ where
         .await
         .map_err(|e| format!("SSEレスポンスの送信に失敗しました: {}", e))?;
 
-    let mut since = 0_u64;
+    let mut since = {
+        let manager = command_manager.lock().await;
+        let snapshot = manager.snapshot_since(0);
+        if snapshot.running {
+            0
+        } else {
+            manager.next_output_id()
+        }
+    };
     let mut was_running = false;
     let mut last_queue_json = String::new();
     loop {
@@ -644,11 +652,10 @@ where
             was_running = true;
         } else if was_running {
             write_sse_event(&mut stream, "process-exit", "").await?;
-            break;
+            was_running = false;
         }
         sleep(Duration::from_millis(500)).await;
     }
-    Ok(())
 }
 
 async fn write_sse_event<S>(stream: &mut S, event: &str, data: &str) -> Result<(), String>
