@@ -33,6 +33,7 @@ import { installAvailableUpdate } from "../../shared/utils/appUpdate";
 import { checkToolAvailability } from "../../shared/utils/toolAvailability";
 import type { ConfigProps } from "../../types";
 import { ToolsSettingsModal } from "./components/ToolsSettingsModal";
+import { type WebServerStatus, webServerStatusView } from "./webServerStatus";
 
 type ToolCheckResults = {
 	ytDlp: boolean;
@@ -45,12 +46,6 @@ type PersistentServerStatus = {
 	running: boolean;
 	pathExists: boolean;
 	path: string;
-};
-
-type WebServerStatus = {
-	running: boolean;
-	address: string;
-	error: string;
 };
 
 const emptyToolResults: ToolCheckResults = {
@@ -69,17 +64,11 @@ const parseServerPort = (value: string): number | null => {
 	return parsedPort;
 };
 
-const webServerStatusText = (
-	status: WebServerStatus | null,
-	serverPort: number,
-): string => {
-	if (status?.error) {
-		return `Webサーバー起動失敗:${status.error}`;
+const stringifyError = (error: unknown): string => {
+	if (error instanceof Error) {
+		return error.message;
 	}
-	if (status?.running) {
-		return `待受:https://0.0.0.0:${serverPort}`;
-	}
-	return "Webサーバー停止中";
+	return String(error);
 };
 
 export default function SettingsPage() {
@@ -134,6 +123,10 @@ export default function SettingsPage() {
 	const [isRestartingWebServer, setIsRestartingWebServer] = useState(false);
 	const [generatedToken, setGeneratedToken] = useState("");
 	const [showTokenModal, setShowTokenModal] = useState(false);
+	const webServerStatusDisplay = webServerStatusView(
+		webServerStatus,
+		serverPort,
+	);
 
 	const updateSaveDir = async (nextSaveDir: string) => {
 		setSaveDir(nextSaveDir);
@@ -184,6 +177,15 @@ export default function SettingsPage() {
 			const serverStatus = await invoke<WebServerStatus>("restart_web_server");
 			setWebServerStatus(serverStatus);
 			await refreshPersistentServerStatus();
+		} catch (error) {
+			setWebServerStatus({
+				running: false,
+				address: "",
+				phase: "failed",
+				detail: "再起動コマンドが失敗しました",
+				error: stringifyError(error),
+				updatedAtMs: Date.now(),
+			});
 		} finally {
 			setIsRestartingWebServer(false);
 		}
@@ -474,7 +476,7 @@ export default function SettingsPage() {
 						</div>
 					</SurfaceIsland>
 
-					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_2.5rem_2.25rem] gap-3">
+					<SurfaceIsland className="grid min-h-0 gap-3">
 						<div className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
 							<Server size={16} className="text-primary" />
 							このPCをサーバーにする
@@ -545,8 +547,21 @@ export default function SettingsPage() {
 							</label>
 						</div>
 						<div className="grid min-w-0 gap-2">
-							<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-100 px-3 text-xs text-base-content/55">
-								{webServerStatusText(webServerStatus, serverPort)}
+							<div
+								className={`grid min-h-9 min-w-0 gap-0.5 rounded-md bg-base-100 px-3 py-2 text-xs ${
+									webServerStatusDisplay.tone === "error"
+										? "text-error"
+										: "text-base-content/60"
+								}`}
+							>
+								<span className="font-semibold">
+									{webServerStatusDisplay.heading}
+								</span>
+								{webServerStatusDisplay.detail.length > 0 ? (
+									<span className="break-words">
+										{webServerStatusDisplay.detail}
+									</span>
+								) : null}
 							</div>
 						</div>
 					</SurfaceIsland>

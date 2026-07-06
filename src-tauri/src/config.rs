@@ -227,7 +227,10 @@ impl AppState {
 pub struct WebServerStatus {
     pub running: bool,
     pub address: String,
+    pub phase: String,
+    pub detail: String,
     pub error: String,
+    pub updated_at_ms: u64,
 }
 
 #[derive(Clone, Debug)]

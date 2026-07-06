@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use rcgen::generate_simple_self_signed;
 use serde::{Deserialize, Serialize};
@@ -7,7 +12,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::Mutex,
-    time::sleep,
+    time::{sleep, timeout},
 };
 use tokio_rustls::{
     rustls::{
@@ -32,6 +37,8 @@ use crate::{
 
 const WEB_TLS_CERT_FILENAME: &str = "web-server-cert.der";
 const WEB_TLS_KEY_FILENAME: &str = "web-server-key.der";
+const WEB_SERVER_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
+const WEB_SERVER_RESTART_WAIT: Duration = Duration::from_secs(6);
 
 #[derive(Deserialize)]
 struct RunRequest {
@@ -114,11 +121,13 @@ fn spawn_web_server_task(
     tauri::async_runtime::spawn(async move {
         set_web_server_status(
             &web_server_status,
-            WebServerStatus {
-                running: false,
-                address: address.clone(),
-                error: String::new(),
-            },
+            web_server_status_value(
+                false,
+                &address,
+                "starting",
+                "Webサーバーを起動しています",
+                "",
+            ),
         )
         .await;
         if let Err(err) = run_server(
@@ -133,11 +142,13 @@ fn spawn_web_server_task(
             eprintln!("webサーバーの起動に失敗しました: {}", err);
             set_web_server_status(
                 &web_server_status,
-                WebServerStatus {
-                    running: false,
-                    address,
-                    error: err,
-                },
+                web_server_status_value(
+                    false,
+                    &address,
+                    "failed",
+                    "Webサーバーの起動に失敗しました",
+                    &err,
+                ),
             )
             .await;
         }
@@ -151,17 +162,26 @@ async fn run_server(
     reservation_store: ReservationStore,
     web_server_status: Arc<Mutex<WebServerStatus>>,
 ) -> Result<(), String> {
-    let listener = TcpListener::bind(&address)
-        .await
-        .map_err(|e| format!("{}: {}", address, e))?;
-    let tls_acceptor = create_tls_acceptor()?;
+    let (listener, tls_acceptor) = match timeout(
+        WEB_SERVER_STARTUP_TIMEOUT,
+        prepare_web_server_listener(&address, &web_server_status),
+    )
+    .await
+    {
+        Ok(result) => result?,
+        Err(_) => {
+            let current_status = web_server_status.lock().await.clone();
+            return Err(format!(
+                "起動タイムアウト:{}秒以内に待受を開始できませんでした。最終段階:{} {}",
+                WEB_SERVER_STARTUP_TIMEOUT.as_secs(),
+                current_status.phase,
+                current_status.detail
+            ));
+        }
+    };
     set_web_server_status(
         &web_server_status,
-        WebServerStatus {
-            running: true,
-            address: address.clone(),
-            error: String::new(),
-        },
+        web_server_status_value(true, &address, "listening", "HTTPS待受を開始しました", ""),
     )
     .await;
     println!("yt-dlp-GUI web listening on https://{}", address);
@@ -191,11 +211,73 @@ async fn run_server(
     }
 }
 
+async fn prepare_web_server_listener(
+    address: &str,
+    web_server_status: &Arc<Mutex<WebServerStatus>>,
+) -> Result<(TcpListener, TlsAcceptor), String> {
+    set_web_server_status(
+        web_server_status,
+        web_server_status_value(
+            false,
+            address,
+            "binding",
+            &format!("ポート{}を開いています", address),
+            "",
+        ),
+    )
+    .await;
+    let listener = TcpListener::bind(address)
+        .await
+        .map_err(|e| format!("ポートを開けません:{} {}", address, e))?;
+    set_web_server_status(
+        web_server_status,
+        web_server_status_value(false, address, "tls", "HTTPS証明書を準備しています", ""),
+    )
+    .await;
+    let tls_acceptor = timeout(
+        WEB_SERVER_STARTUP_TIMEOUT,
+        tauri::async_runtime::spawn_blocking(create_tls_acceptor),
+    )
+    .await
+    .map_err(|_| {
+        format!(
+            "起動タイムアウト:{}秒以内にHTTPS証明書を準備できませんでした",
+            WEB_SERVER_STARTUP_TIMEOUT.as_secs()
+        )
+    })?
+    .map_err(|e| format!("HTTPS証明書の準備タスクに失敗しました: {}", e))??;
+    Ok((listener, tls_acceptor))
+}
+
 pub async fn set_web_server_status(
     status: &Arc<Mutex<WebServerStatus>>,
     next_status: WebServerStatus,
 ) {
     *status.lock().await = next_status;
+}
+
+fn web_server_status_value(
+    running: bool,
+    address: &str,
+    phase: &str,
+    detail: &str,
+    error: &str,
+) -> WebServerStatus {
+    WebServerStatus {
+        running,
+        address: address.to_string(),
+        phase: phase.to_string(),
+        detail: detail.to_string(),
+        error: error.to_string(),
+        updated_at_ms: now_ms(),
+    }
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -216,11 +298,7 @@ pub async fn restart_web_server(
     }
     set_web_server_status(
         &state.web_server_status,
-        WebServerStatus {
-            running: false,
-            address: String::new(),
-            error: String::new(),
-        },
+        web_server_status_value(false, "", "restarting", "Webサーバーを再起動しています", ""),
     )
     .await;
     let settings = state.settings.lock().await.clone();
@@ -231,14 +309,29 @@ pub async fn restart_web_server(
         command_manager.inner().clone(),
     );
     *state.web_server_task.lock().await = Some(task);
-    for _ in 0..20 {
+    let retry_count = WEB_SERVER_RESTART_WAIT.as_millis() / 100;
+    for _ in 0..retry_count {
         sleep(Duration::from_millis(100)).await;
         let status = state.web_server_status.lock().await.clone();
         if status.running || !status.error.is_empty() {
             return Ok(status);
         }
     }
-    Ok(state.web_server_status.lock().await.clone())
+    let status = state.web_server_status.lock().await.clone();
+    let timeout_status = web_server_status_value(
+        false,
+        &status.address,
+        "failed",
+        &status.detail,
+        &format!(
+            "再起動タイムアウト:{}秒以内に待受を開始できませんでした。最終段階:{} {}",
+            WEB_SERVER_RESTART_WAIT.as_secs(),
+            status.phase,
+            status.detail
+        ),
+    );
+    set_web_server_status(&state.web_server_status, timeout_status.clone()).await;
+    Ok(timeout_status)
 }
 
 fn create_tls_acceptor() -> Result<TlsAcceptor, String> {
