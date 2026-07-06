@@ -21,7 +21,7 @@ use tokio_rustls::{
 use crate::{
     channel_monitor::create_channel_monitor_rule_from_web,
     command_handlers::schedule_local_download,
-    config::{get_config_root, AppState, Settings},
+    config::{get_config_root, AppState, Settings, WebServerStatus},
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::{CommandManager, QueueStartResponse},
     reservation::{
@@ -93,11 +93,37 @@ pub fn start(
         tauri::async_runtime::block_on(async { app_state.settings.lock().await.clone() });
     let address = format!("0.0.0.0:{}", settings.server_port);
     let reservation_store = app_state.reservation_store.clone();
+    let web_server_status = app_state.web_server_status.clone();
     let command_manager = command_manager.inner().clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(err) = run_server(address, app_handle, command_manager, reservation_store).await
+        set_web_server_status(
+            &web_server_status,
+            WebServerStatus {
+                running: false,
+                address: address.clone(),
+                error: String::new(),
+            },
+        )
+        .await;
+        if let Err(err) = run_server(
+            address.clone(),
+            app_handle,
+            command_manager,
+            reservation_store,
+            web_server_status.clone(),
+        )
+        .await
         {
             eprintln!("webサーバーの起動に失敗しました: {}", err);
+            set_web_server_status(
+                &web_server_status,
+                WebServerStatus {
+                    running: false,
+                    address,
+                    error: err,
+                },
+            )
+            .await;
         }
     });
 }
@@ -107,11 +133,21 @@ async fn run_server(
     app_handle: AppHandle,
     command_manager: Arc<Mutex<CommandManager>>,
     reservation_store: ReservationStore,
+    web_server_status: Arc<Mutex<WebServerStatus>>,
 ) -> Result<(), String> {
     let listener = TcpListener::bind(&address)
         .await
         .map_err(|e| format!("{}: {}", address, e))?;
     let tls_acceptor = create_tls_acceptor()?;
+    set_web_server_status(
+        &web_server_status,
+        WebServerStatus {
+            running: true,
+            address: address.clone(),
+            error: String::new(),
+        },
+    )
+    .await;
     println!("yt-dlp-GUI web listening on https://{}", address);
 
     loop {
@@ -137,6 +173,20 @@ async fn run_server(
             }
         });
     }
+}
+
+pub async fn set_web_server_status(
+    status: &Arc<Mutex<WebServerStatus>>,
+    next_status: WebServerStatus,
+) {
+    *status.lock().await = next_status;
+}
+
+#[tauri::command]
+pub async fn get_web_server_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<WebServerStatus, String> {
+    Ok(state.web_server_status.lock().await.clone())
 }
 
 fn create_tls_acceptor() -> Result<TlsAcceptor, String> {

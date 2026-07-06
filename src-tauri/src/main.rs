@@ -132,6 +132,7 @@ fn main() {
             persistent_server_service::unregister_persistent_server,
             persistent_server_service::get_persistent_server_status,
             persistent_server_service::generate_server_auth_token,
+            web_server::get_web_server_status,
             notification::send_download_complete_notification
         ])
         .plugin(tauri_plugin_clipboard_manager::init())

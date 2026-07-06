@@ -47,6 +47,12 @@ type PersistentServerStatus = {
 	path: string;
 };
 
+type WebServerStatus = {
+	running: boolean;
+	address: string;
+	error: string;
+};
+
 const emptyToolResults: ToolCheckResults = {
 	ytDlp: false,
 	ffmpeg: false,
@@ -110,6 +116,8 @@ export default function SettingsPage() {
 		useState(false);
 	const [persistentServerStatus, setPersistentServerStatus] =
 		useState<PersistentServerStatus | null>(null);
+	const [webServerStatus, setWebServerStatus] =
+		useState<WebServerStatus | null>(null);
 	const [generatedToken, setGeneratedToken] = useState("");
 	const [showTokenModal, setShowTokenModal] = useState(false);
 
@@ -148,10 +156,12 @@ export default function SettingsPage() {
 	};
 
 	const refreshPersistentServerStatus = useCallback(async () => {
-		const status = await invoke<PersistentServerStatus>(
-			"get_persistent_server_status",
-		);
-		setPersistentServerStatus(status);
+		const [persistentStatus, serverStatus] = await Promise.all([
+			invoke<PersistentServerStatus>("get_persistent_server_status"),
+			invoke<WebServerStatus>("get_web_server_status"),
+		]);
+		setPersistentServerStatus(persistentStatus);
+		setWebServerStatus(serverStatus);
 	}, []);
 
 	const executeUpdate = useCallback(async () => {
@@ -445,7 +455,7 @@ export default function SettingsPage() {
 							このPCをサーバーにする
 							{persistentServerStatus ? (
 								<span className="ml-auto text-xs font-normal text-base-content/60">
-									{persistentServerStatus.running ? "起動中" : "停止中"} /{" "}
+									{webServerStatus?.running ? "起動中" : "停止中"} /{" "}
 									{persistentServerStatus.registered ? "登録済み" : "未登録"}
 								</span>
 							) : null}
@@ -506,7 +516,12 @@ export default function SettingsPage() {
 						</div>
 						<div className="grid min-w-0 gap-2">
 							<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-100 px-3 text-xs text-base-content/55">
-								{persistentServerStatus?.path || "実行ファイルの場所を確認中"}
+								{webServerStatus?.error
+									? `Webサーバー起動失敗:${webServerStatus.error}`
+									: webServerStatus?.running
+										? `待受:https://${webServerStatus.address}`
+										: persistentServerStatus?.path ||
+											"実行ファイルの場所を確認中"}
 							</div>
 						</div>
 					</SurfaceIsland>

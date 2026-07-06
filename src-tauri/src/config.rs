@@ -1,6 +1,7 @@
 use dirs::video_dir;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::{fs, path::PathBuf};
 use std::{io::Write, mem};
 use tokio::sync::Mutex;
@@ -203,6 +204,7 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub tool_cache: Mutex<HashMap<String, ToolCacheEntry>>,
     pub reservation_store: ReservationStore,
+    pub web_server_status: Arc<Mutex<WebServerStatus>>,
 }
 
 impl AppState {
@@ -212,8 +214,17 @@ impl AppState {
             tool_cache: Mutex::from(HashMap::new()),
             reservation_store: ReservationStore::new()
                 .expect("failed to initialize reservation database"),
+            web_server_status: Arc::new(Mutex::from(WebServerStatus::default())),
         }
     }
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebServerStatus {
+    pub running: bool,
+    pub address: String,
+    pub error: String,
 }
 
 #[derive(Clone, Debug)]
