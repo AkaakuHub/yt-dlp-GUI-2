@@ -199,6 +199,14 @@ pub async fn get_reservations(
     app_state.reservation_store.reservations()
 }
 
+pub async fn start_local_download_queue_for_monitor(
+    command_manager: Arc<Mutex<CommandManager>>,
+    params: Vec<RunCommandParam>,
+    settings: &crate::config::Settings,
+) -> Result<QueueStartResponse, String> {
+    start_local_download_queue(command_manager, None, params, 1, settings).await
+}
+
 async fn start_local_download_queue(
     command_manager: Arc<Mutex<CommandManager>>,
     window: Option<tauri::Window>,

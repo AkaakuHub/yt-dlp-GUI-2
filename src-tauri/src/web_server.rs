@@ -10,6 +10,7 @@ use tokio::{
 };
 
 use crate::{
+    channel_monitor::create_channel_monitor_rule_from_web,
     command_handlers::schedule_local_download,
     config::{AppState, Settings},
     download_command::{build_yt_dlp_args, RunCommandParam},
@@ -17,7 +18,7 @@ use crate::{
     reservation::{
         resolve_youtube_live_reservation, ReservationResponse, YoutubeLiveReservationRequest,
     },
-    reservation_store::ReservationStore,
+    reservation_store::{ChannelMonitorRuleRequest, ReservationStore},
     tools::resolve_tool_paths,
 };
 
@@ -49,6 +50,12 @@ struct RunResponse {
 #[serde(rename_all = "camelCase")]
 struct ScheduleResponse {
     schedule_id: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ChannelMonitorRuleResponse {
+    rule_id: i64,
 }
 
 struct HttpRequest {
@@ -146,6 +153,10 @@ async fn handle_http_request(
             let reservations = reservation_store.reservations()?;
             json_response(200, "OK", &reservations)
         }
+        ("GET", "/api/channel-monitors") => {
+            let rules = reservation_store.channel_monitor_rules()?;
+            json_response(200, "OK", &rules)
+        }
         ("POST", "/api/downloads") => {
             let run_request = serde_json::from_str::<RunRequest>(&request.body)
                 .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
@@ -188,6 +199,17 @@ async fn handle_http_request(
                 )
                 .await?;
             json_response(200, "OK", &reservation)
+        }
+        ("POST", "/api/channel-monitors") => {
+            let rule_request = serde_json::from_str::<ChannelMonitorRuleRequest>(&request.body)
+                .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
+            let rule_id = create_channel_monitor_rule_from_web(
+                command_manager,
+                reservation_store,
+                rule_request,
+            )
+            .await?;
+            json_response(200, "OK", &ChannelMonitorRuleResponse { rule_id })
         }
         ("POST", "/api/downloads/stop") => {
             command_manager.lock().await.stop_all_commands(None).await?;

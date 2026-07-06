@@ -2,6 +2,7 @@
 
 mod command_handlers;
 mod config;
+mod channel_monitor;
 mod download_command;
 mod notification;
 mod persistent_server_service;
@@ -45,9 +46,10 @@ fn main() {
             web_server::start(app_handle, app_state, command_manager);
             let reservation_store = app.state::<config::AppState>().reservation_store.clone();
             command_handlers::resume_pending_reservations(
-                command_manager_inner,
-                reservation_store,
+                command_manager_inner.clone(),
+                reservation_store.clone(),
             );
+            channel_monitor::resume_channel_monitor_rules(command_manager_inner, reservation_store);
             if std::env::args().any(|arg| arg == "--headless") {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.hide();
@@ -88,6 +90,8 @@ fn main() {
             command_handlers::schedule_download,
             command_handlers::schedule_youtube_live_from_start,
             command_handlers::get_reservations,
+            channel_monitor::create_channel_monitor_rule,
+            channel_monitor::get_channel_monitor_rules,
             open_directory,
             open_url_and_exit,
             get_sorted_directory_contents,
