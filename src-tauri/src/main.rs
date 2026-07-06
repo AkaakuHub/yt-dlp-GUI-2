@@ -7,6 +7,7 @@ mod notification;
 mod persistent_server_service;
 mod process_manager;
 mod reservation;
+mod reservation_store;
 mod system;
 mod tools;
 mod web_server;
@@ -40,7 +41,13 @@ fn main() {
             let app_handle = app.handle().clone();
             let app_state = app.state::<config::AppState>();
             let command_manager = app.state::<Arc<tokio::sync::Mutex<CommandManager>>>();
+            let command_manager_inner = command_manager.inner().clone();
             web_server::start(app_handle, app_state, command_manager);
+            let reservation_store = app.state::<config::AppState>().reservation_store.clone();
+            command_handlers::resume_pending_reservations(
+                command_manager_inner,
+                reservation_store,
+            );
             if std::env::args().any(|arg| arg == "--headless") {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.hide();

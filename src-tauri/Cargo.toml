@@ -38,6 +38,7 @@ rand = "0.9"
 tao = "0.35.2"
 tray-icon = "0.23.1"
 tauri-plugin-process = "2.3.1"
+rusqlite = { version = "0.40.1", features = ["bundled"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2.7"

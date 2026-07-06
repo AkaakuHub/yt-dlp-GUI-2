@@ -20,8 +20,6 @@ pub struct CommandManager {
     max_parallel: usize,
     outputs: Vec<ProcessOutput>,
     next_output_id: u64,
-    reservations: Vec<ScheduledReservation>,
-    next_reservation_id: u64,
 }
 
 #[derive(Clone)]
@@ -66,17 +64,6 @@ pub struct QueueStartResponse {
     pub running_pids: Vec<u32>,
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ScheduledReservation {
-    pub id: u64,
-    pub title: String,
-    pub url: String,
-    pub run_at_ms: u64,
-    pub kind: String,
-    pub status: String,
-}
-
 impl CommandManager {
     pub fn new() -> Self {
         Self {
@@ -86,8 +73,6 @@ impl CommandManager {
             max_parallel: 1,
             outputs: Vec::new(),
             next_output_id: 0,
-            reservations: Vec::new(),
-            next_reservation_id: 1,
         }
     }
 
@@ -199,40 +184,6 @@ impl CommandManager {
 
     fn finish_running_job(&mut self, id: u64) {
         self.running_jobs.remove(&id);
-    }
-
-    pub fn add_reservation(
-        &mut self,
-        title: String,
-        url: String,
-        run_at_ms: u64,
-        kind: String,
-    ) -> u64 {
-        let id = self.next_reservation_id;
-        self.next_reservation_id += 1;
-        self.reservations.push(ScheduledReservation {
-            id,
-            title,
-            url,
-            run_at_ms,
-            kind,
-            status: "予約中".to_string(),
-        });
-        id
-    }
-
-    pub fn update_reservation_status(&mut self, id: u64, status: &str) {
-        if let Some(reservation) = self
-            .reservations
-            .iter_mut()
-            .find(|reservation| reservation.id == id)
-        {
-            reservation.status = status.to_string();
-        }
-    }
-
-    pub fn reservations(&self) -> Vec<ScheduledReservation> {
-        self.reservations.clone()
     }
 
     fn push_output(&mut self, line: String) {

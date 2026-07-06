@@ -1,11 +1,12 @@
 use crate::{
     config::AppState,
     download_command::{build_yt_dlp_args, RunCommandParam},
-    process_manager::{CommandManager, QueueStartResponse, ScheduledReservation},
+    process_manager::{CommandManager, QueueStartResponse},
     reservation::{
         current_time_ms, resolve_youtube_live_reservation, ReservationResponse,
         YoutubeLiveReservationRequest,
     },
+    reservation_store::{ReservationStore, ScheduledReservation},
     tools::resolve_tool_paths,
 };
 use std::sync::Arc;
@@ -56,13 +57,12 @@ pub async fn schedule_download(
     run_at_ms: u64,
     app_state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let settings = app_state.settings.lock().await.clone();
     schedule_local_download(
         command_manager.inner().clone(),
         Some(window),
+        app_state.reservation_store.clone(),
         param,
         run_at_ms,
-        settings,
         "日時指定予約".to_string(),
         "日時指定".to_string(),
     )
@@ -81,9 +81,9 @@ pub async fn schedule_youtube_live_from_start(
     let schedule_id = schedule_local_download(
         command_manager.inner().clone(),
         Some(window),
+        app_state.reservation_store.clone(),
         param,
         run_at_ms,
-        settings,
         title.clone(),
         "YouTubeライブ".to_string(),
     )
@@ -98,9 +98,9 @@ pub async fn schedule_youtube_live_from_start(
 pub async fn schedule_local_download(
     command_manager: Arc<Mutex<CommandManager>>,
     window: Option<tauri::Window>,
+    reservation_store: ReservationStore,
     param: RunCommandParam,
     run_at_ms: u64,
-    settings: crate::config::Settings,
     title: String,
     kind: String,
 ) -> Result<String, String> {
@@ -108,19 +108,64 @@ pub async fn schedule_local_download(
     if run_at_ms <= now_ms {
         return Err("予約時刻は現在より後にしてください".to_string());
     }
-    let delay = Duration::from_millis(run_at_ms - now_ms);
     let url = param.url.clone().unwrap_or_default();
-    let reservation_id = command_manager
-        .lock()
-        .await
-        .add_reservation(title, url, run_at_ms, kind);
+    let reservation_id = reservation_store.add_reservation(title, url, run_at_ms, kind, &param)?;
     let schedule_id = format!("schedule-{}", reservation_id);
+    spawn_scheduled_download(
+        command_manager,
+        window,
+        reservation_store,
+        reservation_id,
+        param,
+        run_at_ms,
+    )?;
+    Ok(schedule_id)
+}
+
+pub fn resume_pending_reservations(
+    command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
+) {
+    let pending_reservations = match reservation_store.pending_reservations() {
+        Ok(reservations) => reservations,
+        Err(err) => {
+            eprintln!("未実行予約の復元に失敗しました: {}", err);
+            return;
+        }
+    };
+    for reservation in pending_reservations {
+        if let Err(err) = spawn_scheduled_download(
+            command_manager.clone(),
+            None,
+            reservation_store.clone(),
+            reservation.id,
+            reservation.param,
+            reservation.run_at_ms,
+        ) {
+            eprintln!("未実行予約の復元に失敗しました: {}", err);
+        }
+    }
+}
+
+fn spawn_scheduled_download(
+    command_manager: Arc<Mutex<CommandManager>>,
+    window: Option<tauri::Window>,
+    reservation_store: ReservationStore,
+    reservation_id: i64,
+    param: RunCommandParam,
+    run_at_ms: u64,
+) -> Result<(), String> {
+    let now_ms = current_time_ms()?;
+    if run_at_ms <= now_ms {
+        return Err("予約時刻は現在より後にしてください".to_string());
+    }
+    let delay = Duration::from_millis(run_at_ms - now_ms);
     tokio::spawn(async move {
         sleep_until(Instant::now() + delay).await;
-        command_manager
-            .lock()
-            .await
-            .update_reservation_status(reservation_id, "実行中");
+        if let Err(err) = reservation_store.update_status(reservation_id, "実行中") {
+            eprintln!("予約状態の更新に失敗しました: {}", err);
+        }
+        let settings = crate::config::Settings::new();
         if let Err(err) = start_local_download_queue(
             command_manager.clone(),
             window.clone(),
@@ -130,30 +175,28 @@ pub async fn schedule_local_download(
         )
         .await
         {
-            command_manager
-                .lock()
-                .await
-                .update_reservation_status(reservation_id, "失敗");
+            if let Err(update_err) = reservation_store.update_status(reservation_id, "失敗") {
+                eprintln!("予約状態の更新に失敗しました: {}", update_err);
+            }
             if let Some(window) = window {
                 let _ = window.emit("process-exit", format!("予約実行に失敗しました: {}", err));
             } else {
                 eprintln!("予約実行に失敗しました: {}", err);
             }
         } else {
-            command_manager
-                .lock()
-                .await
-                .update_reservation_status(reservation_id, "実行済み");
+            if let Err(update_err) = reservation_store.update_status(reservation_id, "実行済み") {
+                eprintln!("予約状態の更新に失敗しました: {}", update_err);
+            }
         }
     });
-    Ok(schedule_id)
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn get_reservations(
-    command_manager: State<'_, Arc<Mutex<CommandManager>>>,
+    app_state: State<'_, AppState>,
 ) -> Result<Vec<ScheduledReservation>, String> {
-    Ok(command_manager.lock().await.reservations())
+    app_state.reservation_store.reservations()
 }
 
 async fn start_local_download_queue(

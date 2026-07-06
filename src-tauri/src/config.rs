@@ -5,16 +5,18 @@ use std::{fs, path::PathBuf};
 use std::{io::Write, mem};
 use tokio::sync::Mutex;
 
+use crate::reservation_store::ReservationStore;
+
 const SETTINGS_FILENAME: &str = "settings.json";
 
 #[cfg(target_os = "windows")]
-fn get_config_root() -> PathBuf {
+pub(crate) fn get_config_root() -> PathBuf {
     let appdata = PathBuf::from(std::env::var("APPDATA").unwrap());
     appdata.join("yt-dlp-GUI")
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-fn get_config_root() -> PathBuf {
+pub(crate) fn get_config_root() -> PathBuf {
     let home = PathBuf::from(std::env::var("HOME").unwrap());
     home.join(".yt-dlp-GUI")
 }
@@ -200,6 +202,7 @@ impl Settings {
 pub struct AppState {
     pub settings: Mutex<Settings>,
     pub tool_cache: Mutex<HashMap<String, ToolCacheEntry>>,
+    pub reservation_store: ReservationStore,
 }
 
 impl AppState {
@@ -207,6 +210,8 @@ impl AppState {
         Self {
             settings: Mutex::from(Settings::new()),
             tool_cache: Mutex::from(HashMap::new()),
+            reservation_store: ReservationStore::new()
+                .expect("failed to initialize reservation database"),
         }
     }
 }

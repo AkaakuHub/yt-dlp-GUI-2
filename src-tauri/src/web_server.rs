@@ -17,6 +17,7 @@ use crate::{
     reservation::{
         resolve_youtube_live_reservation, ReservationResponse, YoutubeLiveReservationRequest,
     },
+    reservation_store::ReservationStore,
     tools::resolve_tool_paths,
 };
 
@@ -72,9 +73,10 @@ pub fn start(
     let settings =
         tauri::async_runtime::block_on(async { app_state.settings.lock().await.clone() });
     let address = format!("0.0.0.0:{}", settings.server_port);
+    let reservation_store = app_state.reservation_store.clone();
     let command_manager = command_manager.inner().clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(err) = run_server(address, app_handle, command_manager).await {
+        if let Err(err) = run_server(address, app_handle, command_manager, reservation_store).await {
             eprintln!("webサーバーの起動に失敗しました: {}", err);
         }
     });
@@ -84,6 +86,7 @@ async fn run_server(
     address: String,
     app_handle: AppHandle,
     command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
 ) -> Result<(), String> {
     let listener = TcpListener::bind(&address)
         .await
@@ -97,8 +100,11 @@ async fn run_server(
             .map_err(|e| format!("接続の受付に失敗しました: {}", e))?;
         let app_handle = app_handle.clone();
         let command_manager = command_manager.clone();
+        let reservation_store = reservation_store.clone();
         tokio::spawn(async move {
-            if let Err(err) = handle_connection(stream, app_handle, command_manager).await {
+            if let Err(err) =
+                handle_connection(stream, app_handle, command_manager, reservation_store).await
+            {
                 eprintln!("{}", err);
             }
         });
@@ -109,13 +115,14 @@ async fn handle_connection(
     mut stream: TcpStream,
     app_handle: AppHandle,
     command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
 ) -> Result<(), String> {
     let request = read_http_request(&mut stream).await?;
     if request.method == "GET" && request.path.starts_with("/api/events") {
         return handle_sse(stream, request, command_manager).await;
     }
 
-    let response = handle_http_request(request, &app_handle, command_manager)
+    let response = handle_http_request(request, &app_handle, command_manager, reservation_store)
         .await
         .unwrap_or_else(|error| text_response(500, "Internal Server Error", &error));
     write_response(&mut stream, response).await
@@ -125,6 +132,7 @@ async fn handle_http_request(
     request: HttpRequest,
     app_handle: &AppHandle,
     command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
 ) -> Result<HttpResponse, String> {
     let (path, _) = split_path_query(&request.path);
     if path.starts_with("/api/") && !is_authorized(&request, &Settings::new()) {
@@ -135,7 +143,7 @@ async fn handle_http_request(
         ("GET", "/api/health") => Ok(text_response(200, "OK", "ok")),
         ("GET", "/api/settings") => json_response(200, "OK", &Settings::new()),
         ("GET", "/api/reservations") => {
-            let reservations = command_manager.lock().await.reservations();
+            let reservations = reservation_store.reservations()?;
             json_response(200, "OK", &reservations)
         }
         ("POST", "/api/downloads") => {
@@ -164,7 +172,8 @@ async fn handle_http_request(
         ("POST", "/api/schedules") => {
             let schedule_request = serde_json::from_str::<ScheduleRequest>(&request.body)
                 .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
-            let schedule_id = schedule_download(schedule_request, command_manager).await?;
+            let schedule_id =
+                schedule_download(schedule_request, command_manager, reservation_store).await?;
             json_response(200, "OK", &ScheduleResponse { schedule_id })
         }
         ("POST", "/api/schedules/youtube-live-from-start") => {
@@ -172,7 +181,12 @@ async fn handle_http_request(
                 serde_json::from_str::<YoutubeLiveReservationRequest>(&request.body)
                     .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
             let reservation =
-                schedule_youtube_live_from_start(schedule_request, command_manager).await?;
+                schedule_youtube_live_from_start(
+                    schedule_request,
+                    command_manager,
+                    reservation_store,
+                )
+                .await?;
             json_response(200, "OK", &reservation)
         }
         ("POST", "/api/downloads/stop") => {
@@ -199,13 +213,14 @@ async fn handle_http_request(
 async fn schedule_download(
     request: ScheduleRequest,
     command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
 ) -> Result<String, String> {
     schedule_local_download(
         command_manager,
         None,
+        reservation_store,
         request.param,
         request.run_at_ms,
-        Settings::new(),
         "日時指定予約".to_string(),
         "日時指定".to_string(),
     )
@@ -215,15 +230,16 @@ async fn schedule_download(
 async fn schedule_youtube_live_from_start(
     request: YoutubeLiveReservationRequest,
     command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
 ) -> Result<ReservationResponse, String> {
     let settings = Settings::new();
     let (param, run_at_ms, title) = resolve_youtube_live_reservation(request, &settings).await?;
     let schedule_id = schedule_local_download(
         command_manager,
         None,
+        reservation_store,
         param,
         run_at_ms,
-        settings,
         title.clone(),
         "YouTubeライブ".to_string(),
     )
