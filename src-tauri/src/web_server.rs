@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager};
+use tauri::{path::BaseDirectory, AppHandle, Manager};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -350,20 +350,12 @@ async fn serve_static(app_handle: &AppHandle, path: &str) -> Result<HttpResponse
 }
 
 fn web_dist_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
-    let current_dir = std::env::current_dir().map_err(|e| format!("current_dir: {}", e))?;
-    for candidate in [current_dir.join("dist"), current_dir.join("../dist")] {
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-    }
-    let resource_dir = app_handle
+    let dist_dir = app_handle
         .path()
-        .resource_dir()
+        .resolve("../dist", BaseDirectory::Resource)
         .map_err(|e| format!("resource_dir: {}", e))?;
-    for candidate in [resource_dir.join("dist"), resource_dir] {
-        if candidate.join("index.html").exists() {
-            return Ok(candidate);
-        }
+    if dist_dir.join("index.html").exists() {
+        return Ok(dist_dir);
     }
     Err("web配信用のdistが見つかりません".to_string())
 }
