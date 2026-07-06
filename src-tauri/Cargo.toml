@@ -41,7 +41,6 @@ tray-icon = "0.23.1"
 tauri-plugin-process = "2.3.1"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 chrono = { version = "0.4.45", features = ["clock", "serde"] }
-local-ip-address = "0.6.13"
 rcgen = "0.14.8"
 tokio-rustls = "0.26.4"
 

@@ -1,6 +1,5 @@
-use std::{fs, net::IpAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
-use local_ip_address::list_afinet_netifas;
 use rcgen::generate_simple_self_signed;
 use serde::{Deserialize, Serialize};
 use tauri::{path::BaseDirectory, AppHandle, Manager};
@@ -89,13 +88,25 @@ pub fn start(
     app_state: tauri::State<'_, AppState>,
     command_manager: tauri::State<'_, Arc<Mutex<CommandManager>>>,
 ) {
+    spawn_web_server(
+        app_handle,
+        app_state.inner(),
+        command_manager.inner().clone(),
+    );
+}
+
+fn spawn_web_server(
+    app_handle: AppHandle,
+    app_state: &AppState,
+    command_manager: Arc<Mutex<CommandManager>>,
+) {
     let settings =
         tauri::async_runtime::block_on(async { app_state.settings.lock().await.clone() });
     let address = format!("0.0.0.0:{}", settings.server_port);
     let reservation_store = app_state.reservation_store.clone();
     let web_server_status = app_state.web_server_status.clone();
-    let command_manager = command_manager.inner().clone();
-    tauri::async_runtime::spawn(async move {
+    let web_server_task = app_state.web_server_task.clone();
+    let task = tauri::async_runtime::spawn(async move {
         set_web_server_status(
             &web_server_status,
             WebServerStatus {
@@ -125,6 +136,9 @@ pub fn start(
             )
             .await;
         }
+    });
+    tauri::async_runtime::spawn(async move {
+        *web_server_task.lock().await = Some(task);
     });
 }
 
@@ -186,6 +200,29 @@ pub async fn set_web_server_status(
 pub async fn get_web_server_status(
     state: tauri::State<'_, AppState>,
 ) -> Result<WebServerStatus, String> {
+    Ok(state.web_server_status.lock().await.clone())
+}
+
+#[tauri::command]
+pub async fn restart_web_server(
+    app_handle: AppHandle,
+    state: tauri::State<'_, AppState>,
+    command_manager: tauri::State<'_, Arc<Mutex<CommandManager>>>,
+) -> Result<WebServerStatus, String> {
+    if let Some(task) = state.web_server_task.lock().await.take() {
+        task.abort();
+    }
+    set_web_server_status(
+        &state.web_server_status,
+        WebServerStatus {
+            running: false,
+            address: String::new(),
+            error: "再起動中".to_string(),
+        },
+    )
+    .await;
+    spawn_web_server(app_handle, state.inner(), command_manager.inner().clone());
+    sleep(Duration::from_millis(250)).await;
     Ok(state.web_server_status.lock().await.clone())
 }
 
@@ -253,30 +290,11 @@ fn recreate_tls_identity() -> Result<(CertificateDer<'static>, PrivateKeyDer<'st
 }
 
 fn tls_subject_alt_names() -> Vec<String> {
-    let mut names = vec![
+    vec![
         "localhost".to_string(),
         "127.0.0.1".to_string(),
         "::1".to_string(),
-    ];
-    if let Ok(interfaces) = list_afinet_netifas() {
-        for (_, ip_address) in interfaces {
-            push_tls_ip_subject_alt_name(&mut names, ip_address);
-        }
-    }
-    names
-}
-
-fn push_tls_ip_subject_alt_name(names: &mut Vec<String>, ip_address: IpAddr) {
-    if ip_address.is_unspecified() {
-        return;
-    }
-    if ip_address.is_ipv6() && !ip_address.is_loopback() {
-        return;
-    }
-    let value = ip_address.to_string();
-    if !names.contains(&value) {
-        names.push(value);
-    }
+    ]
 }
 
 async fn handle_tls_connection(

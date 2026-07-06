@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::{fs, path::PathBuf};
 use std::{io::Write, mem};
+use tauri::async_runtime::JoinHandle;
 use tokio::sync::Mutex;
 
 use crate::reservation_store::ReservationStore;
@@ -205,6 +206,7 @@ pub struct AppState {
     pub tool_cache: Mutex<HashMap<String, ToolCacheEntry>>,
     pub reservation_store: ReservationStore,
     pub web_server_status: Arc<Mutex<WebServerStatus>>,
+    pub web_server_task: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 impl AppState {
@@ -215,6 +217,7 @@ impl AppState {
             reservation_store: ReservationStore::new()
                 .expect("failed to initialize reservation database"),
             web_server_status: Arc::new(Mutex::from(WebServerStatus::default())),
+            web_server_task: Arc::new(Mutex::from(None)),
         }
     }
 }

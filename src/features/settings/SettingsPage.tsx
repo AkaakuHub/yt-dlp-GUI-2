@@ -118,6 +118,7 @@ export default function SettingsPage() {
 		useState<PersistentServerStatus | null>(null);
 	const [webServerStatus, setWebServerStatus] =
 		useState<WebServerStatus | null>(null);
+	const [isRestartingWebServer, setIsRestartingWebServer] = useState(false);
 	const [generatedToken, setGeneratedToken] = useState("");
 	const [showTokenModal, setShowTokenModal] = useState(false);
 
@@ -163,6 +164,17 @@ export default function SettingsPage() {
 		setPersistentServerStatus(persistentStatus);
 		setWebServerStatus(serverStatus);
 	}, []);
+
+	const restartWebServer = async () => {
+		setIsRestartingWebServer(true);
+		try {
+			const serverStatus = await invoke<WebServerStatus>("restart_web_server");
+			setWebServerStatus(serverStatus);
+			await refreshPersistentServerStatus();
+		} finally {
+			setIsRestartingWebServer(false);
+		}
+	};
 
 	const executeUpdate = useCallback(async () => {
 		const update = await check();
@@ -460,7 +472,7 @@ export default function SettingsPage() {
 								</span>
 							) : null}
 						</div>
-						<div className="grid min-w-0 gap-3 md:grid-cols-[auto_minmax(0,1fr)_9.5rem_10rem]">
+						<div className="grid min-w-0 gap-3 md:grid-cols-[auto_7rem_minmax(0,1fr)_9.5rem_10rem]">
 							<button
 								className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
 								type="button"
@@ -468,6 +480,19 @@ export default function SettingsPage() {
 								aria-label="このPCのWebサーバー状態を更新"
 							>
 								<RefreshCw size={16} />
+							</button>
+							<button
+								className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
+								type="button"
+								disabled={isRestartingWebServer}
+								onClick={() => void restartWebServer()}
+							>
+								{isRestartingWebServer ? (
+									<Loader2 size={15} className="animate-spin" />
+								) : (
+									<RefreshCw size={15} />
+								)}
+								再起動
 							</button>
 							<button
 								className="btn btn-ghost h-10 min-h-10 min-w-0 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
