@@ -11,16 +11,26 @@ import {
 	getChannelMonitorRules,
 } from "../../../shared/backend/runtime";
 import { AppInput, AppTextarea } from "../../../shared/components/FormControls";
+import { DownloadModeSelector } from "./DownloadModeSelector";
 
 type ReservationKind = "youtube" | "scheduledUrl";
+type DownloadModeOption = {
+	value: number;
+	label: string;
+};
 
 type RecordingReservationModalProps = {
 	isOpen: boolean;
 	isBusy: boolean;
 	kind: ReservationKind;
+	modeOptions: readonly DownloadModeOption[];
+	modeValue: number;
 	scheduledAt: string;
+	modeDisabled: boolean;
 	onClose: () => void;
 	onKindChange: (kind: ReservationKind) => void;
+	onModeChange: (value: number) => void;
+	onModeMove: (direction: -1 | 1) => void;
 	onScheduleYoutube: () => void;
 	onScheduleUrl: () => void;
 	onScheduledAtChange: (value: string) => void;
@@ -65,9 +75,14 @@ export function RecordingReservationModal({
 	isOpen,
 	isBusy,
 	kind,
+	modeOptions,
+	modeValue,
 	scheduledAt,
+	modeDisabled,
 	onClose,
 	onKindChange,
+	onModeChange,
+	onModeMove,
 	onScheduleYoutube,
 	onScheduleUrl,
 	onScheduledAtChange,
@@ -126,9 +141,9 @@ export function RecordingReservationModal({
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
-			<section className="grid max-h-[calc(100vh-2rem)] w-full max-w-4xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl">
-				<header className="flex h-12 items-center justify-between border-b border-base-300 px-4">
+		<div className="fixed inset-2 z-[100] grid bg-base-content/25 p-0 backdrop-blur-sm">
+			<section className="grid h-full min-h-0 w-full grid-rows-[2.75rem_minmax(0,1fr)] overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-xl">
+				<header className="flex h-11 items-center justify-between border-b border-base-300 px-4">
 					<div className="flex items-center gap-2 text-sm font-bold">
 						<CalendarClock size={18} className="text-primary" />
 						録画予約
@@ -142,11 +157,18 @@ export function RecordingReservationModal({
 						<X size={18} />
 					</button>
 				</header>
-				<div className="grid min-h-0 gap-3 overflow-auto p-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-					<section className="grid content-start gap-3">
+				<div className="grid min-h-0 gap-3 overflow-hidden p-3 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+					<section className="grid min-h-0 content-start gap-2">
 						<div className="text-xs font-semibold text-base-content/65">
 							単発予約
 						</div>
+						<DownloadModeSelector
+							disabled={modeDisabled}
+							options={modeOptions}
+							value={modeValue}
+							onChange={onModeChange}
+							onMove={onModeMove}
+						/>
 						<div className="grid grid-cols-2 gap-2">
 							<button
 								className={`btn h-9 min-h-9 rounded-md text-xs ${
@@ -196,15 +218,17 @@ export function RecordingReservationModal({
 							</button>
 						</div>
 
-						<div className="mt-2 text-xs font-semibold text-base-content/65">
+						<div className="mt-1 text-xs font-semibold text-base-content/65">
 							チャンネル監視
 						</div>
 						<AppInput
+							className="h-8 min-h-8"
 							value={title}
 							onChange={(event) => setTitle(event.target.value)}
 							placeholder="監視名"
 						/>
 						<AppInput
+							className="h-8 min-h-8"
 							value={channelUrl}
 							onChange={(event) => setChannelUrl(event.target.value)}
 							placeholder="YouTubeチャンネルURL"
@@ -235,11 +259,13 @@ export function RecordingReservationModal({
 							/>
 						</div>
 						<AppTextarea
+							className="h-14 min-h-14"
 							value={includeWords}
 							onChange={(event) => setIncludeWords(event.target.value)}
 							placeholder="含むワード。改行またはカンマ区切り"
 						/>
 						<AppTextarea
+							className="h-14 min-h-14"
 							value={excludeWords}
 							onChange={(event) => setExcludeWords(event.target.value)}
 							placeholder="含まないワード。改行またはカンマ区切り"

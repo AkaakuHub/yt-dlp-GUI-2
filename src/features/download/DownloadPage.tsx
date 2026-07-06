@@ -94,6 +94,7 @@ export default function DownloadPage() {
 	const [isScheduling, setIsScheduling] = useState(false);
 	const [showRecordingReservationModal, setShowRecordingReservationModal] =
 		useState(false);
+	const [reservationMode, setReservationMode] = useState(selectedIndexNumber);
 	const [urlQueueText, setUrlQueueText] = useState("");
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
 	const [activeWorkspaceTab, setActiveWorkspaceTab] =
@@ -177,24 +178,26 @@ export default function DownloadPage() {
 		return false;
 	}, [param.start_time, param.end_time]);
 
-	const hasInvalidModeOption = useCallback((): boolean => {
-		const currentSelectedIndex = selectedIndexRef.current;
-		if (
-			currentSelectedIndex === DOWNLOAD_MODE.codecId &&
-			(param.codec_id || "").trim() === ""
-		) {
-			toast.error("IDを指定するモードではコーデックIDが必要です。");
-			return true;
-		}
-		if (
-			currentSelectedIndex === DOWNLOAD_MODE.subtitle &&
-			(param.subtitle_lang || "").trim() === ""
-		) {
-			toast.error("字幕モードでは字幕言語が必要です。");
-			return true;
-		}
-		return false;
-	}, [param.codec_id, param.subtitle_lang]);
+	const hasInvalidModeOption = useCallback(
+		(mode = selectedIndexRef.current): boolean => {
+			if (
+				mode === DOWNLOAD_MODE.codecId &&
+				(param.codec_id || "").trim() === ""
+			) {
+				toast.error("IDを指定するモードではコーデックIDが必要です。");
+				return true;
+			}
+			if (
+				mode === DOWNLOAD_MODE.subtitle &&
+				(param.subtitle_lang || "").trim() === ""
+			) {
+				toast.error("字幕モードでは字幕言語が必要です。");
+				return true;
+			}
+			return false;
+		},
+		[param.codec_id, param.subtitle_lang],
+	);
 
 	const runArbitraryCommand = useCallback(async () => {
 		const currentSelectedIndex = selectedIndexRef.current;
@@ -314,35 +317,37 @@ export default function DownloadPage() {
 		],
 	);
 
-	const buildRecordingBaseParam = useCallback((): RunCommandParam | null => {
-		const currentSelectedIndex = selectedIndexRef.current;
-		if (!isDownloadModeValue(currentSelectedIndex)) {
-			toast.error("不正なモードです。");
-			return null;
-		}
-		if (currentSelectedIndex === DOWNLOAD_MODE.arbitraryCode) {
-			toast.error("任意コードは予約できません。");
-			return null;
-		}
-		if (hasInvalidModeOption()) {
-			return null;
-		}
-		const startTime = normalizeTimestamp(param.start_time || "");
-		const endTime = normalizeTimestamp(param.end_time || "");
-		if (startTime === null || endTime === null) {
-			toast.error("開始時間/終了時間の形式が不正です。");
-			return null;
-		}
-		return {
-			...param,
-			start_time: startTime,
-			end_time: endTime,
-			kind: currentSelectedIndex,
-		};
-	}, [hasInvalidModeOption, param]);
+	const buildRecordingBaseParam = useCallback(
+		(mode: number): RunCommandParam | null => {
+			if (!isDownloadModeValue(mode)) {
+				toast.error("不正なモードです。");
+				return null;
+			}
+			if (mode === DOWNLOAD_MODE.arbitraryCode) {
+				toast.error("任意コードは予約できません。");
+				return null;
+			}
+			if (hasInvalidModeOption(mode)) {
+				return null;
+			}
+			const startTime = normalizeTimestamp(param.start_time || "");
+			const endTime = normalizeTimestamp(param.end_time || "");
+			if (startTime === null || endTime === null) {
+				toast.error("開始時間/終了時間の形式が不正です。");
+				return null;
+			}
+			return {
+				...param,
+				start_time: startTime,
+				end_time: endTime,
+				kind: mode,
+			};
+		},
+		[hasInvalidModeOption, param],
+	);
 
 	const buildScheduledRunParam = useCallback((): RunCommandParam | null => {
-		const runParam = buildRecordingBaseParam();
+		const runParam = buildRecordingBaseParam(reservationMode);
 		if (runParam === null) {
 			return null;
 		}
@@ -355,7 +360,7 @@ export default function DownloadPage() {
 			...runParam,
 			url,
 		};
-	}, [buildRecordingBaseParam, urlInput]);
+	}, [buildRecordingBaseParam, reservationMode, urlInput]);
 
 	const scheduleCurrentDownload = useCallback(async () => {
 		const runParam = buildScheduledRunParam();
@@ -406,7 +411,7 @@ export default function DownloadPage() {
 
 	const createChannelMonitor = useCallback(
 		async (request: ChannelMonitorFormValue) => {
-			const runParam = buildRecordingBaseParam();
+			const runParam = buildRecordingBaseParam(reservationMode);
 			if (runParam === null) {
 				return;
 			}
@@ -443,7 +448,7 @@ export default function DownloadPage() {
 				setIsScheduling(false);
 			}
 		},
-		[buildRecordingBaseParam],
+		[buildRecordingBaseParam, reservationMode],
 	);
 
 	useEffect(() => {
@@ -555,6 +560,21 @@ export default function DownloadPage() {
 		const nextIndex =
 			(safeIndex + direction + downloadModes.length) % downloadModes.length;
 		void persistDownloadMode(downloadModes[nextIndex].value);
+	};
+
+	const moveReservationMode = (direction: -1 | 1) => {
+		const currentIndex = downloadModes.findIndex(
+			(mode) => mode.value === reservationMode,
+		);
+		const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+		const nextIndex =
+			(safeIndex + direction + downloadModes.length) % downloadModes.length;
+		setReservationMode(downloadModes[nextIndex].value);
+	};
+
+	const openRecordingReservationModal = () => {
+		setReservationMode(selectedIndexNumber);
+		setShowRecordingReservationModal(true);
 	};
 
 	const isQueueRunning = queueStatus.pending > 0 || queueStatus.running > 0;
@@ -725,7 +745,7 @@ export default function DownloadPage() {
 									<button
 										className="btn btn-primary h-11 min-h-11 rounded-md text-sm"
 										type="button"
-										onClick={() => setShowRecordingReservationModal(true)}
+										onClick={openRecordingReservationModal}
 									>
 										<CalendarClock size={17} />
 										録画予約
@@ -809,10 +829,15 @@ export default function DownloadPage() {
 				isBusy={isScheduling}
 				isOpen={showRecordingReservationModal}
 				kind={reservationKind}
+				modeDisabled={!isSettingLoaded}
+				modeOptions={downloadModes}
+				modeValue={reservationMode}
 				scheduledAt={scheduledAt}
 				onClose={() => setShowRecordingReservationModal(false)}
 				onCreateChannelMonitor={createChannelMonitor}
 				onKindChange={setReservationKind}
+				onModeChange={setReservationMode}
+				onModeMove={moveReservationMode}
 				onScheduleUrl={() => void scheduleCurrentDownload()}
 				onScheduleYoutube={() => void scheduleYoutubeReservation()}
 				onScheduledAtChange={setScheduledAt}
