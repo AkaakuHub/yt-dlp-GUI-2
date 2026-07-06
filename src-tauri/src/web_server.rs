@@ -1,18 +1,27 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
+use local_ip_address::list_afinet_netifas;
+use rcgen::generate_simple_self_signed;
 use serde::{Deserialize, Serialize};
 use tauri::{path::BaseDirectory, AppHandle, Manager};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::Mutex,
     time::sleep,
+};
+use tokio_rustls::{
+    rustls::{
+        pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
+        ServerConfig,
+    },
+    TlsAcceptor,
 };
 
 use crate::{
     channel_monitor::create_channel_monitor_rule_from_web,
     command_handlers::schedule_local_download,
-    config::{AppState, Settings},
+    config::{get_config_root, AppState, Settings},
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::{CommandManager, QueueStartResponse},
     reservation::{
@@ -21,6 +30,9 @@ use crate::{
     reservation_store::{ChannelMonitorRuleRequest, ReservationStore},
     tools::resolve_tool_paths,
 };
+
+const WEB_TLS_CERT_FILENAME: &str = "web-server-cert.der";
+const WEB_TLS_KEY_FILENAME: &str = "web-server-key.der";
 
 #[derive(Deserialize)]
 struct RunRequest {
@@ -99,7 +111,8 @@ async fn run_server(
     let listener = TcpListener::bind(&address)
         .await
         .map_err(|e| format!("{}: {}", address, e))?;
-    println!("yt-dlp-GUI web listening on http://{}", address);
+    let tls_acceptor = create_tls_acceptor()?;
+    println!("yt-dlp-GUI web listening on https://{}", address);
 
     loop {
         let (stream, _) = listener
@@ -109,9 +122,16 @@ async fn run_server(
         let app_handle = app_handle.clone();
         let command_manager = command_manager.clone();
         let reservation_store = reservation_store.clone();
+        let tls_acceptor = tls_acceptor.clone();
         tokio::spawn(async move {
-            if let Err(err) =
-                handle_connection(stream, app_handle, command_manager, reservation_store).await
+            if let Err(err) = handle_tls_connection(
+                stream,
+                tls_acceptor,
+                app_handle,
+                command_manager,
+                reservation_store,
+            )
+            .await
             {
                 eprintln!("{}", err);
             }
@@ -119,12 +139,81 @@ async fn run_server(
     }
 }
 
-async fn handle_connection(
-    mut stream: TcpStream,
+fn create_tls_acceptor() -> Result<TlsAcceptor, String> {
+    let (cert_der, key_der) = load_or_create_tls_identity()?;
+    let config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![cert_der], key_der)
+        .map_err(|e| format!("HTTPS設定を作成できません: {}", e))?;
+    Ok(TlsAcceptor::from(Arc::new(config)))
+}
+
+fn load_or_create_tls_identity() -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), String>
+{
+    let config_root = get_config_root();
+    let cert_path = config_root.join(WEB_TLS_CERT_FILENAME);
+    let key_path = config_root.join(WEB_TLS_KEY_FILENAME);
+    if cert_path.exists() && key_path.exists() {
+        let cert_der =
+            fs::read(&cert_path).map_err(|e| format!("HTTPS証明書を読めません: {}", e))?;
+        let key_der = fs::read(&key_path).map_err(|e| format!("HTTPS秘密鍵を読めません: {}", e))?;
+        return Ok((
+            CertificateDer::from(cert_der),
+            PrivateKeyDer::from(PrivatePkcs8KeyDer::from(key_der)),
+        ));
+    }
+
+    fs::create_dir_all(&config_root)
+        .map_err(|e| format!("設定ディレクトリを作成できません: {}", e))?;
+    let certified_key = generate_simple_self_signed(tls_subject_alt_names())
+        .map_err(|e| format!("HTTPS証明書を生成できません: {}", e))?;
+    let cert_bytes = certified_key.cert.der().to_vec();
+    let key_bytes = certified_key.signing_key.serialize_der();
+    fs::write(&cert_path, &cert_bytes)
+        .map_err(|e| format!("HTTPS証明書を保存できません: {}", e))?;
+    fs::write(&key_path, &key_bytes).map_err(|e| format!("HTTPS秘密鍵を保存できません: {}", e))?;
+    Ok((
+        CertificateDer::from(cert_bytes),
+        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(key_bytes)),
+    ))
+}
+
+fn tls_subject_alt_names() -> Vec<String> {
+    let mut names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
+    if let Ok(interfaces) = list_afinet_netifas() {
+        for (_, ip_address) in interfaces {
+            let value = ip_address.to_string();
+            if !names.contains(&value) {
+                names.push(value);
+            }
+        }
+    }
+    names
+}
+
+async fn handle_tls_connection(
+    stream: TcpStream,
+    tls_acceptor: TlsAcceptor,
     app_handle: AppHandle,
     command_manager: Arc<Mutex<CommandManager>>,
     reservation_store: ReservationStore,
 ) -> Result<(), String> {
+    let stream = tls_acceptor
+        .accept(stream)
+        .await
+        .map_err(|e| format!("TLS接続に失敗しました: {}", e))?;
+    handle_connection(stream, app_handle, command_manager, reservation_store).await
+}
+
+async fn handle_connection<S>(
+    mut stream: S,
+    app_handle: AppHandle,
+    command_manager: Arc<Mutex<CommandManager>>,
+    reservation_store: ReservationStore,
+) -> Result<(), String>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let request = read_http_request(&mut stream).await?;
     if request.method == "GET" && request.path.starts_with("/api/events") {
         return handle_sse(stream, request, command_manager).await;
@@ -301,11 +390,14 @@ async fn start_download_queue(
     CommandManager::enqueue_commands(command_manager, commands, None, max_parallel).await
 }
 
-async fn handle_sse(
-    mut stream: TcpStream,
+async fn handle_sse<S>(
+    mut stream: S,
     request: HttpRequest,
     command_manager: Arc<Mutex<CommandManager>>,
-) -> Result<(), String> {
+) -> Result<(), String>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     if !is_authorized(&request, &Settings::new()) {
         let response = text_response(401, "Unauthorized", "unauthorized");
         return write_response(&mut stream, response).await;
@@ -344,14 +436,17 @@ async fn handle_sse(
     Ok(())
 }
 
-async fn write_sse_event(stream: &mut TcpStream, event: &str, data: &str) -> Result<(), String> {
+async fn write_sse_event<S>(stream: &mut S, event: &str, data: &str) -> Result<(), String>
+where
+    S: AsyncWrite + Unpin,
+{
     let data =
         serde_json::to_string(data).map_err(|e| format!("SSEの作成に失敗しました: {}", e))?;
     write_sse_raw_event(stream, event, &data).await
 }
 
 async fn write_sse_raw_event(
-    stream: &mut TcpStream,
+    stream: &mut (impl AsyncWrite + Unpin),
     event: &str,
     data: &str,
 ) -> Result<(), String> {
@@ -441,7 +536,7 @@ fn is_authorized(request: &HttpRequest, settings: &Settings) -> bool {
         .unwrap_or(false)
 }
 
-async fn read_http_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
+async fn read_http_request(stream: &mut (impl AsyncRead + Unpin)) -> Result<HttpRequest, String> {
     let mut buffer = Vec::new();
     let mut temp = [0u8; 1024];
     let header_end = loop {
@@ -512,7 +607,10 @@ fn content_length(headers: &[(String, String)]) -> Result<usize, String> {
         .unwrap_or(Ok(0))
 }
 
-async fn write_response(stream: &mut TcpStream, response: HttpResponse) -> Result<(), String> {
+async fn write_response(
+    stream: &mut (impl AsyncWrite + Unpin),
+    response: HttpResponse,
+) -> Result<(), String> {
     let http_response = format!(
         "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n",
         response.status,

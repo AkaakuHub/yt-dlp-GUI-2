@@ -68,9 +68,13 @@ async fn is_local_server_healthy() -> Result<bool, String> {
     if settings.server_auth_token.trim().is_empty() {
         return Ok(false);
     }
-    let response = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| format!("webサーバー状態確認を準備できません: {}", e))?;
+    let response = client
         .get(format!(
-            "http://127.0.0.1:{}/api/health",
+            "https://127.0.0.1:{}/api/health",
             settings.server_port
         ))
         .bearer_auth(settings.server_auth_token.trim())

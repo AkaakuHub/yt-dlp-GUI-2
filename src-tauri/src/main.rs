@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod channel_monitor;
 mod command_handlers;
 mod config;
-mod channel_monitor;
 mod download_command;
 mod notification;
 mod persistent_server_service;

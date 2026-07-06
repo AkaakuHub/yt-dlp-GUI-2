@@ -1,4 +1,3 @@
-import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import {
 	CalendarClock,
 	Cookie,
@@ -11,7 +10,6 @@ import { toast } from "react-toastify";
 import { useAppContext } from "../../app/contexts/AppContext";
 import {
 	createChannelMonitorRule,
-	isTauriRuntime,
 	openDownloadDirectory,
 	type QueueStatus,
 	scheduleDownload,
@@ -23,6 +21,7 @@ import {
 	stopDownload,
 	subscribeProcessEvents,
 } from "../../shared/backend/runtime";
+import { readClipboardText } from "../../shared/clipboard/readClipboardText";
 import ConsoleBox from "../../shared/components/ConsoleBox";
 import {
 	appendConsoleOutput,
@@ -529,14 +528,12 @@ export default function DownloadPage() {
 	const executeFromPrimaryInput = async () => {
 		const inputUrl = urlInput.trim();
 		let clipboardText = "";
-		if (isTauriRuntime()) {
-			try {
-				clipboardText = (await readText()) || "";
-			} catch (err) {
-				toast.error(
-					`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
-				);
-			}
+		try {
+			clipboardText = await readClipboardText();
+		} catch (err) {
+			toast.error(
+				`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
+			);
 		}
 		const targetUrl = clipboardText.trim() || inputUrl;
 		try {
