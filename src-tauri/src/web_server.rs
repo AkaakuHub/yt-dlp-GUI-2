@@ -88,25 +88,30 @@ pub fn start(
     app_state: tauri::State<'_, AppState>,
     command_manager: tauri::State<'_, Arc<Mutex<CommandManager>>>,
 ) {
-    spawn_web_server(
+    let settings =
+        tauri::async_runtime::block_on(async { app_state.settings.lock().await.clone() });
+    let task = spawn_web_server_task(
         app_handle,
+        settings,
         app_state.inner(),
         command_manager.inner().clone(),
     );
+    let web_server_task = app_state.web_server_task.clone();
+    tauri::async_runtime::block_on(async {
+        *web_server_task.lock().await = Some(task);
+    });
 }
 
-fn spawn_web_server(
+fn spawn_web_server_task(
     app_handle: AppHandle,
+    settings: Settings,
     app_state: &AppState,
     command_manager: Arc<Mutex<CommandManager>>,
-) {
-    let settings =
-        tauri::async_runtime::block_on(async { app_state.settings.lock().await.clone() });
+) -> tauri::async_runtime::JoinHandle<()> {
     let address = format!("0.0.0.0:{}", settings.server_port);
     let reservation_store = app_state.reservation_store.clone();
     let web_server_status = app_state.web_server_status.clone();
-    let web_server_task = app_state.web_server_task.clone();
-    let task = tauri::async_runtime::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         set_web_server_status(
             &web_server_status,
             WebServerStatus {
@@ -136,10 +141,7 @@ fn spawn_web_server(
             )
             .await;
         }
-    });
-    tauri::async_runtime::spawn(async move {
-        *web_server_task.lock().await = Some(task);
-    });
+    })
 }
 
 async fn run_server(
@@ -217,12 +219,25 @@ pub async fn restart_web_server(
         WebServerStatus {
             running: false,
             address: String::new(),
-            error: "再起動中".to_string(),
+            error: String::new(),
         },
     )
     .await;
-    spawn_web_server(app_handle, state.inner(), command_manager.inner().clone());
-    sleep(Duration::from_millis(250)).await;
+    let settings = state.settings.lock().await.clone();
+    let task = spawn_web_server_task(
+        app_handle,
+        settings,
+        state.inner(),
+        command_manager.inner().clone(),
+    );
+    *state.web_server_task.lock().await = Some(task);
+    for _ in 0..20 {
+        sleep(Duration::from_millis(100)).await;
+        let status = state.web_server_status.lock().await.clone();
+        if status.running || !status.error.is_empty() {
+            return Ok(status);
+        }
+    }
     Ok(state.web_server_status.lock().await.clone())
 }
 

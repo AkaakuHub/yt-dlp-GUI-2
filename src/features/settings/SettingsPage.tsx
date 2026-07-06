@@ -69,6 +69,19 @@ const parseServerPort = (value: string): number | null => {
 	return parsedPort;
 };
 
+const webServerStatusText = (
+	status: WebServerStatus | null,
+	serverPort: number,
+): string => {
+	if (status?.error) {
+		return `Webサーバー起動失敗:${status.error}`;
+	}
+	if (status?.running) {
+		return `待受:https://0.0.0.0:${serverPort}`;
+	}
+	return "Webサーバー停止中";
+};
+
 export default function SettingsPage() {
 	const {
 		saveDir,
@@ -472,15 +485,7 @@ export default function SettingsPage() {
 								</span>
 							) : null}
 						</div>
-						<div className="grid min-w-0 gap-3 md:grid-cols-[auto_7rem_minmax(0,1fr)_9.5rem_10rem]">
-							<button
-								className="btn btn-ghost h-10 min-h-10 w-11 rounded-md bg-base-100 p-0 hover:bg-base-300"
-								type="button"
-								onClick={() => void refreshPersistentServerStatus()}
-								aria-label="このPCのWebサーバー状態を更新"
-							>
-								<RefreshCw size={16} />
-							</button>
+						<div className="grid min-w-0 gap-3 md:grid-cols-[7rem_minmax(0,1fr)_9.5rem_10rem]">
 							<button
 								className="btn btn-ghost h-10 min-h-10 rounded-md bg-base-100 px-2 text-xs hover:bg-base-300"
 								type="button"
@@ -541,12 +546,7 @@ export default function SettingsPage() {
 						</div>
 						<div className="grid min-w-0 gap-2">
 							<div className="flex h-9 min-w-0 items-center truncate rounded-md bg-base-100 px-3 text-xs text-base-content/55">
-								{webServerStatus?.error
-									? `Webサーバー起動失敗:${webServerStatus.error}`
-									: webServerStatus?.running
-										? `待受:https://${webServerStatus.address}`
-										: persistentServerStatus?.path ||
-											"実行ファイルの場所を確認中"}
+								{webServerStatusText(webServerStatus, serverPort)}
 							</div>
 						</div>
 					</SurfaceIsland>
