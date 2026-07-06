@@ -1,9 +1,16 @@
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { Cookie, Download, FolderOpen, Square } from "lucide-react";
+import {
+	CalendarClock,
+	Cookie,
+	Download,
+	FolderOpen,
+	Square,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../../app/contexts/AppContext";
 import {
+	createChannelMonitorRule,
 	isTauriRuntime,
 	openDownloadDirectory,
 	type QueueStatus,
@@ -29,8 +36,11 @@ import { cn } from "../../shared/utils/className";
 import { AdvancedDownloadPanel } from "./components/AdvancedDownloadPanel";
 import { DownloadModeSelector } from "./components/DownloadModeSelector";
 import { QueueUrlPanel } from "./components/QueueUrlPanel";
+import {
+	type ChannelMonitorFormValue,
+	RecordingReservationModal,
+} from "./components/RecordingReservationModal";
 import { ReservationList } from "./components/ReservationList";
-import { ReservationPanel } from "./components/ReservationPanel";
 import {
 	cleanDownloadUrl,
 	DOWNLOAD_MODE,
@@ -82,6 +92,8 @@ export default function DownloadPage() {
 	>("youtube");
 	const [scheduledAt, setScheduledAt] = useState("");
 	const [isScheduling, setIsScheduling] = useState(false);
+	const [showRecordingReservationModal, setShowRecordingReservationModal] =
+		useState(false);
 	const [urlQueueText, setUrlQueueText] = useState("");
 	const [showQueuePanel, setShowQueuePanel] = useState(false);
 	const [activeWorkspaceTab, setActiveWorkspaceTab] =
@@ -302,7 +314,7 @@ export default function DownloadPage() {
 		],
 	);
 
-	const buildScheduledRunParam = useCallback((): RunCommandParam | null => {
+	const buildRecordingBaseParam = useCallback((): RunCommandParam | null => {
 		const currentSelectedIndex = selectedIndexRef.current;
 		if (!isDownloadModeValue(currentSelectedIndex)) {
 			toast.error("不正なモードです。");
@@ -321,19 +333,29 @@ export default function DownloadPage() {
 			toast.error("開始時間/終了時間の形式が不正です。");
 			return null;
 		}
+		return {
+			...param,
+			start_time: startTime,
+			end_time: endTime,
+			kind: currentSelectedIndex,
+		};
+	}, [hasInvalidModeOption, param]);
+
+	const buildScheduledRunParam = useCallback((): RunCommandParam | null => {
+		const runParam = buildRecordingBaseParam();
+		if (runParam === null) {
+			return null;
+		}
 		const url = cleanDownloadUrl(urlInput);
 		if (url === null) {
 			toast.error("URLが空、または不正です。");
 			return null;
 		}
 		return {
-			...param,
-			start_time: startTime,
-			end_time: endTime,
+			...runParam,
 			url,
-			kind: currentSelectedIndex,
 		};
-	}, [hasInvalidModeOption, param, urlInput]);
+	}, [buildRecordingBaseParam, urlInput]);
 
 	const scheduleCurrentDownload = useCallback(async () => {
 		const runParam = buildScheduledRunParam();
@@ -381,6 +403,48 @@ export default function DownloadPage() {
 			setIsScheduling(false);
 		}
 	}, [buildScheduledRunParam]);
+
+	const createChannelMonitor = useCallback(
+		async (request: ChannelMonitorFormValue) => {
+			const runParam = buildRecordingBaseParam();
+			if (runParam === null) {
+				return;
+			}
+			if (request.title.trim() === "") {
+				toast.error("監視名を入力してください。");
+				return;
+			}
+			const channelUrl = cleanDownloadUrl(request.channelUrl);
+			if (channelUrl === null) {
+				toast.error("YouTubeチャンネルURLが不正です。");
+				return;
+			}
+			if (request.weekdays.length === 0) {
+				toast.error("監視する曜日を選択してください。");
+				return;
+			}
+			try {
+				setIsScheduling(true);
+				await createChannelMonitorRule({
+					title: request.title,
+					channelUrl,
+					weekdays: request.weekdays,
+					checkTime: request.checkTime,
+					includeWords: request.includeWords,
+					excludeWords: request.excludeWords,
+					param: runParam,
+				});
+				toast.success("チャンネル監視を追加しました。");
+			} catch (err) {
+				toast.error(
+					`チャンネル監視の追加に失敗しました:${stringifyError(err)}`,
+				);
+			} finally {
+				setIsScheduling(false);
+			}
+		},
+		[buildRecordingBaseParam],
+	);
 
 	useEffect(() => {
 		let unlisten: (() => void) | null = null;
@@ -657,15 +721,16 @@ export default function DownloadPage() {
 									onParamChange={setParam}
 									onValidateTimestamp={validateTimestamp}
 								/>
-								<ReservationPanel
-									isBusy={isScheduling}
-									kind={reservationKind}
-									scheduledAt={scheduledAt}
-									onKindChange={setReservationKind}
-									onScheduleUrl={() => void scheduleCurrentDownload()}
-									onScheduleYoutube={() => void scheduleYoutubeReservation()}
-									onScheduledAtChange={setScheduledAt}
-								/>
+								<SurfacePanel className="grid content-center gap-2">
+									<button
+										className="btn btn-primary h-11 min-h-11 rounded-md text-sm"
+										type="button"
+										onClick={() => setShowRecordingReservationModal(true)}
+									>
+										<CalendarClock size={17} />
+										録画予約
+									</button>
+								</SurfacePanel>
 							</div>
 						</div>
 					</SurfaceIsland>
@@ -740,6 +805,18 @@ export default function DownloadPage() {
 					<ConsoleBox consoleLog={consoleLog} />
 				</div>
 			</div>
+			<RecordingReservationModal
+				isBusy={isScheduling}
+				isOpen={showRecordingReservationModal}
+				kind={reservationKind}
+				scheduledAt={scheduledAt}
+				onClose={() => setShowRecordingReservationModal(false)}
+				onCreateChannelMonitor={createChannelMonitor}
+				onKindChange={setReservationKind}
+				onScheduleUrl={() => void scheduleCurrentDownload()}
+				onScheduleYoutube={() => void scheduleYoutubeReservation()}
+				onScheduledAtChange={setScheduledAt}
+			/>
 		</div>
 	);
 }

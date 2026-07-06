@@ -46,6 +46,30 @@ export type ScheduledReservation = {
 	status: string;
 };
 
+export type ChannelMonitorRuleRequest = {
+	title: string;
+	channelUrl: string;
+	weekdays: number[];
+	checkTime: string;
+	includeWords: string[];
+	excludeWords: string[];
+	param: RunCommandParam;
+};
+
+export type ChannelMonitorRule = {
+	id: number;
+	title: string;
+	channelUrl: string;
+	weekdays: number[];
+	checkTime: string;
+	includeWords: string[];
+	excludeWords: string[];
+	enabled: boolean;
+	nextCheckAtMs: number;
+	lastCheckedAtMs?: number;
+	status: string;
+};
+
 declare global {
 	interface Window {
 		__TAURI_INTERNALS__?: unknown;
@@ -161,6 +185,30 @@ export const getReservations = async (): Promise<ScheduledReservation[]> => {
 		return invoke<ScheduledReservation[]>("get_reservations");
 	}
 	return apiFetch<ScheduledReservation[]>("/api/reservations");
+};
+
+export const createChannelMonitorRule = async (
+	rule: ChannelMonitorRuleRequest,
+): Promise<number> => {
+	if (isTauriRuntime()) {
+		return invoke<number>("create_channel_monitor_rule", {
+			request: { rule },
+		});
+	}
+	const response = await apiFetch<{ ruleId: number }>("/api/channel-monitors", {
+		method: "POST",
+		body: JSON.stringify(rule),
+	});
+	return response.ruleId;
+};
+
+export const getChannelMonitorRules = async (): Promise<
+	ChannelMonitorRule[]
+> => {
+	if (isTauriRuntime()) {
+		return invoke<ChannelMonitorRule[]>("get_channel_monitor_rules");
+	}
+	return apiFetch<ChannelMonitorRule[]>("/api/channel-monitors");
 };
 
 export const setUseCookieSetting = async (value: boolean): Promise<void> => {

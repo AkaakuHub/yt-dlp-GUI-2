@@ -228,7 +228,7 @@ const App = () => {
 				unlistenDownloadProgress =
 					await listenDownloadProgress<ToolDownloadProgressValue>((payload) => {
 						setBootDownloadProgress(payload);
-				});
+					});
 				const settings = await getSettings();
 				await promptUpdateIfAvailable();
 				const currentStatus = await checkToolAvailability(
