@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import {
 	useCallback,
 	useEffect,
@@ -8,6 +7,7 @@ import {
 } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../../../app/contexts/AppContext";
+import { sendDownloadCompleteNotification } from "../../backend/runtime";
 import { eventEmitter } from "../../events/eventEmitter";
 
 const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
@@ -46,7 +46,7 @@ function DownloadProgress() {
 	const sendNotificationHandler = useCallback(
 		async (title: string, body: string) => {
 			try {
-				await invoke("send_download_complete_notification", { title, body });
+				await sendDownloadCompleteNotification(title, body);
 			} catch (error) {
 				console.error("Failed to send download notification:", error);
 				toast.error(`完了通知の送信に失敗しました:${String(error)}`);

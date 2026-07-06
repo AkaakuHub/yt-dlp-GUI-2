@@ -129,10 +129,8 @@ impl CommandManager {
             let _ = running_job.stop_signal.send(());
         }
         self.running_jobs.clear();
-        self.push_output("プロセスを停止しました\n".to_string());
         if let Some(window) = window {
-            let _ = window.emit("process-output", "プロセスを停止しました\n");
-            let _ = window.emit("process-exit", "プロセスを停止しました");
+            let _ = window.emit("process-exit", "");
             let _ = window.emit("process-queue", self.queue_snapshot());
         }
         Ok(())
@@ -306,20 +304,20 @@ fn start_command_task(
                         eprintln!("Failed to kill process: {}", e);
                     }
                     let _ = child.wait().await;
-                    finish_command(&command_manager_clone, window_clone.clone(), job_id, "プロセス終了").await;
+                    finish_command(&command_manager_clone, window_clone.clone(), job_id, None).await;
                 }
                 status = child.wait() => {
                     match status {
                         Ok(_) => {
                             push_process_output(&command_manager_clone, window_clone.clone(), "\n".to_string()).await;
-                            finish_command(&command_manager_clone, window_clone.clone(), job_id, "プロセス終了").await;
+                            finish_command(&command_manager_clone, window_clone.clone(), job_id, None).await;
                         }
                         Err(e) => {
                             finish_command(
                                 &command_manager_clone,
                                 window_clone.clone(),
                                 job_id,
-                                &format!("プロセス終了エラー: {}", e),
+                                Some(format!("プロセス終了エラー: {}", e)),
                             ).await;
                         }
                     }
@@ -380,7 +378,7 @@ async fn finish_command(
     command_manager: &Arc<Mutex<CommandManager>>,
     window: Option<Window>,
     job_id: u64,
-    message: &str,
+    message: Option<String>,
 ) {
     let startable_count = {
         let mut manager = command_manager.lock().await;
@@ -396,12 +394,8 @@ async fn finish_command(
     if !is_queue_finished {
         return;
     }
-    {
-        let mut manager = command_manager.lock().await;
-        manager.push_output(format!("{}\n", message));
-    }
     if let Some(window) = window {
-        let _ = window.emit("process-exit", message);
+        let _ = window.emit("process-exit", message.unwrap_or_default());
     }
 }
 

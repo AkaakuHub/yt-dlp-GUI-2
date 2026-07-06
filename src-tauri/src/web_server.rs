@@ -643,7 +643,7 @@ where
         if snapshot.running {
             was_running = true;
         } else if was_running {
-            write_sse_event(&mut stream, "process-exit", "プロセス終了").await?;
+            write_sse_event(&mut stream, "process-exit", "").await?;
             break;
         }
         sleep(Duration::from_millis(500)).await;

@@ -253,6 +253,27 @@ export const openDownloadDirectory = async (path: string): Promise<void> => {
 	await invoke("open_directory", { path });
 };
 
+export const sendDownloadCompleteNotification = async (
+	title: string,
+	body: string,
+): Promise<void> => {
+	if (isTauriRuntime()) {
+		await invoke("send_download_complete_notification", { title, body });
+		return;
+	}
+	if (!("Notification" in window)) {
+		throw new Error("このブラウザでは通知を送信できません。");
+	}
+	const permission =
+		Notification.permission === "default"
+			? await Notification.requestPermission()
+			: Notification.permission;
+	if (permission !== "granted") {
+		throw new Error("Web通知の権限が許可されていません。");
+	}
+	new Notification(title, { body });
+};
+
 export const subscribeProcessEvents = async ({
 	onOutput,
 	onExit,

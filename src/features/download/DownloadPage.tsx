@@ -345,39 +345,61 @@ export default function DownloadPage() {
 		[hasInvalidModeOption, param],
 	);
 
-	const buildScheduledRunParam = useCallback((): RunCommandParam | null => {
-		const runParam = buildRecordingBaseParam(reservationMode);
-		if (runParam === null) {
-			return null;
-		}
-		const url = cleanDownloadUrl(urlInput);
-		if (url === null) {
-			toast.error("URLが空、または不正です。");
-			return null;
-		}
-		return {
-			...runParam,
-			url,
-		};
-	}, [buildRecordingBaseParam, reservationMode, urlInput]);
+	const buildScheduledRunParam = useCallback(
+		(targetUrl: string): RunCommandParam | null => {
+			const runParam = buildRecordingBaseParam(reservationMode);
+			if (runParam === null) {
+				return null;
+			}
+			const url = cleanDownloadUrl(targetUrl);
+			if (url === null) {
+				toast.error("URLが空、または不正です。");
+				return null;
+			}
+			return {
+				...runParam,
+				url,
+			};
+		},
+		[buildRecordingBaseParam, reservationMode],
+	);
 
-	const buildYoutubeLiveRunParam = useCallback((): RunCommandParam | null => {
-		const url = cleanDownloadUrl(urlInput);
-		if (url === null) {
-			toast.error("URLが空、または不正です。");
-			return null;
-		}
-		return {
-			...param,
-			start_time: "",
-			end_time: "",
-			url,
-			kind: DOWNLOAD_MODE.liveFromStart,
-		};
-	}, [param, urlInput]);
+	const buildYoutubeLiveRunParam = useCallback(
+		(targetUrl: string): RunCommandParam | null => {
+			const url = cleanDownloadUrl(targetUrl);
+			if (url === null) {
+				toast.error("URLが空、または不正です。");
+				return null;
+			}
+			return {
+				...param,
+				start_time: "",
+				end_time: "",
+				url,
+				kind: DOWNLOAD_MODE.liveFromStart,
+			};
+		},
+		[param],
+	);
+
+	const resolveClipboardPreferredUrl = useCallback(
+		async (inputValue: string): Promise<string> => {
+			let clipboardText = "";
+			try {
+				clipboardText = await readClipboardText();
+			} catch (err) {
+				toast.error(
+					`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
+				);
+			}
+			return clipboardText.trim() || inputValue.trim();
+		},
+		[],
+	);
 
 	const scheduleCurrentDownload = useCallback(async () => {
-		const runParam = buildScheduledRunParam();
+		const targetUrl = await resolveClipboardPreferredUrl(urlInput);
+		const runParam = buildScheduledRunParam(targetUrl);
 		if (runParam === null) {
 			return;
 		}
@@ -399,10 +421,16 @@ export default function DownloadPage() {
 		} finally {
 			setIsScheduling(false);
 		}
-	}, [buildScheduledRunParam, scheduledAt]);
+	}, [
+		buildScheduledRunParam,
+		resolveClipboardPreferredUrl,
+		scheduledAt,
+		urlInput,
+	]);
 
 	const scheduleYoutubeReservation = useCallback(async () => {
-		const runParam = buildYoutubeLiveRunParam();
+		const targetUrl = await resolveClipboardPreferredUrl(urlInput);
+		const runParam = buildYoutubeLiveRunParam(targetUrl);
 		if (runParam === null) {
 			return;
 		}
@@ -421,7 +449,7 @@ export default function DownloadPage() {
 		} finally {
 			setIsScheduling(false);
 		}
-	}, [buildYoutubeLiveRunParam]);
+	}, [buildYoutubeLiveRunParam, resolveClipboardPreferredUrl, urlInput]);
 
 	const createChannelMonitor = useCallback(
 		async (request: ChannelMonitorFormValue) => {
@@ -433,7 +461,10 @@ export default function DownloadPage() {
 				toast.error("監視名を入力してください。");
 				return;
 			}
-			const channelUrl = cleanDownloadUrl(request.channelUrl);
+			const targetChannelUrl = await resolveClipboardPreferredUrl(
+				request.channelUrl,
+			);
+			const channelUrl = cleanDownloadUrl(targetChannelUrl);
 			if (channelUrl === null) {
 				toast.error("YouTubeチャンネルURLが不正です。");
 				return;
@@ -470,7 +501,7 @@ export default function DownloadPage() {
 				setIsScheduling(false);
 			}
 		},
-		[buildRecordingBaseParam, reservationMode],
+		[buildRecordingBaseParam, reservationMode, resolveClipboardPreferredUrl],
 	);
 
 	useEffect(() => {
@@ -526,16 +557,7 @@ export default function DownloadPage() {
 	}, [setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
-		const inputUrl = urlInput.trim();
-		let clipboardText = "";
-		try {
-			clipboardText = await readClipboardText();
-		} catch (err) {
-			toast.error(
-				`クリップボードの読み取りに失敗しました:${stringifyError(err)}`,
-			);
-		}
-		const targetUrl = clipboardText.trim() || inputUrl;
+		const targetUrl = await resolveClipboardPreferredUrl(urlInput);
 		try {
 			await executeButtonOnClick(targetUrl);
 		} catch (err) {

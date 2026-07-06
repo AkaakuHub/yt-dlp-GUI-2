@@ -149,7 +149,6 @@ const App = () => {
 	const [bootDownloadProgress, setBootDownloadProgress] =
 		useState<ToolDownloadProgressValue | null>(null);
 	const { actualTheme } = useTheme();
-	const isDesktopRuntime = isTauriRuntime();
 
 	const handleSetupComplete = () => {
 		setShowSetup(false);
@@ -330,7 +329,7 @@ const App = () => {
 
 	return (
 		<div className="relative flex h-screen flex-col overflow-hidden bg-base-100 text-base-content">
-			{isDesktopRuntime ? <WindowControls /> : null}
+			<WindowControls />
 			<ToastContainer
 				position="top-right"
 				autoClose={5000}
@@ -349,7 +348,7 @@ const App = () => {
 				}}
 			/>
 			<AppTabs
-				tabNames={isDesktopRuntime ? ["ホーム", "設定"] : ["ホーム"]}
+				tabNames={isTauriRuntime() ? ["ホーム", "設定"] : ["ホーム"]}
 				setActiveIndex={setActiveIndex}
 				activeIndex={activeIndex}
 			/>
@@ -357,7 +356,7 @@ const App = () => {
 				<div className={cn(activeIndex === 0 ? "h-full min-h-0" : "hidden")}>
 					<DownloadPage />
 				</div>
-				{isDesktopRuntime ? (
+				{isTauriRuntime() ? (
 					<div className={cn(activeIndex === 1 ? "h-full min-h-0" : "hidden")}>
 						<SettingsPage />
 					</div>
