@@ -39,6 +39,7 @@ import { QueueUrlPanel } from "./components/QueueUrlPanel";
 import {
 	type ChannelMonitorFormValue,
 	RecordingReservationModal,
+	type ReservationKind,
 } from "./components/RecordingReservationModal";
 import { ReservationList } from "./components/ReservationList";
 import {
@@ -87,9 +88,8 @@ export default function DownloadPage() {
 	const [consoleLog, setConsoleLog] = useState(createConsoleLogState);
 	const [urlInput, setUrlInput] = useState("");
 	const [arbitraryCode, setArbitraryCode] = useState("");
-	const [reservationKind, setReservationKind] = useState<
-		"youtube" | "scheduledUrl"
-	>("youtube");
+	const [reservationKind, setReservationKind] =
+		useState<ReservationKind>("youtube");
 	const [scheduledAt, setScheduledAt] = useState("");
 	const [isScheduling, setIsScheduling] = useState(false);
 	const [showRecordingReservationModal, setShowRecordingReservationModal] =
@@ -362,6 +362,21 @@ export default function DownloadPage() {
 		};
 	}, [buildRecordingBaseParam, reservationMode, urlInput]);
 
+	const buildYoutubeLiveRunParam = useCallback((): RunCommandParam | null => {
+		const url = cleanDownloadUrl(urlInput);
+		if (url === null) {
+			toast.error("URLが空、または不正です。");
+			return null;
+		}
+		return {
+			...param,
+			start_time: "",
+			end_time: "",
+			url,
+			kind: DOWNLOAD_MODE.liveFromStart,
+		};
+	}, [param, urlInput]);
+
 	const scheduleCurrentDownload = useCallback(async () => {
 		const runParam = buildScheduledRunParam();
 		if (runParam === null) {
@@ -388,7 +403,7 @@ export default function DownloadPage() {
 	}, [buildScheduledRunParam, scheduledAt]);
 
 	const scheduleYoutubeReservation = useCallback(async () => {
-		const runParam = buildScheduledRunParam();
+		const runParam = buildYoutubeLiveRunParam();
 		if (runParam === null) {
 			return;
 		}
@@ -407,7 +422,7 @@ export default function DownloadPage() {
 		} finally {
 			setIsScheduling(false);
 		}
-	}, [buildScheduledRunParam]);
+	}, [buildYoutubeLiveRunParam]);
 
 	const createChannelMonitor = useCallback(
 		async (request: ChannelMonitorFormValue) => {
@@ -424,7 +439,13 @@ export default function DownloadPage() {
 				toast.error("YouTubeチャンネルURLが不正です。");
 				return;
 			}
-			if (request.weekdays.length === 0) {
+			if (request.schedules.length === 0) {
+				toast.error("監視スケジュールを追加してください。");
+				return;
+			}
+			if (
+				request.schedules.some((schedule) => schedule.weekdays.length === 0)
+			) {
 				toast.error("監視する曜日を選択してください。");
 				return;
 			}
@@ -433,8 +454,10 @@ export default function DownloadPage() {
 				await createChannelMonitorRule({
 					title: request.title,
 					channelUrl,
-					weekdays: request.weekdays,
-					checkTime: request.checkTime,
+					schedules: request.schedules.map((schedule) => ({
+						weekdays: schedule.weekdays,
+						checkTime: schedule.checkTime,
+					})),
 					includeWords: request.includeWords,
 					excludeWords: request.excludeWords,
 					param: runParam,

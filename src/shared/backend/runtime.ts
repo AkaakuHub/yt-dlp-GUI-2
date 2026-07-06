@@ -49,19 +49,22 @@ export type ScheduledReservation = {
 export type ChannelMonitorRuleRequest = {
 	title: string;
 	channelUrl: string;
-	weekdays: number[];
-	checkTime: string;
+	schedules: ChannelMonitorSchedule[];
 	includeWords: string[];
 	excludeWords: string[];
 	param: RunCommandParam;
+};
+
+export type ChannelMonitorSchedule = {
+	weekdays: number[];
+	checkTime: string;
 };
 
 export type ChannelMonitorRule = {
 	id: number;
 	title: string;
 	channelUrl: string;
-	weekdays: number[];
-	checkTime: string;
+	schedules: ChannelMonitorSchedule[];
 	includeWords: string[];
 	excludeWords: string[];
 	enabled: boolean;

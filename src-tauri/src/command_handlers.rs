@@ -184,7 +184,8 @@ fn spawn_scheduled_download(
                 eprintln!("予約実行に失敗しました: {}", err);
             }
         } else {
-            if let Err(update_err) = reservation_store.update_status(reservation_id, "実行済み") {
+            if let Err(update_err) = reservation_store.update_status(reservation_id, "実行済み")
+            {
                 eprintln!("予約状態の更新に失敗しました: {}", update_err);
             }
         }

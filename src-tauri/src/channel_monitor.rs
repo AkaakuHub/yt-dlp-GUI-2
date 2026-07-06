@@ -108,12 +108,12 @@ fn spawn_channel_monitor_rule(
             }
         };
         sleep_until(Instant::now() + Duration::from_millis(delay_ms)).await;
-        let status = match run_channel_monitor_rule(&command_manager, &reservation_store, &rule).await
-        {
-            Ok(Some(title)) => format!("追加: {}", title),
-            Ok(None) => "一致なし".to_string(),
-            Err(err) => format!("失敗: {}", err),
-        };
+        let status =
+            match run_channel_monitor_rule(&command_manager, &reservation_store, &rule).await {
+                Ok(Some(title)) => format!("追加: {}", title),
+                Ok(None) => "一致なし".to_string(),
+                Err(err) => format!("失敗: {}", err),
+            };
         match reservation_store.mark_channel_monitor_checked(rule.id, &status) {
             Ok(next_check_at_ms) => {
                 let mut next_rule = rule;

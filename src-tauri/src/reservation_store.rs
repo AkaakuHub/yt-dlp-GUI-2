@@ -31,11 +31,17 @@ pub struct PendingReservation {
 pub struct ChannelMonitorRuleRequest {
     pub title: String,
     pub channel_url: String,
-    pub weekdays: Vec<u8>,
-    pub check_time: String,
+    pub schedules: Vec<ChannelMonitorSchedule>,
     pub include_words: Vec<String>,
     pub exclude_words: Vec<String>,
     pub param: RunCommandParam,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelMonitorSchedule {
+    pub weekdays: Vec<u8>,
+    pub check_time: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -44,8 +50,7 @@ pub struct ChannelMonitorRule {
     pub id: i64,
     pub title: String,
     pub channel_url: String,
-    pub weekdays: Vec<u8>,
-    pub check_time: String,
+    pub schedules: Vec<ChannelMonitorSchedule>,
     pub include_words: Vec<String>,
     pub exclude_words: Vec<String>,
     pub enabled: bool,
@@ -98,7 +103,14 @@ impl ReservationStore {
                 "INSERT INTO reservations
                 (title, url, run_at_ms, kind, status, param_json, created_at_ms, updated_at_ms)
                 VALUES (?1, ?2, ?3, ?4, '予約中', ?5, ?6, ?6)",
-                params![title, url, u64_to_i64(run_at_ms)?, kind, param_json, u64_to_i64(now_ms)?],
+                params![
+                    title,
+                    url,
+                    u64_to_i64(run_at_ms)?,
+                    kind,
+                    param_json,
+                    u64_to_i64(now_ms)?
+                ],
             )
             .map_err(|e| format!("予約を保存できません: {}", e))?;
         Ok(connection.last_insert_rowid())
@@ -185,8 +197,12 @@ impl ReservationStore {
     ) -> Result<i64, String> {
         validate_channel_monitor_rule(&request)?;
         let now_ms = current_time_ms()?;
-        let next_check_at_ms = next_check_at_ms(&request.weekdays, &request.check_time)?;
-        let weekdays_json = serde_json::to_string(&request.weekdays)
+        let next_check_at_ms = next_check_at_ms_for_schedules(&request.schedules)?;
+        let first_schedule = request
+            .schedules
+            .first()
+            .ok_or_else(|| "監視スケジュールを追加してください".to_string())?;
+        let weekdays_json = serde_json::to_string(&first_schedule.weekdays)
             .map_err(|e| format!("監視曜日をJSONに変換できません: {}", e))?;
         let include_words_json = serde_json::to_string(&clean_words(&request.include_words))
             .map_err(|e| format!("含むワードをJSONに変換できません: {}", e))?;
@@ -206,7 +222,7 @@ impl ReservationStore {
                     request.title.trim(),
                     request.channel_url.trim(),
                     weekdays_json,
-                    request.check_time.trim(),
+                    first_schedule.check_time.trim(),
                     include_words_json,
                     exclude_words_json,
                     param_json,
@@ -215,14 +231,30 @@ impl ReservationStore {
                 ],
             )
             .map_err(|e| format!("チャンネル監視を保存できません: {}", e))?;
-        Ok(connection.last_insert_rowid())
+        let rule_id = connection.last_insert_rowid();
+        for schedule in &request.schedules {
+            connection
+                .execute(
+                    "INSERT INTO channel_monitor_rule_schedules
+                    (rule_id, weekdays_json, check_time)
+                    VALUES (?1, ?2, ?3)",
+                    params![
+                        rule_id,
+                        serde_json::to_string(&schedule.weekdays)
+                            .map_err(|e| format!("監視曜日をJSONに変換できません: {}", e))?,
+                        schedule.check_time.trim(),
+                    ],
+                )
+                .map_err(|e| format!("監視スケジュールを保存できません: {}", e))?;
+        }
+        Ok(rule_id)
     }
 
     pub fn channel_monitor_rules(&self) -> Result<Vec<ChannelMonitorRule>, String> {
         let connection = self.connection()?;
         let mut statement = connection
             .prepare(
-                "SELECT id, title, channel_url, weekdays_json, check_time,
+                "SELECT id, title, channel_url,
                  include_words_json, exclude_words_json, enabled, next_check_at_ms,
                  last_checked_at_ms, status
                  FROM channel_monitor_rules
@@ -237,12 +269,10 @@ impl ReservationStore {
                     row.get::<_, String>(2)?,
                     row.get::<_, String>(3)?,
                     row.get::<_, String>(4)?,
-                    row.get::<_, String>(5)?,
-                    row.get::<_, String>(6)?,
-                    row.get::<_, i64>(7)?,
-                    row.get::<_, i64>(8)?,
-                    row.get::<_, Option<i64>>(9)?,
-                    row.get::<_, String>(10)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, Option<i64>>(7)?,
+                    row.get::<_, String>(8)?,
                 ))
             })
             .map_err(|e| format!("チャンネル監視一覧を取得できません: {}", e))?;
@@ -253,8 +283,6 @@ impl ReservationStore {
                 id,
                 title,
                 channel_url,
-                weekdays_json,
-                check_time,
                 include_words_json,
                 exclude_words_json,
                 enabled,
@@ -262,13 +290,12 @@ impl ReservationStore {
                 last_checked_at_ms,
                 status,
             ) = row.map_err(|e| format!("チャンネル監視一覧を読めません: {}", e))?;
+            let schedules = self.channel_monitor_schedules(id)?;
             rules.push(ChannelMonitorRule {
                 id,
                 title,
                 channel_url,
-                weekdays: serde_json::from_str(&weekdays_json)
-                    .map_err(|e| format!("監視曜日を読めません: {}", e))?,
-                check_time,
+                schedules,
                 include_words: serde_json::from_str(&include_words_json)
                     .map_err(|e| format!("含むワードを読めません: {}", e))?,
                 exclude_words: serde_json::from_str(&exclude_words_json)
@@ -282,9 +309,7 @@ impl ReservationStore {
         Ok(rules)
     }
 
-    pub fn pending_channel_monitor_rules(
-        &self,
-    ) -> Result<Vec<PendingChannelMonitorRule>, String> {
+    pub fn pending_channel_monitor_rules(&self) -> Result<Vec<PendingChannelMonitorRule>, String> {
         let connection = self.connection()?;
         let mut statement = connection
             .prepare(
@@ -333,18 +358,14 @@ impl ReservationStore {
         Ok(rules)
     }
 
-    pub fn mark_channel_monitor_checked(
-        &self,
-        id: i64,
-        status: &str,
-    ) -> Result<u64, String> {
+    pub fn mark_channel_monitor_checked(&self, id: i64, status: &str) -> Result<u64, String> {
         let rule = self
             .channel_monitor_rules()?
             .into_iter()
             .find(|rule| rule.id == id)
             .ok_or_else(|| "チャンネル監視が見つかりません".to_string())?;
         let now_ms = current_time_ms()?;
-        let next_check_at_ms = next_check_at_ms(&rule.weekdays, &rule.check_time)?;
+        let next_check_at_ms = next_check_at_ms_for_schedules(&rule.schedules)?;
         self.connection()?
             .execute(
                 "UPDATE channel_monitor_rules
@@ -385,10 +406,47 @@ impl ReservationStore {
                 "INSERT OR IGNORE INTO channel_monitor_hits
                 (rule_id, content_key, url, title, created_at_ms)
                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![rule_id, content_key, url, title, u64_to_i64(current_time_ms()?)?],
+                params![
+                    rule_id,
+                    content_key,
+                    url,
+                    title,
+                    u64_to_i64(current_time_ms()?)?
+                ],
             )
             .map_err(|e| format!("監視済み動画を保存できません: {}", e))?;
         Ok(())
+    }
+
+    fn channel_monitor_schedules(
+        &self,
+        rule_id: i64,
+    ) -> Result<Vec<ChannelMonitorSchedule>, String> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT weekdays_json, check_time
+                 FROM channel_monitor_rule_schedules
+                 WHERE rule_id = ?1
+                 ORDER BY id ASC",
+            )
+            .map_err(|e| format!("監視スケジュールを取得できません: {}", e))?;
+        let rows = statement
+            .query_map([rule_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| format!("監視スケジュールを取得できません: {}", e))?;
+        let mut schedules = Vec::new();
+        for row in rows {
+            let (weekdays_json, check_time) =
+                row.map_err(|e| format!("監視スケジュールを読めません: {}", e))?;
+            schedules.push(ChannelMonitorSchedule {
+                weekdays: serde_json::from_str(&weekdays_json)
+                    .map_err(|e| format!("監視曜日を読めません: {}", e))?,
+                check_time,
+            });
+        }
+        Ok(schedules)
     }
 
     fn initialize(&self) -> Result<(), String> {
@@ -420,6 +478,12 @@ impl ReservationStore {
                     status TEXT NOT NULL,
                     created_at_ms INTEGER NOT NULL,
                     updated_at_ms INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS channel_monitor_rule_schedules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    rule_id INTEGER NOT NULL,
+                    weekdays_json TEXT NOT NULL,
+                    check_time TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS channel_monitor_hits (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -461,18 +525,33 @@ fn validate_channel_monitor_rule(request: &ChannelMonitorRuleRequest) -> Result<
     if request.channel_url.trim().is_empty() {
         return Err("チャンネルURLを入力してください".to_string());
     }
-    if request.weekdays.is_empty() {
-        return Err("監視する曜日を選択してください".to_string());
+    if request.schedules.is_empty() {
+        return Err("監視スケジュールを追加してください".to_string());
     }
-    if request
-        .weekdays
-        .iter()
-        .any(|weekday| !(1..=7).contains(weekday))
-    {
-        return Err("曜日が不正です".to_string());
+    for schedule in &request.schedules {
+        if schedule.weekdays.is_empty() {
+            return Err("監視する曜日を選択してください".to_string());
+        }
+        if schedule
+            .weekdays
+            .iter()
+            .any(|weekday| !(1..=7).contains(weekday))
+        {
+            return Err("曜日が不正です".to_string());
+        }
+        parse_check_time(&schedule.check_time)?;
     }
-    parse_check_time(&request.check_time)?;
     Ok(())
+}
+
+fn next_check_at_ms_for_schedules(schedules: &[ChannelMonitorSchedule]) -> Result<u64, String> {
+    schedules
+        .iter()
+        .map(|schedule| next_check_at_ms(&schedule.weekdays, &schedule.check_time))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .min()
+        .ok_or_else(|| "次回監視時刻を計算できません".to_string())
 }
 
 fn next_check_at_ms(weekdays: &[u8], check_time: &str) -> Result<u64, String> {

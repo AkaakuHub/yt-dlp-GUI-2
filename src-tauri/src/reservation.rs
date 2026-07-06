@@ -68,6 +68,7 @@ async fn fetch_youtube_metadata(url: &str, settings: &Settings) -> Result<Value,
         .arg(url)
         .arg("--dump-single-json")
         .arg("--skip-download")
+        .arg("--ignore-no-formats-error")
         .arg("--no-warnings");
     if settings.use_cookie {
         command.arg("--cookies-from-browser").arg(&settings.browser);

@@ -83,7 +83,8 @@ pub fn start(
     let reservation_store = app_state.reservation_store.clone();
     let command_manager = command_manager.inner().clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(err) = run_server(address, app_handle, command_manager, reservation_store).await {
+        if let Err(err) = run_server(address, app_handle, command_manager, reservation_store).await
+        {
             eprintln!("webサーバーの起動に失敗しました: {}", err);
         }
     });
@@ -191,13 +192,12 @@ async fn handle_http_request(
             let schedule_request =
                 serde_json::from_str::<YoutubeLiveReservationRequest>(&request.body)
                     .map_err(|e| format!("リクエストの解析に失敗しました: {}", e))?;
-            let reservation =
-                schedule_youtube_live_from_start(
-                    schedule_request,
-                    command_manager,
-                    reservation_store,
-                )
-                .await?;
+            let reservation = schedule_youtube_live_from_start(
+                schedule_request,
+                command_manager,
+                reservation_store,
+            )
+            .await?;
             json_response(200, "OK", &reservation)
         }
         ("POST", "/api/channel-monitors") => {
