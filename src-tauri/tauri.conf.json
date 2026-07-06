@@ -37,7 +37,7 @@
   },
   "productName": "yt-dlp-GUI",
   "mainBinaryName": "yt-dlp-GUI",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "identifier": "yt-dlp-GUI",
   "plugins": {
     "updater": {
