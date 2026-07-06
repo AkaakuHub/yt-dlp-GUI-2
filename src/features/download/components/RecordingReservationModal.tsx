@@ -7,7 +7,7 @@ import {
 	Trash2,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	type ChannelMonitorRule,
 	getChannelMonitorRules,
@@ -86,8 +86,8 @@ const formatDateTime = (timestampMs: number): string =>
 		hour12: false,
 	}).format(new Date(timestampMs));
 
-const createScheduleRow = (): ChannelMonitorScheduleFormValue => ({
-	id: crypto.randomUUID(),
+const createScheduleRow = (id: string): ChannelMonitorScheduleFormValue => ({
+	id,
 	weekdays: [1, 5],
 	checkTime: "19:00",
 });
@@ -120,10 +120,16 @@ export function RecordingReservationModal({
 	onScheduledAtChange,
 	onCreateChannelMonitor,
 }: RecordingReservationModalProps) {
+	const nextScheduleIdRef = useRef(1);
+	const buildScheduleRow = useCallback((): ChannelMonitorScheduleFormValue => {
+		const scheduleId = `schedule-${nextScheduleIdRef.current}`;
+		nextScheduleIdRef.current += 1;
+		return createScheduleRow(scheduleId);
+	}, []);
 	const [title, setTitle] = useState("");
 	const [channelUrl, setChannelUrl] = useState("");
 	const [schedules, setSchedules] = useState<ChannelMonitorScheduleFormValue[]>(
-		[createScheduleRow()],
+		() => [buildScheduleRow()],
 	);
 	const [includeWords, setIncludeWords] = useState("");
 	const [excludeWords, setExcludeWords] = useState("");
@@ -173,7 +179,7 @@ export function RecordingReservationModal({
 	};
 
 	const addSchedule = () => {
-		setSchedules((prev) => [...prev, createScheduleRow()]);
+		setSchedules((prev) => [...prev, buildScheduleRow()]);
 	};
 
 	const deleteSchedule = (scheduleId: string) => {
@@ -195,7 +201,7 @@ export function RecordingReservationModal({
 		});
 		setTitle("");
 		setChannelUrl("");
-		setSchedules([createScheduleRow()]);
+		setSchedules([buildScheduleRow()]);
 		setIncludeWords("");
 		setExcludeWords("");
 		await refreshMonitorRules();
