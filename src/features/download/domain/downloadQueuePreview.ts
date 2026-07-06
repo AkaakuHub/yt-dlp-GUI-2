@@ -1,16 +1,16 @@
 import { parseQueueItems } from "./downloadForm";
 
-export type ExecutionTargetPreview = {
+export type DownloadQueuePreview = {
 	id: string;
 	index: number;
 	source: "primary" | "queue";
 	url: string;
 };
 
-export function buildExecutionTargetPreview(
+export function buildDownloadQueuePreview(
 	primaryUrl: string,
 	queueText: string,
-): ExecutionTargetPreview[] {
+): DownloadQueuePreview[] {
 	const queueItems = parseQueueItems(queueText);
 	if (queueItems.length > 0) {
 		return queueItems.map((url, index) => ({

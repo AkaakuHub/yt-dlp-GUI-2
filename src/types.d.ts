@@ -10,9 +10,6 @@ export interface ConfigProps {
 	yt_dlp_path: string; // バンドル版またはカスタムパスのyt-dlp
 	ffmpeg_path: string; // バンドル版またはカスタムパスのffmpeg
 	deno_path: string; // バンドル版またはカスタムパスのdeno
-	execution_target: "local" | "remote";
-	remote_server_url: string;
-	remote_auth_token: string;
 	server_auth_token: string;
 	keep_running_in_tray: boolean;
 }

@@ -9,7 +9,6 @@ import {
 import { check } from "@tauri-apps/plugin-updater";
 import {
 	Bell,
-	CheckCircle2,
 	Cookie,
 	Copy,
 	FolderOpen,
@@ -17,7 +16,6 @@ import {
 	Hash,
 	KeyRound,
 	Loader2,
-	Network,
 	RefreshCw,
 	Server,
 	Settings2,
@@ -26,16 +24,12 @@ import {
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAppContext } from "../../app/contexts/AppContext";
-import {
-	isTauriRuntime,
-	setKeepRunningInTraySetting,
-} from "../../shared/backend/runtime";
-import { AppInput, AppTextarea } from "../../shared/components/FormControls";
-import { SurfaceIsland, SurfacePanel } from "../../shared/components/Surface";
+import { setKeepRunningInTraySetting } from "../../shared/backend/runtime";
+import { AppInput } from "../../shared/components/FormControls";
+import { SurfaceIsland } from "../../shared/components/Surface";
 import ThemeSelector from "../../shared/components/ThemeSelector";
 import { type ToolDownloadProgressValue } from "../../shared/components/ToolDownloadProgress";
 import { installAvailableUpdate } from "../../shared/utils/appUpdate";
-import { cn } from "../../shared/utils/className";
 import { checkToolAvailability } from "../../shared/utils/toolAvailability";
 import type { ConfigProps } from "../../types";
 import { ToolsSettingsModal } from "./components/ToolsSettingsModal";
@@ -87,12 +81,6 @@ export default function SettingsPage() {
 		setFfmpegPath,
 		denoPath,
 		setDenoPath,
-		executionTarget,
-		setExecutionTarget,
-		remoteServerUrl,
-		setRemoteServerUrl,
-		remoteAuthToken,
-		setRemoteAuthToken,
 		serverAuthToken,
 		setServerAuthToken,
 		keepRunningInTray,
@@ -119,12 +107,10 @@ export default function SettingsPage() {
 	const [downloadedOnce, setDownloadedOnce] = useState(false);
 	const [isRegisteringPersistentServer, setIsRegisteringPersistentServer] =
 		useState(false);
-	const [isTestingRemoteServer, setIsTestingRemoteServer] = useState(false);
 	const [persistentServerStatus, setPersistentServerStatus] =
 		useState<PersistentServerStatus | null>(null);
 	const [generatedToken, setGeneratedToken] = useState("");
 	const [showTokenModal, setShowTokenModal] = useState(false);
-	const [showRemoteSettingsModal, setShowRemoteSettingsModal] = useState(false);
 
 	const updateSaveDir = async (nextSaveDir: string) => {
 		setSaveDir(nextSaveDir);
@@ -145,29 +131,6 @@ export default function SettingsPage() {
 		setIsSendNotification(nextIsSendNotification);
 		await invoke("set_is_send_notification", {
 			newIsSendNotification: nextIsSendNotification,
-		});
-	};
-
-	const updateExecutionTarget = async (
-		nextExecutionTarget: "local" | "remote",
-	) => {
-		setExecutionTarget(nextExecutionTarget);
-		await invoke("set_execution_target", {
-			executionTarget: nextExecutionTarget,
-		});
-	};
-
-	const updateRemoteServerUrl = async (nextRemoteServerUrl: string) => {
-		setRemoteServerUrl(nextRemoteServerUrl);
-		await invoke("set_remote_server_url", {
-			remoteServerUrl: nextRemoteServerUrl,
-		});
-	};
-
-	const updateRemoteAuthToken = async (nextRemoteAuthToken: string) => {
-		setRemoteAuthToken(nextRemoteAuthToken);
-		await invoke("set_remote_auth_token", {
-			remoteAuthToken: nextRemoteAuthToken,
 		});
 	};
 
@@ -366,7 +329,7 @@ export default function SettingsPage() {
 	};
 
 	const generateServerToken = async () => {
-		const token = await invoke<string>("generate_remote_auth_token");
+		const token = await invoke<string>("generate_server_auth_token");
 		await updateServerAuthToken(token);
 		setGeneratedToken(token);
 		setShowTokenModal(true);
@@ -387,25 +350,6 @@ export default function SettingsPage() {
 		}
 	};
 
-	const copyRemoteAuthToken = async () => {
-		if (remoteAuthToken.trim() === "") {
-			toast.error("コピーするトークンがありません");
-			return;
-		}
-		try {
-			await writeText(remoteAuthToken);
-			toast.success("トークンをコピーしました");
-			setShowRemoteSettingsModal(false);
-		} catch (error) {
-			toast.error(`トークンのコピーに失敗しました:${String(error)}`);
-		}
-	};
-
-	const deleteRemoteAuthToken = async () => {
-		await updateRemoteAuthToken("");
-		toast.success("接続トークンを削除しました");
-	};
-
 	const deleteServerAuthToken = async () => {
 		await updateServerAuthToken("");
 		setGeneratedToken("");
@@ -413,39 +357,14 @@ export default function SettingsPage() {
 		toast.success("トークンを削除しました");
 	};
 
-	const testRemoteServer = async () => {
-		setIsTestingRemoteServer(true);
-		try {
-			await invoke("test_remote_server", {
-				serverUrl: remoteServerUrl,
-				authToken: remoteAuthToken,
-			});
-			toast.success("リモートサーバーに接続できました");
-		} catch (error) {
-			toast.error(`リモートサーバーに接続できません:${String(error)}`);
-		} finally {
-			setIsTestingRemoteServer(false);
-		}
-	};
-
 	const visibleToken = generatedToken || serverAuthToken;
 	const serverTokenStatus =
 		serverAuthToken.trim() === "" ? "未登録" : "登録済み";
-	const remoteTokenStatus =
-		remoteAuthToken.trim() === "" ? "未登録" : "登録済み";
-	const isDesktopRuntime = isTauriRuntime();
 
 	return (
 		<div className="h-full min-h-0 overflow-hidden bg-base-100 p-2 text-base-content">
 			<div className="mx-auto grid h-full min-w-0 max-w-5xl grid-rows-[minmax(0,1fr)_auto] gap-2">
-				<div
-					className={cn(
-						"grid min-h-0 min-w-0 gap-2 overflow-hidden",
-						isDesktopRuntime
-							? "grid-rows-[5.125rem_4.625rem_7rem_8.5rem_3.625rem]"
-							: "grid-rows-[5.125rem_4.625rem_8.5rem_3.625rem]",
-					)}
-				>
+				<div className="grid min-h-0 min-w-0 grid-rows-[5.125rem_4.625rem_8.5rem_3.625rem] gap-2 overflow-hidden">
 					<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[minmax(0,1fr)_7rem] md:items-end">
 						<ThemeSelector />
 						<div className="flex h-9 items-end">
@@ -496,82 +415,6 @@ export default function SettingsPage() {
 							</label>
 						</div>
 					</SurfaceIsland>
-
-					{isDesktopRuntime ? (
-						<SurfaceIsland className="grid min-h-0 gap-2 md:grid-cols-[8rem_minmax(0,1fr)]">
-							<div className="grid min-h-0 gap-1">
-								<div className="flex h-5 items-center gap-2 text-xs font-semibold text-base-content/65">
-									<Network size={16} className="text-primary" />
-									実行先
-								</div>
-								<div className="grid min-h-0 gap-1">
-									<button
-										className={cn(
-											"btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm",
-											executionTarget === "local"
-												? "btn-primary"
-												: "btn-ghost bg-base-100 hover:bg-base-300",
-										)}
-										type="button"
-										onClick={() => void updateExecutionTarget("local")}
-									>
-										<HardDrive size={16} />
-										このPC
-									</button>
-									<button
-										className={cn(
-											"btn h-8 min-h-8 min-w-0 justify-start rounded-md px-3 text-sm",
-											executionTarget === "remote"
-												? "btn-primary"
-												: "btn-ghost bg-base-100 hover:bg-base-300",
-										)}
-										type="button"
-										onClick={() => void updateExecutionTarget("remote")}
-									>
-										<Server size={16} />
-										サーバー
-									</button>
-								</div>
-							</div>
-							<SurfacePanel className="grid min-h-0 gap-2 p-2 mt-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9.5rem] md:items-center">
-								{executionTarget === "remote" ? (
-									<>
-										<div className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] items-center gap-2 rounded-md bg-base-200 px-3 py-2">
-											<span className="text-[11px] font-semibold text-base-content/65">
-												接続先
-											</span>
-											<span className="min-w-0 truncate text-sm font-semibold">
-												{remoteServerUrl || "未設定"}
-											</span>
-										</div>
-										<button
-											className="btn btn-ghost h-8 min-h-8 rounded-md bg-base-200 px-2 text-xs hover:bg-base-300"
-											type="button"
-											onClick={() => setShowRemoteSettingsModal(true)}
-										>
-											<Settings2 size={16} />
-											接続設定
-										</button>
-										<button
-											className="btn btn-ghost h-8 min-h-8 rounded-md bg-base-200 px-2 text-xs hover:bg-base-300"
-											type="button"
-											disabled={isTestingRemoteServer}
-											onClick={() => void testRemoteServer()}
-										>
-											{isTestingRemoteServer ? (
-												<Loader2 size={16} className="animate-spin" />
-											) : (
-												<CheckCircle2 size={16} />
-											)}
-											接続確認
-										</button>
-									</>
-								) : (
-									<div>このPCで実行します。</div>
-								)}
-							</SurfacePanel>
-						</SurfaceIsland>
-					) : null}
 
 					<SurfaceIsland className="grid min-h-0 grid-rows-[auto_2.5rem_2.25rem] gap-3">
 						<div className="flex items-center gap-2 text-xs font-semibold text-base-content/65">
@@ -720,85 +563,6 @@ export default function SettingsPage() {
 					)}
 				</footer>
 			</div>
-
-			{showRemoteSettingsModal ? (
-				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">
-					<section className="grid w-full max-w-lg gap-3 rounded-lg border border-base-300 bg-base-100 p-4 shadow-xl">
-						<header className="flex items-center justify-between">
-							<h2 className="text-lg font-bold">接続設定</h2>
-							<button
-								className="btn btn-ghost btn-sm h-8 min-h-8 w-8 rounded-md p-0"
-								type="button"
-								onClick={() => setShowRemoteSettingsModal(false)}
-								aria-label="閉じる"
-							>
-								<X size={18} />
-							</button>
-						</header>
-						<label className="grid gap-1">
-							<span className="label py-0 text-xs font-semibold text-base-content/65">
-								サーバーURL
-							</span>
-							<AppInput
-								value={remoteServerUrl}
-								onChange={(event) =>
-									void updateRemoteServerUrl(event.target.value)
-								}
-								placeholder="http://100.x.y.z:50000"
-								type="url"
-							/>
-						</label>
-						<label className="grid gap-1">
-							<span className="label py-0 text-xs font-semibold text-base-content/65">
-								トークン
-							</span>
-							<AppTextarea
-								value={remoteAuthToken}
-								onChange={(event) =>
-									void updateRemoteAuthToken(event.target.value)
-								}
-							/>
-						</label>
-						<div className="grid gap-2 rounded-md bg-base-200 p-3 text-sm">
-							<div className="flex items-center justify-between gap-3">
-								<span className="text-base-content/65">状態</span>
-								<span className="font-semibold">{remoteTokenStatus}</span>
-							</div>
-							<div className="flex items-center justify-between gap-3">
-								<span className="text-base-content/65">期限</span>
-								<span className="font-semibold">期限なし</span>
-							</div>
-						</div>
-						<footer className="flex justify-end gap-2">
-							<button
-								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
-								type="button"
-								onClick={() => setShowRemoteSettingsModal(false)}
-							>
-								閉じる
-							</button>
-							<button
-								className="btn btn-ghost h-9 min-h-9 rounded-md bg-base-200 text-sm hover:bg-base-300"
-								type="button"
-								disabled={remoteAuthToken.trim() === ""}
-								onClick={() => void deleteRemoteAuthToken()}
-							>
-								<X size={16} />
-								削除
-							</button>
-							<button
-								className="btn btn-primary h-9 min-h-9 rounded-md text-sm"
-								type="button"
-								disabled={remoteAuthToken.trim() === ""}
-								onClick={() => void copyRemoteAuthToken()}
-							>
-								<Copy size={16} />
-								コピー
-							</button>
-						</footer>
-					</section>
-				</div>
-			) : null}
 
 			{showTokenModal ? (
 				<div className="fixed inset-0 z-50 grid place-items-center bg-base-content/25 p-4 backdrop-blur-sm">

@@ -1,8 +1,4 @@
 use crate::{
-    client::remote::{
-        schedule_remote_download, schedule_remote_youtube_live_from_start,
-        start_remote_download_queue, stop_remote_download,
-    },
     config::AppState,
     download_command::{build_yt_dlp_args, RunCommandParam},
     process_manager::{CommandManager, QueueStartResponse, ScheduledReservation},
@@ -17,8 +13,6 @@ use tauri::Window;
 use tauri::{Emitter, State};
 use tokio::sync::Mutex;
 use tokio::time::{sleep_until, Duration, Instant};
-
-const REMOTE_EXECUTION_TARGET: &str = "remote";
 
 #[tauri::command]
 pub async fn start_download(
@@ -44,15 +38,6 @@ pub async fn start_download_queue(
     app_state: State<'_, AppState>,
 ) -> Result<QueueStartResponse, String> {
     let settings = app_state.settings.lock().await.clone();
-    if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        let response = start_remote_download_queue(params, max_parallel, &settings, window).await?;
-        return Ok(QueueStartResponse {
-            queue_id: response.queue_id,
-            total: response.total,
-            started: response.started,
-            running_pids: response.running_pids,
-        });
-    }
     start_local_download_queue(
         command_manager.inner().clone(),
         Some(window),
@@ -72,9 +57,6 @@ pub async fn schedule_download(
     app_state: State<'_, AppState>,
 ) -> Result<String, String> {
     let settings = app_state.settings.lock().await.clone();
-    if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        return schedule_remote_download(param, run_at_ms, &settings, window).await;
-    }
     schedule_local_download(
         command_manager.inner().clone(),
         Some(window),
@@ -95,9 +77,6 @@ pub async fn schedule_youtube_live_from_start(
     app_state: State<'_, AppState>,
 ) -> Result<ReservationResponse, String> {
     let settings = app_state.settings.lock().await.clone();
-    if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        return schedule_remote_youtube_live_from_start(request, &settings, window).await;
-    }
     let (param, run_at_ms, title) = resolve_youtube_live_reservation(request, &settings).await?;
     let schedule_id = schedule_local_download(
         command_manager.inner().clone(),
@@ -213,13 +192,7 @@ async fn start_local_download_queue(
 pub async fn stop_download(
     command_manager: State<'_, Arc<Mutex<CommandManager>>>,
     window: Window,
-    app_state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let settings = app_state.settings.lock().await.clone();
-    if settings.execution_target == REMOTE_EXECUTION_TARGET {
-        return stop_remote_download(&settings).await;
-    }
-
     let mut manager = command_manager.lock().await;
     manager.stop_all_commands(Some(window)).await
 }

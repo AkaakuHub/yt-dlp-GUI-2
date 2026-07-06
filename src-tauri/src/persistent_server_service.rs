@@ -44,7 +44,7 @@ pub async fn get_persistent_server_status() -> Result<PersistentServerStatus, St
 }
 
 #[tauri::command]
-pub fn generate_remote_auth_token() -> String {
+pub fn generate_server_auth_token() -> String {
     Alphanumeric.sample_string(&mut rand::rng(), 48)
 }
 

@@ -228,13 +228,9 @@ const App = () => {
 				unlistenDownloadProgress =
 					await listenDownloadProgress<ToolDownloadProgressValue>((payload) => {
 						setBootDownloadProgress(payload);
-					});
+				});
 				const settings = await getSettings();
 				await promptUpdateIfAvailable();
-				if (settings.execution_target === "remote") {
-					setShowSetup(false);
-					return;
-				}
 				const currentStatus = await checkToolAvailability(
 					settings.use_bundle_tools,
 					settings.yt_dlp_path,

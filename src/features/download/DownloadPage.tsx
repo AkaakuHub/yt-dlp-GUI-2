@@ -45,7 +45,7 @@ import {
 	shortenText,
 	type TimestampField,
 } from "./domain/downloadForm";
-import { buildExecutionTargetPreview } from "./domain/executionTargetPreview";
+import { buildDownloadQueuePreview } from "./domain/downloadQueuePreview";
 
 const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
 const downloadModes = downloadModeOptions;
@@ -503,7 +503,7 @@ export default function DownloadPage() {
 	const selectedModeLabel =
 		downloadModes.find((mode) => mode.value === selectedIndexNumber)?.label ||
 		"未選択";
-	const executionTargetRows = buildExecutionTargetPreview(
+	const downloadQueuePreviewRows = buildDownloadQueuePreview(
 		urlInput,
 		urlQueueText,
 	);
@@ -682,13 +682,13 @@ export default function DownloadPage() {
 								<span>{!isQueueRunning ? "未開始" : "実行中"}</span>
 								<span className="truncate">{selectedModeLabel}</span>
 								<span className="truncate text-base-content/45">
-									{executionTargetRows.length}件
+									{downloadQueuePreviewRows.length}件
 								</span>
 								<span>{cookieLabel}</span>
 								<span className="truncate">{outputNameLabel}</span>
 							</div>
 							<div className="min-h-0 overflow-auto">
-								{executionTargetRows.map((row) => {
+								{downloadQueuePreviewRows.map((row) => {
 									return (
 										<div
 											key={row.id}

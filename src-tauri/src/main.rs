@@ -1,6 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod client;
 mod command_handlers;
 mod config;
 mod download_command;
@@ -103,16 +102,12 @@ fn main() {
             config::commands::set_yt_dlp_path,
             config::commands::set_ffmpeg_path,
             config::commands::set_deno_path,
-            config::commands::set_execution_target,
-            config::commands::set_remote_server_url,
-            config::commands::set_remote_auth_token,
             config::commands::set_server_auth_token,
             config::commands::set_keep_running_in_tray,
-            client::remote::test_remote_server,
             persistent_server_service::register_persistent_server,
             persistent_server_service::unregister_persistent_server,
             persistent_server_service::get_persistent_server_status,
-            persistent_server_service::generate_remote_auth_token,
+            persistent_server_service::generate_server_auth_token,
             notification::send_download_complete_notification
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
