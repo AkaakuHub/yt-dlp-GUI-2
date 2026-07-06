@@ -57,7 +57,6 @@ import {
 } from "./domain/downloadForm";
 import { buildDownloadQueuePreview } from "./domain/downloadQueuePreview";
 
-const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
 const downloadModes = downloadModeOptions;
 const workspaceTabs = [
 	"実行",
@@ -78,6 +77,7 @@ export default function DownloadPage() {
 	const {
 		isSettingLoaded,
 		saveDir,
+		setDownloadLifecycleState,
 		selectedIndexNumber,
 		setLatestConsoleText,
 		setSelectedIndexNumber,
@@ -229,12 +229,19 @@ export default function DownloadPage() {
 			kind: currentSelectedIndex,
 		};
 		const processId = await startDownload(runParam);
+		setDownloadLifecycleState("running");
 		setQueueStatus((prev) => ({
 			...prev,
 			running: 1,
 			runningPids: [processId],
 		}));
-	}, [arbitraryCode, hasInvalidModeOption, hasInvalidTimestamp, param]);
+	}, [
+		arbitraryCode,
+		hasInvalidModeOption,
+		hasInvalidTimestamp,
+		param,
+		setDownloadLifecycleState,
+	]);
 
 	const executeButtonOnClick = useCallback(
 		async (targetUrl: string) => {
@@ -296,6 +303,7 @@ export default function DownloadPage() {
 					};
 				});
 				const response = await startDownloadQueue(runParams, maxParallel);
+				setDownloadLifecycleState("running");
 				setQueueStatus({
 					pending: Math.max(response.total - response.started, 0),
 					running: response.started,
@@ -313,6 +321,7 @@ export default function DownloadPage() {
 			param,
 			maxParallel,
 			urlQueueText,
+			setDownloadLifecycleState,
 		],
 	);
 
@@ -526,6 +535,7 @@ export default function DownloadPage() {
 							? `${payload}\n${latestDownloadDestinationRef.current}`
 							: payload;
 					setLatestConsoleText(progressPayload);
+					setDownloadLifecycleState("running");
 				}
 				setConsoleLog((prev) => appendConsoleOutput(prev, payload));
 			},
@@ -533,7 +543,7 @@ export default function DownloadPage() {
 				const wasStopped = stopRequestedRef.current;
 				stopRequestedRef.current = false;
 				latestDownloadDestinationRef.current = "";
-				setLatestConsoleText(wasStopped ? DOWNLOAD_STOPPED_MESSAGE : "");
+				setDownloadLifecycleState(wasStopped ? "stopped" : "completed");
 				if (wasStopped) {
 					return;
 				}
@@ -554,7 +564,7 @@ export default function DownloadPage() {
 		return () => {
 			unlisten?.();
 		};
-	}, [setLatestConsoleText]);
+	}, [setDownloadLifecycleState, setLatestConsoleText]);
 
 	const executeFromPrimaryInput = async () => {
 		const targetUrl = await resolveClipboardPreferredUrl(urlInput);

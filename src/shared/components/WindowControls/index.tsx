@@ -10,8 +10,6 @@ import { useAppContext } from "../../../app/contexts/AppContext";
 import { sendDownloadCompleteNotification } from "../../backend/runtime";
 import { eventEmitter } from "../../events/eventEmitter";
 
-const DOWNLOAD_STOPPED_MESSAGE = "プロセスを停止しました";
-
 const extractDestinationTitle = (consoleText: string): string | undefined => {
 	const destinationLine = consoleText
 		.split(/\r?\n/)
@@ -55,8 +53,8 @@ function DownloadProgress() {
 		[],
 	);
 
-	const { latestConsoleText } = useAppContext();
-	const { isSendNotification } = useAppContext();
+	const { downloadLifecycleState, isSendNotification, latestConsoleText } =
+		useAppContext();
 
 	const [isDownloading, setIsDownloading] = useState(false);
 	const [progressPercentage, setProgressPercentage] = useState(0);
@@ -148,13 +146,13 @@ function DownloadProgress() {
 			setIsDownloading(true);
 			setProgressText("コンテナ処理中...");
 			setProgressPercentage(100);
-		} else if (latestConsoleText === DOWNLOAD_STOPPED_MESSAGE) {
+		} else if (downloadLifecycleState === "stopped") {
 			setIsDownloading(false);
 			setProgressPercentage(0);
 			setProgressText("");
 			videoTitleRef.current = "";
 			setVideoTitle("");
-		} else if (latestConsoleText === "") {
+		} else if (downloadLifecycleState === "completed") {
 			setIsDownloading(false);
 			setProgressPercentage(0);
 			if (videoTitleRef.current !== "") {
@@ -170,6 +168,7 @@ function DownloadProgress() {
 			setVideoTitle("");
 		}
 	}, [
+		downloadLifecycleState,
 		isSendNotification,
 		latestConsoleText,
 		removeEmptyFromArray,

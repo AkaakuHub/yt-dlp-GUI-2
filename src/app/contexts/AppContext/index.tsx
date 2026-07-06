@@ -9,9 +9,19 @@ import {
 import { getSettings } from "../../../shared/backend/runtime";
 import { ThemeProvider } from "../ThemeContext";
 
+export type DownloadLifecycleState =
+	| "idle"
+	| "running"
+	| "completed"
+	| "stopped";
+
 interface AppContextProps {
 	latestConsoleText: string;
 	setLatestConsoleText: React.Dispatch<React.SetStateAction<string>>;
+	downloadLifecycleState: DownloadLifecycleState;
+	setDownloadLifecycleState: React.Dispatch<
+		React.SetStateAction<DownloadLifecycleState>
+	>;
 	isSettingLoaded: boolean;
 	setIsSettingLoaded: React.Dispatch<React.SetStateAction<boolean>>;
 	saveDir: string;
@@ -46,6 +56,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	children,
 }) => {
 	const [latestConsoleText, setLatestConsoleText] = useState<string>("");
+	const [downloadLifecycleState, setDownloadLifecycleState] =
+		useState<DownloadLifecycleState>("idle");
 
 	const [isSettingLoaded, setIsSettingLoaded] = useState(false);
 
@@ -89,6 +101,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				value={{
 					latestConsoleText,
 					setLatestConsoleText,
+					downloadLifecycleState,
+					setDownloadLifecycleState,
 					isSettingLoaded,
 					setIsSettingLoaded,
 					saveDir,
