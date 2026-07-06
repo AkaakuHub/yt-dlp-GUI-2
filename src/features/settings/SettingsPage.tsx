@@ -89,6 +89,7 @@ export default function SettingsPage() {
 
 	const [currentVersion, setCurrentVersion] = useState("");
 	const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 	const [notificationPermission, setNotificationPermission] = useState<
 		boolean | null
 	>(null);
@@ -161,6 +162,29 @@ export default function SettingsPage() {
 		await installAvailableUpdate({ update });
 	}, []);
 
+	const checkAppUpdate = useCallback(async (showResult: boolean) => {
+		setIsCheckingUpdate(true);
+		try {
+			const update = await check();
+			setIsUpdateAvailable(update !== null);
+			if (!showResult) {
+				return;
+			}
+			if (update === null) {
+				toast.info("最新です");
+				return;
+			}
+			toast.success(`バージョン${update.version}があります`);
+		} catch (error) {
+			if (showResult) {
+				toast.error(`アップデート確認に失敗しました:${String(error)}`);
+			}
+			setIsUpdateAvailable(false);
+		} finally {
+			setIsCheckingUpdate(false);
+		}
+	}, []);
+
 	useEffect(() => {
 		const setupDownloadProgressListener = async () => {
 			return listen<ToolDownloadProgressValue>("download-progress", (event) => {
@@ -169,10 +193,9 @@ export default function SettingsPage() {
 		};
 
 		const loadSettingsMetadata = async () => {
-			const [version, detectedOsType, update] = await Promise.all([
+			const [version, detectedOsType] = await Promise.all([
 				invoke<string>("get_current_version"),
 				invoke<string>("get_os_type"),
-				check().catch(() => null),
 			]);
 			const granted =
 				detectedOsType === MACOS_OS_TYPE
@@ -181,7 +204,7 @@ export default function SettingsPage() {
 			setCurrentVersion(version);
 			setOsType(detectedOsType);
 			setNotificationPermission(granted);
-			setIsUpdateAvailable(update !== null);
+			void checkAppUpdate(false);
 		};
 
 		const unlistenPromise = setupDownloadProgressListener();
@@ -200,7 +223,7 @@ export default function SettingsPage() {
 			document.removeEventListener("visibilitychange", refreshOnVisible);
 			unlistenPromise.then((unlisten) => unlisten());
 		};
-	}, [refreshPersistentServerStatus]);
+	}, [checkAppUpdate, refreshPersistentServerStatus]);
 
 	const requestNotificationAccess = async () => {
 		const permission = await requestPermission();
@@ -559,7 +582,21 @@ export default function SettingsPage() {
 							更新する
 						</button>
 					) : (
-						<span>最新です</span>
+						<span className="inline-flex items-center gap-1">
+							<span>最新です</span>
+							<button
+								className="btn btn-ghost btn-xs h-5 min-h-5 w-5 rounded-md p-0"
+								type="button"
+								disabled={isCheckingUpdate}
+								onClick={() => void checkAppUpdate(true)}
+								aria-label="アップデートを確認"
+							>
+								<RefreshCw
+									size={12}
+									className={isCheckingUpdate ? "animate-spin" : ""}
+								/>
+							</button>
+						</span>
 					)}
 				</footer>
 			</div>
