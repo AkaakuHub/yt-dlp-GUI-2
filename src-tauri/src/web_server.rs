@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{fs, net::IpAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use local_ip_address::list_afinet_netifas;
 use rcgen::generate_simple_self_signed;
@@ -141,11 +141,22 @@ async fn run_server(
 
 fn create_tls_acceptor() -> Result<TlsAcceptor, String> {
     let (cert_der, key_der) = load_or_create_tls_identity()?;
+    let config = create_tls_server_config(cert_der, key_der).or_else(|_| {
+        recreate_tls_identity()
+            .and_then(|(cert_der, key_der)| create_tls_server_config(cert_der, key_der))
+    })?;
+    Ok(TlsAcceptor::from(Arc::new(config)))
+}
+
+fn create_tls_server_config(
+    cert_der: CertificateDer<'static>,
+    key_der: PrivateKeyDer<'static>,
+) -> Result<ServerConfig, String> {
     let config = ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(vec![cert_der], key_der)
         .map_err(|e| format!("HTTPS設定を作成できません: {}", e))?;
-    Ok(TlsAcceptor::from(Arc::new(config)))
+    Ok(config)
 }
 
 fn load_or_create_tls_identity() -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), String>
@@ -178,17 +189,44 @@ fn load_or_create_tls_identity() -> Result<(CertificateDer<'static>, PrivateKeyD
     ))
 }
 
+fn recreate_tls_identity() -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), String> {
+    let config_root = get_config_root();
+    let cert_path = config_root.join(WEB_TLS_CERT_FILENAME);
+    let key_path = config_root.join(WEB_TLS_KEY_FILENAME);
+    if cert_path.exists() {
+        fs::remove_file(&cert_path).map_err(|e| format!("HTTPS証明書を削除できません: {}", e))?;
+    }
+    if key_path.exists() {
+        fs::remove_file(&key_path).map_err(|e| format!("HTTPS秘密鍵を削除できません: {}", e))?;
+    }
+    load_or_create_tls_identity()
+}
+
 fn tls_subject_alt_names() -> Vec<String> {
-    let mut names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
+    let mut names = vec![
+        "localhost".to_string(),
+        "127.0.0.1".to_string(),
+        "::1".to_string(),
+    ];
     if let Ok(interfaces) = list_afinet_netifas() {
         for (_, ip_address) in interfaces {
-            let value = ip_address.to_string();
-            if !names.contains(&value) {
-                names.push(value);
-            }
+            push_tls_ip_subject_alt_name(&mut names, ip_address);
         }
     }
     names
+}
+
+fn push_tls_ip_subject_alt_name(names: &mut Vec<String>, ip_address: IpAddr) {
+    if ip_address.is_unspecified() {
+        return;
+    }
+    if ip_address.is_ipv6() && !ip_address.is_loopback() {
+        return;
+    }
+    let value = ip_address.to_string();
+    if !names.contains(&value) {
+        names.push(value);
+    }
 }
 
 async fn handle_tls_connection(
