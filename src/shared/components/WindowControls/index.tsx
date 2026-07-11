@@ -70,7 +70,27 @@ function DownloadProgress() {
 	useEffect(() => {
 		let formattedPercentageString = "";
 
-		if (latestConsoleText.startsWith("[download]")) {
+		if (downloadLifecycleState === "stopped") {
+			setIsDownloading(false);
+			setProgressPercentage(0);
+			setProgressText("");
+			videoTitleRef.current = "";
+			setVideoTitle("");
+		} else if (downloadLifecycleState === "completed") {
+			setIsDownloading(false);
+			setProgressPercentage(0);
+			if (videoTitleRef.current !== "") {
+				if (isSendNotification) {
+					void sendNotificationHandler(
+						"ダウンロード完了",
+						`${videoTitleRef.current} のダウンロードが完了しました。`,
+					);
+				}
+				eventEmitter.emit("refreshFiles");
+			}
+			videoTitleRef.current = "";
+			setVideoTitle("");
+		} else if (latestConsoleText.startsWith("[download]")) {
 			setIsDownloading(true);
 			const videoTitleExtracted = extractDestinationTitle(latestConsoleText);
 			if (
@@ -146,26 +166,6 @@ function DownloadProgress() {
 			setIsDownloading(true);
 			setProgressText("コンテナ処理中...");
 			setProgressPercentage(100);
-		} else if (downloadLifecycleState === "stopped") {
-			setIsDownloading(false);
-			setProgressPercentage(0);
-			setProgressText("");
-			videoTitleRef.current = "";
-			setVideoTitle("");
-		} else if (downloadLifecycleState === "completed") {
-			setIsDownloading(false);
-			setProgressPercentage(0);
-			if (videoTitleRef.current !== "") {
-				if (isSendNotification) {
-					void sendNotificationHandler(
-						"ダウンロード完了",
-						`${videoTitleRef.current} のダウンロードが完了しました。`,
-					);
-				}
-				eventEmitter.emit("refreshFiles");
-			}
-			videoTitleRef.current = "";
-			setVideoTitle("");
 		}
 	}, [
 		downloadLifecycleState,
