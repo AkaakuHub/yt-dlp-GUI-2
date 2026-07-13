@@ -92,8 +92,7 @@ impl CommandManager {
         if !manager.running_jobs.is_empty() || !manager.queued_jobs.is_empty() {
             return Err("キューは既に実行中です".to_string());
         }
-        manager.outputs.clear();
-        manager.next_output_id = 0;
+        manager.clear_output_history();
         manager.queued_jobs.clear();
         manager.running_jobs.clear();
         manager.next_job_id = 1;
@@ -138,8 +137,7 @@ impl CommandManager {
         if !manager.running_jobs.is_empty() || !manager.queued_jobs.is_empty() {
             return Err("キューは既に実行中です".to_string());
         }
-        manager.outputs.clear();
-        manager.next_output_id = 0;
+        manager.clear_output_history();
         manager.queued_jobs.clear();
         manager.running_jobs.clear();
         manager.next_job_id = 1;
@@ -248,6 +246,10 @@ impl CommandManager {
         let id = self.next_output_id;
         self.next_output_id += 1;
         self.outputs.push(ProcessOutput { id, line });
+    }
+
+    fn clear_output_history(&mut self) {
+        self.outputs.clear();
     }
 }
 
@@ -538,5 +540,24 @@ async fn process_lines<R>(
     if !buffer.is_empty() {
         let line = decode_buffer(&buffer);
         push_process_output(&command_manager, window, line).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn output_cursor_stays_monotonic_after_starting_a_new_queue() {
+        let mut manager = CommandManager::new();
+        manager.push_output("previous output".to_string());
+        let cursor = manager.next_output_id();
+
+        manager.clear_output_history();
+        manager.push_output("list formats output".to_string());
+
+        let output = manager.snapshot_since(cursor).outputs;
+        assert_eq!(output.len(), 1);
+        assert_eq!(output[0].line, "list formats output");
     }
 }
