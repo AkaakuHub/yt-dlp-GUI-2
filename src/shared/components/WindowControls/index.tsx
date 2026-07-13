@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import { useAppContext } from "../../../app/contexts/AppContext";
 import { sendDownloadCompleteNotification } from "../../backend/runtime";
 import { eventEmitter } from "../../events/eventEmitter";
+import { createDownloadTitle, defaultDocumentTitle } from "./downloadTitle";
 
 const extractDestinationTitle = (consoleText: string): string | undefined => {
 	const destinationLine = consoleText
@@ -228,6 +229,26 @@ function DownloadProgress() {
 			animation.cancel();
 		};
 	}, [scrollDuration, shouldScroll]);
+
+	useEffect(() => {
+		if (!isDownloading) {
+			document.title = defaultDocumentTitle();
+			return;
+		}
+
+		const startedAt = Date.now();
+		const updateTitle = () => {
+			const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+			document.title = createDownloadTitle(
+				progressText,
+				videoTitle,
+				elapsedSeconds,
+			);
+		};
+		updateTitle();
+		const intervalId = window.setInterval(updateTitle, 1000);
+		return () => window.clearInterval(intervalId);
+	}, [isDownloading, progressText, videoTitle]);
 
 	return (
 		<>

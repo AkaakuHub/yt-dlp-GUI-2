@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "pretauri": "node scripts/copy-tools-manifest.cjs",
+    "test": "node --experimental-strip-types --test src/shared/components/WindowControls/downloadTitle.test.ts",
     "check": "biome check --fix ./src",
     "knip": "knip",
     "typecheck": "tsc --noEmit",
