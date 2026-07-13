@@ -634,7 +634,7 @@ where
             manager.next_output_id()
         }
     };
-    let mut was_running = false;
+    let mut completion_id = command_manager.lock().await.completion_id();
     let mut last_queue_json = String::new();
     loop {
         let snapshot = command_manager.lock().await.snapshot_since(since);
@@ -648,14 +648,17 @@ where
             write_sse_raw_event(&mut stream, "process-queue", &queue_json).await?;
             last_queue_json = queue_json;
         }
-        if snapshot.running {
-            was_running = true;
-        } else if was_running {
+        let next_completion_id = command_manager.lock().await.completion_id();
+        if completion_advanced(completion_id, next_completion_id) {
             write_sse_event(&mut stream, "process-exit", "").await?;
-            was_running = false;
+            completion_id = next_completion_id;
         }
         sleep(Duration::from_millis(500)).await;
     }
+}
+
+fn completion_advanced(previous: u64, next: u64) -> bool {
+    next > previous
 }
 
 async fn write_sse_event<S>(stream: &mut S, event: &str, data: &str) -> Result<(), String>
@@ -941,6 +944,12 @@ mod tests {
         let resolved_path = static_file_path(&dist_dir, "downloads").unwrap();
 
         assert_eq!(resolved_path, index_path);
+    }
+
+    #[test]
+    fn completion_advanced_detects_a_short_lived_execution() {
+        assert!(completion_advanced(5, 6));
+        assert!(!completion_advanced(5, 5));
     }
 
     fn create_test_dist_dir(name: &str) -> PathBuf {

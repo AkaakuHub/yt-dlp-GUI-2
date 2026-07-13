@@ -14,13 +14,17 @@ use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tokio::task;
 
+const MAX_PROCESS_OUTPUTS: usize = 5_000;
+
 pub struct CommandManager {
     queued_jobs: VecDeque<QueuedCommand>,
     running_jobs: HashMap<u64, RunningCommand>,
     next_job_id: u64,
     max_parallel: usize,
-    outputs: Vec<ProcessOutput>,
+    outputs: VecDeque<ProcessOutput>,
     next_output_id: u64,
+    completion_id: u64,
+    is_queue_active: bool,
 }
 
 pub struct QueuedCommand {
@@ -72,8 +76,10 @@ impl CommandManager {
             running_jobs: HashMap::new(),
             next_job_id: 1,
             max_parallel: 1,
-            outputs: Vec::new(),
+            outputs: VecDeque::new(),
             next_output_id: 0,
+            completion_id: 0,
+            is_queue_active: false,
         }
     }
 
@@ -97,6 +103,7 @@ impl CommandManager {
         manager.running_jobs.clear();
         manager.next_job_id = 1;
         manager.max_parallel = max_parallel.max(1);
+        manager.is_queue_active = true;
         let queue_id = manager.next_job_id;
         for (args, yt_dlp_path) in commands {
             let id = manager.next_job_id;
@@ -142,6 +149,7 @@ impl CommandManager {
         manager.running_jobs.clear();
         manager.next_job_id = 1;
         manager.max_parallel = max_parallel.max(1);
+        manager.is_queue_active = true;
         let queue_id = manager.next_job_id;
         for (args, yt_dlp_path) in commands {
             let id = manager.next_job_id;
@@ -183,6 +191,7 @@ impl CommandManager {
             let _ = running_job.stop_signal.send(());
         }
         self.running_jobs.clear();
+        self.mark_queue_completed();
         if let Some(window) = window {
             let _ = window.emit("process-exit", "");
             let _ = window.emit("process-queue", self.queue_snapshot());
@@ -205,6 +214,10 @@ impl CommandManager {
 
     pub fn next_output_id(&self) -> u64 {
         self.next_output_id
+    }
+
+    pub fn completion_id(&self) -> u64 {
+        self.completion_id
     }
 
     pub fn queue_snapshot(&self) -> QueueSnapshot {
@@ -245,11 +258,21 @@ impl CommandManager {
     fn push_output(&mut self, line: String) {
         let id = self.next_output_id;
         self.next_output_id += 1;
-        self.outputs.push(ProcessOutput { id, line });
+        self.outputs.push_back(ProcessOutput { id, line });
+        if self.outputs.len() > MAX_PROCESS_OUTPUTS {
+            self.outputs.pop_front();
+        }
     }
 
     fn clear_output_history(&mut self) {
         self.outputs.clear();
+    }
+
+    fn mark_queue_completed(&mut self) {
+        if self.is_queue_active {
+            self.is_queue_active = false;
+            self.completion_id += 1;
+        }
     }
 }
 
@@ -480,6 +503,7 @@ async fn finish_command(
     if !is_queue_finished {
         return;
     }
+    command_manager.lock().await.mark_queue_completed();
     if let Some(window) = window {
         let _ = window.emit("process-exit", message.unwrap_or_default());
     }
@@ -559,5 +583,32 @@ mod tests {
         let output = manager.snapshot_since(cursor).outputs;
         assert_eq!(output.len(), 1);
         assert_eq!(output[0].line, "list formats output");
+    }
+
+    #[test]
+    fn output_history_keeps_only_the_latest_entries() {
+        let mut manager = CommandManager::new();
+        for index in 0..=MAX_PROCESS_OUTPUTS {
+            manager.push_output(index.to_string());
+        }
+
+        let output = manager.snapshot_since(0).outputs;
+        assert_eq!(output.len(), MAX_PROCESS_OUTPUTS);
+        assert_eq!(output.first().map(|line| line.id), Some(1));
+        assert_eq!(
+            output.last().map(|line| line.id),
+            Some(MAX_PROCESS_OUTPUTS as u64)
+        );
+    }
+
+    #[test]
+    fn completion_id_changes_once_after_a_queue_finishes() {
+        let mut manager = CommandManager::new();
+        manager.is_queue_active = true;
+
+        manager.mark_queue_completed();
+        manager.mark_queue_completed();
+
+        assert_eq!(manager.completion_id(), 1);
     }
 }
